@@ -1,0 +1,9 @@
+__pycache__
+*.swp
+app_info_cache.json
+configs/*
+!configs/config_example.json
+temp/
+temp_*
+!utils/temp_dir.py
+

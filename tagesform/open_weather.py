@@ -1,4 +1,3 @@
-
 from datetime import datetime
 import requests
 
@@ -31,6 +30,36 @@ class OpenWeatherResponse:
                 hourly_data = forecast_json["list"][i]
                 hour = datetime.fromtimestamp(hourly_data['dt']).strftime("%Y-%m-%d %H:%M")
                 self.hourly_forecast[hour] = OpenWeatherResponse(hourly_data)
+
+    def to_dict(self):
+        """Convert the weather response to a dictionary for JSON serialization."""
+        # Get rain forecast for next 5 days
+        rain_forecast = self.rain_in_next_5_days()
+        # Filter for daytime rain (between 6:00 and 18:00)
+        daytime_rain = {}
+        for date, hours in rain_forecast.items():
+            daytime_hours = [h for h in hours if 6 <= int(h.split(':')[0]) <= 18]
+            if daytime_hours:
+                daytime_rain[date] = daytime_hours
+
+        return {
+            'datetime': self.datetime.isoformat(),
+            'city': self.city,
+            'temperature': self.temperature,
+            'feels_like': self.feels_like,
+            'humidity': self.humidity,
+            'pressure': self.pressure,
+            'wind': self.wind,
+            'rain': self.rain,
+            'clouds': self.clouds,
+            'description': self.description,
+            'sunrise': self.sunrise,
+            'sunset': self.sunset,
+            'hourly_forecast': {
+                hour: forecast.to_dict() for hour, forecast in self.hourly_forecast.items()
+            } if self.hourly_forecast else None,
+            'daytime_rain_forecast': daytime_rain if daytime_rain else None
+        }
 
     def rain_in_next_5_days(self):
         hours_with_rain = {}

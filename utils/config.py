@@ -1,135 +1,61 @@
-import json
 import os
-import sys
-
+from dotenv import load_dotenv
 from utils.utils import Utils
 
-root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-configs_dir = os.path.join(root_dir, "configs")
-
+# Load environment variables at module level
+load_dotenv()
 
 class Config:
-    CONFIGS_DIR_LOC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "configs")
-
     def __init__(self):
-        self.dict = {}
-        self.foreground_color = "white"
-        self.background_color = "#2596BE"
+        # Flask settings
+        self.FLASK_APP = os.getenv('FLASK_APP', 'app.py')
+        self.FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+        self.SECRET_KEY = os.getenv('SECRET_KEY', 'default-secret-key-please-change')
 
-        self.debug = False
+        # Database settings
+        self.DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///tagesform.db')
+        self.SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-        self.server_port = 6000
-        self.server_password = "<PASSWORD>"
-        self.server_host = "localhost"
+        # UI Colors
+        self.foreground_color = os.getenv('FOREGROUND_COLOR', 'white')
+        self.background_color = os.getenv('BACKGROUND_COLOR', '#2596BE')
 
-        configs =  [ f.path for f in os.scandir(Config.CONFIGS_DIR_LOC) if f.is_file() and f.path.endswith(".json") ]
-        self.config_path = None
+        # Debug mode
+        self.debug = os.getenv('DEBUG', 'False').lower() == 'true'
 
-        for c in configs:
-            if os.path.basename(c) == "config.json":
-                self.config_path = c
-                break
-            elif os.path.basename(c) != "config_example.json":
-                self.config_path = c
+        # Server settings
+        self.server_port = int(os.getenv('SERVER_PORT', '6000'))
+        self.server_host = os.getenv('SERVER_HOST', 'localhost')
+        self.server_password = os.getenv('SERVER_PASSWORD', '')
 
-        if self.config_path is None:
-            self.config_path = os.path.join(Config.CONFIGS_DIR_LOC, "config_example.json")
+        # OpenWeather settings
+        self.open_weather_api_key = os.getenv('OPEN_WEATHER_API_KEY', '')
+        self.open_weather_city = os.getenv('OPEN_WEATHER_CITY', 'Washington')
 
-        try:
-            self.dict = json.load(open(self.config_path, "r", encoding="utf-8"))
-        except Exception as e:
-            Utils.log_red(e)
-            Utils.log_yellow("Unable to load config. Ensure config.json file settings are correct.")
+        # News API settings
+        self.news_api_key = os.getenv('NEWS_API_KEY', '')
+        self.news_api_source_trustworthiness = {
+            'bbc-news': float(os.getenv('BBC_NEWS_TRUST', '0.5'))
+        }
 
-        self.set_values(str,
-            "foreground_color",
-            "background_color",
-            "llm_model_name",
-        )
-        self.set_values(int,
-        )
-        self.set_values(list,
-        )
-        self.set_values(bool,
-        )
-        self.set_values(dict,
-        )
-        self.set_directories(
-        )
-        self.set_filepaths(
-        )
+        # Ollama settings
+        self.OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
+        self.OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'deepseek-r1:14b')
+        self.TASK_UPDATE_INTERVAL = int(os.getenv('TASK_UPDATE_INTERVAL', '24'))
 
-        # i = 0
-        # while i < len(self.directories):
-        #     d = self.directories[i]
-        #     try:
-        #         if sys.platform == "win32" and not d.startswith("C:\\") and not d.startswith("{HOME}"):
-        #             pass
-        #         elif not os.path.isdir(d):
-        #             d = self.validate_and_set_directory(d, override=True)
-        #             self.directories[i] = d if d is None else os.path.normpath(os.path.realpath(d))
-        #     except Exception as e:
-        #         pass
-        #     i += 1
+        # Validate critical settings
+        self._validate_settings()
 
-        self.coqui_tts_model = tuple(self.coqui_tts_model)
+    def _validate_settings(self):
+        """Validate critical configuration settings."""
+        if not self.SECRET_KEY or self.SECRET_KEY == 'default-secret-key-please-change':
+            Utils.log_yellow("WARNING: Using default SECRET_KEY. Please set a secure SECRET_KEY in production.")
 
+        if not self.open_weather_api_key:
+            Utils.log_yellow("OpenWeather API key not set. Weather functionality will be disabled.")
+        
+        if not self.news_api_key:
+            Utils.log_yellow("News API key not set. News functionality will be disabled.")
 
-    def validate_and_set_directory(self, key, override=False):
-        loc = key if override else self.dict[key]
-        if loc and loc.strip() != "":
-            if "{HOME}" in loc:
-                loc = loc.strip().replace("{HOME}", os.path.expanduser("~"))
-            if not sys.platform == "win32" and "\\" in loc:
-                loc = loc.replace("\\", "/")
-            if not os.path.isdir(loc):
-                raise Exception(f"Invalid location provided for {key}: {loc}")
-            return loc
-        return None
-
-    def validate_and_set_filepath(self, key):
-        filepath = self.dict[key]
-        if filepath and filepath.strip() != "":
-            if "{HOME}" in filepath:
-                filepath = filepath.strip().replace("{HOME}", os.path.expanduser("~"))
-            elif not os.path.isfile(filepath):
-                try_path = os.path.join(configs_dir, filepath)
-                filepath = try_path
-            if not os.path.isfile(filepath):
-                raise Exception(f"Invalid location provided for {key}: {filepath}")
-            return filepath
-        return None
-
-    def set_directories(self, *directories):
-        for directory in directories:
-            try:
-                setattr(self, directory, self.validate_and_set_directory(directory))
-            except Exception as e:
-                Utils.log_yellow(e)
-                Utils.log_yellow(f"Failed to set {directory} from config.json file. Ensure the key is set.")
-
-    def set_filepaths(self, *filepaths):
-        for filepath in filepaths:
-            try:
-                setattr(self, filepath, self.validate_and_set_filepath(filepath))
-            except Exception as e:
-               Utils.log_yellow(e)
-               Utils.log_yellow(f"Failed to set {filepath} from config.json file. Ensure the key is set.")
-
-    def set_values(self, type, *names):
-        for name in names:
-            if type:
-                try:
-                    setattr(self, name, type(self.dict[name]))
-                except Exception as e:
-                    Utils.log_red(e)
-                    Utils.log_yellow(f"Failed to set {name} from config.json file. Ensure the value is set and of the correct type.")
-            else:
-                try:
-                    setattr(self, name, self.dict[name])
-                except Exception as e:
-                    Utils.log_red(e)
-                    Utils.log_yellow(f"Failed to set {name} from config.json file. Ensure the key is set.")
-
-
+# Create a singleton instance
 config = Config()

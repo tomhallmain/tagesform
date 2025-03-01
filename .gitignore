@@ -6,4 +6,6 @@ configs/*
 temp/
 temp_*
 !utils/temp_dir.py
-
+instance/*
+migrations/*
+.env

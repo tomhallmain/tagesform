@@ -1,313 +1,389 @@
-from copy import deepcopy
-import signal
-import time
-import traceback
-
-from tkinter import messagebox, Toplevel, Frame, Label, Checkbutton, NW, BOTH, YES, N, E, W
-import tkinter.font as fnt
-from tkinter.ttk import Button, Entry
-from lib.autocomplete_entry import AutocompleteEntry, matches
-from ttkthemes import ThemedTk
-
-from ui.app_actions import AppActions
-from ui.app_style import AppStyle
-from ui.schedules_window import SchedulesWindow
-from ui.search_window import SearchWindow
-from utils.app_info_cache import app_info_cache
+from flask import Flask, jsonify, request, render_template, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_required, current_user, login_user, logout_user
+from flask_migrate import Migrate
+from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
+import requests
+import json
+import pytz
+import os
+from apscheduler.schedulers.background import BackgroundScheduler
+from services.integration_service import integration_service
 from utils.config import config
-from utils.job_queue import JobQueue
-from utils.runner_app_config import RunnerAppConfig
-from utils.translations import I18N
-from utils.utils import Utils
 
-_ = I18N._
+app = Flask(__name__)
+app.config['SECRET_KEY'] = config.SECRET_KEY
+app.config['SQLALCHEMY_DATABASE_URI'] = config.DATABASE_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = config.SQLALCHEMY_TRACK_MODIFICATIONS
+app.config['DEBUG'] = config.debug
 
-def set_attr_if_not_empty(text_box):
-    current_value = text_box.get()
-    if not current_value or current_value == "":
-        return None
-    return 
+# Ollama Configuration
+OLLAMA_BASE_URL = config.OLLAMA_BASE_URL
+OLLAMA_MODEL = config.OLLAMA_MODEL
+TASK_UPDATE_INTERVAL = config.TASK_UPDATE_INTERVAL
 
-def matches_tag(fieldValue, acListEntry):
-    if fieldValue and "+" in fieldValue:
-        pattern_base = fieldValue.split("+")[-1]
-    elif fieldValue and "," in fieldValue:
-        pattern_base = fieldValue.split(",")[-1]
-    else:
-        pattern_base = fieldValue
-    return matches(pattern_base, acListEntry)
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+scheduler = BackgroundScheduler()
 
-def set_tag(current_value, new_value):
-    if current_value and (current_value.endswith("+") or current_value.endswith(",")):
-        return current_value + new_value
-    else:
-        return new_value
-    
-def clear_quotes(s):
-    if len(s) > 0:
-        if s.startswith('"'):
-            s = s[1:]
-        if s.endswith('"'):
-            s = s[:-1]
-        if s.startswith("'"):
-            s = s[1:]
-        if s.endswith("'"):
-            s = s[:-1]
-    return s
+# Database Models
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128))
+    activities = db.relationship('Activity', backref='owner', lazy=True)
+    schedules = db.relationship('Schedule', backref='owner', lazy=True)
+    preferences = db.Column(db.JSON)  # Store user preferences for importance inference
 
-class Sidebar(Frame):
-    def __init__(self, master=None, cnf={}, **kw):
-        Frame.__init__(self, master=master, cnf=cnf, **kw)
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
 
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
-class ProgressListener:
-    def __init__(self, update_func):
-        self.update_func = update_func
+class Activity(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    scheduled_time = db.Column(db.DateTime, nullable=False)
+    importance = db.Column(db.Float)  # 0.0 to 1.0: LLM-inferred importance
+    status = db.Column(db.String(20), default='upcoming')  # upcoming, in_progress, completed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    category = db.Column(db.String(50))  # social, health, work, leisure, etc.
+    duration = db.Column(db.Integer)  # estimated duration in minutes
+    location = db.Column(db.String(200))
+    participants = db.Column(db.JSON)  # List of people involved
+    notes = db.Column(db.Text)
 
-    def update(self, context, percent_complete):
-        self.update_func(context, percent_complete)
+class Schedule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    start_time = db.Column(db.DateTime, nullable=False)
+    end_time = db.Column(db.DateTime, nullable=False)
+    recurrence = db.Column(db.String(50))  # daily, weekly, monthly, etc.
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    category = db.Column(db.String(50))
+    location = db.Column(db.String(200))
+    description = db.Column(db.Text)
 
+class Entity(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    category = db.Column(db.String(50))  # restaurant, store, service, etc.
+    operating_hours = db.Column(db.JSON)  # Store hours in JSON format
+    location = db.Column(db.String(200))
+    contact_info = db.Column(db.String(200))
+    description = db.Column(db.Text)
+    tags = db.Column(db.JSON)  # For better categorization and search
 
-class App():
-    '''
-    Main UI for Tagesform scheduler application.
-    '''
-
-    def __init__(self, master):
-        self.master = master
-        self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
-        self.progress_bar = None
-        self.job_queue = JobQueue("Preset Schedules")
-        self.runner_app_config = self.load_info_cache()
-        self.config_history_index = 0
-        self.fullscreen = False
-        self.app_actions = AppActions(
-            self.on_closing,
-            self.toast,
-        )
-
-        # Sidebar
-        self.sidebar = Sidebar(self.master)
-        self.sidebar.columnconfigure(0, weight=1)
-        self.sidebar.columnconfigure(0, weight=1)
-        self.row_counter0 = 0
-        self.row_counter1 = 0
-        self.sidebar.grid(column=0, row=0)
-
-        self.row_counter0 += 1
-        self.row_counter1 += 1
-
-        self.schedules_btn = None
-        self.add_button("schedules_btn", _("Schedules"), self.open_schedules_window)
-
-        self.master.bind("<F11>", self.toggle_fullscreen)
-        self.master.bind("<Shift-F>", self.toggle_fullscreen)
-        self.master.bind("<Control-q>", self.quit)
-        self.toggle_theme()
-        self.master.update()
-        # self.close_autocomplete_popups()
-
-    def toggle_theme(self, to_theme=None, do_toast=True):
-        if (to_theme is None and AppStyle.IS_DEFAULT_THEME) or to_theme == AppStyle.LIGHT_THEME:
-            if to_theme is None:
-                self.master.set_theme("breeze", themebg="black")  # Changes the window to light theme
-            AppStyle.BG_COLOR = "gray"
-            AppStyle.FG_COLOR = "black"
-        else:
-            if to_theme is None:
-                self.master.set_theme("black", themebg="black")  # Changes the window to dark theme
-            AppStyle.BG_COLOR = config.background_color if config.background_color and config.background_color != "" else "#053E10"
-            AppStyle.FG_COLOR = config.foreground_color if config.foreground_color and config.foreground_color != "" else "white"
-        AppStyle.IS_DEFAULT_THEME = (not AppStyle.IS_DEFAULT_THEME or to_theme
-                                     == AppStyle.DARK_THEME) and to_theme != AppStyle.LIGHT_THEME
-        self.master.config(bg=AppStyle.BG_COLOR)
-        self.sidebar.config(bg=AppStyle.BG_COLOR)
-        for name, attr in self.__dict__.items():
-            if isinstance(attr, Label):
-                attr.config(bg=AppStyle.BG_COLOR, fg=AppStyle.FG_COLOR)
-                            # font=fnt.Font(size=config.font_size))
-            elif isinstance(attr, Checkbutton):
-                attr.config(bg=AppStyle.BG_COLOR, fg=AppStyle.FG_COLOR,
-                            selectcolor=AppStyle.BG_COLOR)#, font=fnt.Font(size=config.font_size))
-        self.master.update()
-        if do_toast:
-            self.toast(f"Theme switched to {AppStyle.get_theme_name()}.")
-
-    # def close_autocomplete_popups(self):
-    #     self.lora_tags_box.closeListbox()
-
-    def on_closing(self):
-        self.store_info_cache()
-        self.master.destroy()
-
-    def quit(self, event=None):
-        res = self.alert(_("Confirm Quit"), _("Would you like to quit the application?"), kind="askokcancel")
-        if res == messagebox.OK or res == True:
-            Utils.log("Exiting application")
-            self.on_closing()
-
-    def store_info_cache(self):
-        app_info_cache.store()
-
-    def load_info_cache(self):
-        try:
-            self.config_history_index = app_info_cache.get("config_history_index", default_val=0)
-            return app_info_cache.get_history_latest()
-        except Exception as e:
-            Utils.log_red(e)
-            return RunnerAppConfig()
-
-    def open_schedules_window(self):
-        try:
-            schedules_window = SchedulesWindow(self.master, self.app_actions)
-        except Exception as e:
-            Utils.log_red(f"Exception opening schedules window: {e}")
-            raise e
-
-    def open_search_window(self):
-        try:
-            search_window = SearchWindow(self.master, self.app_actions)
-        except Exception as e:
-            Utils.log_red(f"Exception opening search window: {e}")
-            raise e
-
-    def update_label_extension_status(self, extension):
-        text = Utils._wrap_text_to_fit_length(extension[:500], 90)
-        self.label_extension_status["text"] = text
-        self.master.update()
-
-    def toggle_fullscreen(self, event=None):
-        self.fullscreen = not self.fullscreen
-        self.master.attributes("-fullscreen", self.fullscreen)
-        self.sidebar.grid_remove() if self.fullscreen and self.sidebar.winfo_ismapped() else self.sidebar.grid()
-
-    def alert(self, title, message, kind="info", hidemain=True) -> None:
-        if kind not in ("error", "warning", "info"):
-            raise ValueError("Unsupported alert kind.")
-
-        if kind == "error":
-            Utils.log_red(f"Alert - Title: \"{title}\" Message: {message}")
-        elif kind == "warning":
-            Utils.log_yellow(f"Alert - Title: \"{title}\" Message: {message}")
-        else:
-            Utils.log(f"Alert - Title: \"{title}\" Message: {message}")
-
-        show_method = getattr(messagebox, "show{}".format(kind))
-        return show_method(title, message)
-
-    def handle_error(self, error_text, title=None, kind="error"):
-        traceback.print_exc()
-        if title is None:
-            title = _("Error")
-        self.alert(title, error_text, kind=kind)
-
-    def toast(self, message):
-        Utils.log("Toast message: " + message)
-
-        # Set the position of the toast on the screen (top right)
-        width = 300
-        height = 100
-        x = self.master.winfo_screenwidth() - width
-        y = 0
-
-        # Create the toast on the top level
-        toast = Toplevel(self.master, bg=AppStyle.BG_COLOR)
-        toast.geometry(f'{width}x{height}+{int(x)}+{int(y)}')
-        self.container = Frame(toast, bg=AppStyle.BG_COLOR)
-        self.container.pack(fill=BOTH, expand=YES)
-        label = Label(
-            self.container,
-            text=message,
-            anchor=NW,
-            bg=AppStyle.BG_COLOR,
-            fg=AppStyle.FG_COLOR,
-            font=('Helvetica', 12)
-        )
-        label.grid(row=1, column=1, sticky="NSEW", padx=10, pady=(0, 5))
-        
-        # Make the window invisible and bring it to front
-        toast.attributes('-topmost', True)
-#        toast.withdraw()
-
-        # Start a new thread that will destroy the window after a few seconds
-        def self_destruct_after(time_in_seconds):
-            time.sleep(time_in_seconds)
-            label.destroy()
-            toast.destroy()
-        Utils.start_thread(self_destruct_after, use_asyncio=False, args=[2])
-
-    def apply_to_grid(self, component, sticky=None, pady=0, interior_column=0, row=-1, column=0, increment_row_counter=True, columnspan=None):
-        if row == -1:
-            row = self.row_counter0 if column == 0 else self.row_counter1
-        if sticky is None:
-            if columnspan is None:
-                component.grid(column=interior_column, row=row, pady=pady)
-            else:
-                component.grid(column=interior_column, row=row, pady=pady, columnspan=columnspan)
-        else:
-            if columnspan is None:
-                component.grid(column=interior_column, row=row, sticky=sticky, pady=pady)
-            else:
-                component.grid(column=interior_column, row=row, sticky=sticky, pady=pady, columnspan=columnspan)
-        if increment_row_counter:
-            if column == 0:
-                self.row_counter0 += 1
-            else:
-                self.row_counter1 += 1
-
-    def add_label(self, label_ref, text, sticky=W, pady=0, row=-1, column=0, columnspan=None, increment_row_counter=True):
-        label_ref['text'] = text
-        self.apply_to_grid(label_ref, sticky=sticky, pady=pady, row=row, column=column, columnspan=columnspan, increment_row_counter=increment_row_counter)
-
-    def add_button(self, button_ref_name, text, command, sidebar=True, interior_column=0, increment_row_counter=True):
-        if getattr(self, button_ref_name) is None:
-            master = self.sidebar if sidebar else self.prompter_config_bar
-            button = Button(master=master, text=text, command=command)
-            setattr(self, button_ref_name, button)
-            button
-            self.apply_to_grid(button, column=(0 if sidebar else 1), interior_column=interior_column, increment_row_counter=increment_row_counter)
-
-    def new_entry(self, text_variable, text="", width=55, sidebar=True, **kw):
-        master = self.sidebar if sidebar else self.prompter_config_bar
-        return Entry(master, text=text, textvariable=text_variable, width=width, font=fnt.Font(size=8), **kw)
-
-    def destroy_grid_element(self, element_ref_name):
-        element = getattr(self, element_ref_name)
-        if element is not None:
-            element.destroy()
-            setattr(self, element_ref_name, None)
-            self.row_counter0 -= 1
-
-
-if __name__ == "__main__":
+def query_ollama(prompt, model=None):
+    """Send a query to Ollama's API and return the response"""
     try:
-        # assets = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets")
-        root = ThemedTk(theme="black", themebg="black")
-        root.title(_(" Muse "))
-        #root.iconbitmap(bitmap=r"icon.ico")
-        # icon = PhotoImage(file=os.path.join(assets, "icon.png"))
-        # root.iconphoto(False, icon)
-        root.geometry("1200x600")
-        # root.attributes('-fullscreen', True)
-        root.resizable(1, 1)
-        root.columnconfigure(0, weight=1)
-        root.columnconfigure(1, weight=1)
-        root.rowconfigure(0, weight=1)
+        response = requests.post(
+            f"{OLLAMA_BASE_URL}/api/generate",
+            json={
+                "model": model or OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False
+            }
+        )
+        response.raise_for_status()
+        return response.json()['response']
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"Error querying Ollama: {e}")
+        return None
 
-        # Graceful shutdown handler
-        def graceful_shutdown(signum, frame):
-            Utils.log("Caught signal, shutting down gracefully...")
-            app.on_closing()
-            exit(0)
+def generate_importance_prompt(activity, user):
+    """Generate a prompt for importance inference based on activity and user context"""
+    user_activities = Activity.query.filter_by(user_id=user.id, status='upcoming').all()
+    
+    context = {
+        "current_activity": {
+            "title": activity.title,
+            "description": activity.description,
+            "scheduled_time": activity.scheduled_time.isoformat(),
+            "category": activity.category,
+            "duration": activity.duration,
+            "location": activity.location,
+            "participants": activity.participants
+        },
+        "user_context": {
+            "upcoming_count": len(user_activities),
+            "preferences": user.preferences,
+            "upcoming_events": [
+                {
+                    "title": a.title,
+                    "scheduled_time": a.scheduled_time.isoformat(),
+                    "category": a.category
+                } for a in user_activities if a.scheduled_time <= (datetime.utcnow() + timedelta(days=7))
+            ]
+        }
+    }
+    
+    prompt = f"""As a personal schedule assistant, analyze this activity and context to determine its importance (0.0 to 1.0).
+Consider:
+1. Time sensitivity
+2. Personal value (based on category and preferences)
+3. Social aspects (participants involved)
+4. Location and travel requirements
+5. Impact on other activities
 
-        # Register the signal handlers for graceful shutdown
-        signal.signal(signal.SIGINT, graceful_shutdown)
-        signal.signal(signal.SIGTERM, graceful_shutdown)
+Activity and Context:
+{json.dumps(context, indent=2)}
 
-        app = App(root)
-        root.mainloop()
-        exit()
-    except KeyboardInterrupt:
-        pass
-    except Exception:
-        traceback.print_exc()
+Provide only a number between 0.0 and 1.0 as the importance score, where 1.0 is highest importance."""
+    
+    return prompt
+
+def infer_activity_importance(activity):
+    """Use Ollama to infer activity importance"""
+    try:
+        user = User.query.get(activity.user_id)
+        prompt = generate_importance_prompt(activity, user)
+        response = query_ollama(prompt)
+        
+        if response:
+            try:
+                importance = float(response.strip())
+                return max(0.0, min(1.0, importance))
+            except ValueError:
+                app.logger.error(f"Could not parse importance score from response: {response}")
+                return 0.5
+        return 0.5
+    except Exception as e:
+        app.logger.error(f"Error inferring activity importance: {e}")
+        return 0.5
+
+def update_activity_importance():
+    """Background job to update activity importance using LLM inference"""
+    with app.app_context():
+        activities = Activity.query.filter_by(status='upcoming').all()
+        for activity in activities:
+            importance = infer_activity_importance(activity)
+            activity.importance = importance
+        db.session.commit()
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Initialize scheduler with interval from environment
+scheduler.add_job(update_activity_importance, 'interval', hours=TASK_UPDATE_INTERVAL)
+scheduler.start()
+
+# Routes
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        dashboard_data = integration_service.get_dashboard_data()
+        return render_template('index.html', dashboard_data=dashboard_data)
+    return render_template('index.html')
+
+@app.route('/api/activities', methods=['GET'])
+def get_activities():
+    timeframe = request.args.get('timeframe', 'day')
+    activities = Activity.query.filter_by(status='upcoming')
+    
+    now = datetime.utcnow()
+    if timeframe == 'day':
+        end_time = now + timedelta(days=1)
+    elif timeframe == 'week':
+        end_time = now + timedelta(weeks=1)
+    elif timeframe == 'month':
+        end_time = now + timedelta(days=30)
+    elif timeframe == 'year':
+        end_time = now + timedelta(days=365)
+    else:
+        end_time = now + timedelta(days=1)
+    
+    activities = activities.filter(
+        Activity.scheduled_time >= now,
+        Activity.scheduled_time <= end_time
+    ).order_by(Activity.scheduled_time, Activity.importance.desc()).all()
+    
+    return jsonify([{
+        'id': activity.id,
+        'title': activity.title,
+        'scheduled_time': activity.scheduled_time.isoformat(),
+        'category': activity.category,
+        'importance': activity.importance,
+        'location': activity.location,
+        'duration': activity.duration,
+        'participants': activity.participants
+    } for activity in activities])
+
+@app.route('/api/activities/analyze', methods=['POST'])
+def analyze_activity():
+    """Endpoint to get LLM analysis of an activity without saving it"""
+    data = request.json
+    temp_activity = Activity(
+        title=data.get('title'),
+        description=data.get('description'),
+        scheduled_time=datetime.fromisoformat(data.get('scheduled_time')),
+        category=data.get('category'),
+        duration=data.get('duration'),
+        location=data.get('location'),
+        participants=data.get('participants'),
+        user_id=1  # TODO: Get actual user ID from session
+    )
+    importance = infer_activity_importance(temp_activity)
+    return jsonify({
+        'importance': importance
+    })
+
+@app.route('/api/entities/available', methods=['GET'])
+def get_available_entities():
+    current_time = datetime.now(pytz.UTC)
+    current_day = current_time.strftime('%A').lower()
+    
+    # Query entities that are currently open
+    available_entities = Entity.query.all()  # TODO: Add filtering based on operating hours
+    
+    return jsonify([{
+        'id': entity.id,
+        'name': entity.name,
+        'category': entity.category,
+        'location': entity.location,
+        'description': entity.description,
+        'tags': entity.tags
+    } for entity in available_entities])
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """Get statistics for the dashboard"""
+    now = datetime.utcnow()
+    return jsonify({
+        'weekly_count': Activity.query.filter(
+            Activity.scheduled_time >= now,
+            Activity.scheduled_time <= now + timedelta(weeks=1)
+        ).count(),
+        'schedule_count': Schedule.query.count(),
+        'places_count': Entity.query.count()
+    })
+
+# Add health check endpoint
+@app.route('/health')
+def health_check():
+    """Health check endpoint that also verifies Ollama connection"""
+    try:
+        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags")
+        if response.status_code == 200:
+            ollama_status = "connected"
+        else:
+            ollama_status = "error"
+    except requests.exceptions.RequestException:
+        ollama_status = "unavailable"
+
+    return jsonify({
+        'status': 'healthy',
+        'ollama_status': ollama_status,
+        'database': 'connected' if db.engine.execute('SELECT 1').scalar() else 'error',
+        'model': OLLAMA_MODEL
+    })
+
+@app.route('/api/dashboard', methods=['GET'])
+@login_required
+def get_dashboard_data():
+    """Get combined dashboard data including weather, schedule, and calendar events"""
+    city = request.args.get('city')
+    dashboard_data = integration_service.get_dashboard_data(city)
+    return jsonify(dashboard_data)
+
+@app.route('/api/weather', methods=['GET'])
+@login_required
+def get_weather():
+    """Get weather data for a specific city"""
+    city = request.args.get('city')
+    weather_data = integration_service.get_current_weather(city)
+    return jsonify(weather_data)
+
+@app.route('/api/schedule/current', methods=['GET'])
+@login_required
+def get_current_schedule():
+    """Get the currently active schedule"""
+    schedule = integration_service.get_current_schedule()
+    return jsonify(schedule)
+
+@app.route('/api/calendar/events', methods=['GET'])
+@login_required
+def get_calendar_events():
+    """Get calendar events for a specific date range"""
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if start_date:
+        start_date = datetime.fromisoformat(start_date)
+    if end_date:
+        end_date = datetime.fromisoformat(end_date)
+        
+    events = integration_service.get_calendar_events(start_date, end_date)
+    return jsonify(events)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = User.query.filter_by(username=username).first()
+        
+        if user is None or not user.check_password(password):
+            flash('Invalid username or password')
+            return redirect(url_for('login'))
+        
+        login_user(user)
+        next_page = request.args.get('next')
+        if not next_page or not next_page.startswith('/'):
+            next_page = url_for('index')
+        return redirect(next_page)
+    
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists')
+            return redirect(url_for('register'))
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered')
+            return redirect(url_for('register'))
+        
+        user = User(username=username, email=email)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        
+        flash('Registration successful')
+        return redirect(url_for('login'))
+    
+    return render_template('register.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+    with app.app_context():
+        if app.config['DEBUG']:
+            app.logger.info(f"Using Ollama at: {OLLAMA_BASE_URL}")
+            app.logger.info(f"Using model: {OLLAMA_MODEL}")
+            app.logger.info(f"Activity update interval: {TASK_UPDATE_INTERVAL} hours")
+        db.create_all()
+    app.run(debug=app.config['DEBUG'])

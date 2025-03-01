@@ -1,424 +1,379 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tagesform - Your Day, Your Way</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50">
-    <div class="min-h-screen">
-        <!-- Navigation -->
-        <nav class="bg-white shadow-lg">
-            <div class="max-w-7xl mx-auto px-4">
-                <div class="flex justify-between h-16">
-                    <div class="flex">
-                        <div class="flex-shrink-0 flex items-center">
-                            <h1 class="text-xl font-bold text-gray-800">Tagesform</h1>
-                        </div>
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Main Content -->
+<main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <!-- Weather and Schedule Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Weather Widget -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Weather</h3>
+            <div id="weather-widget" class="space-y-2">
+                {% if dashboard_data and dashboard_data.weather %}
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-2xl font-bold">{{ dashboard_data.weather.temperature }}°F</p>
+                        <p class="text-sm text-gray-500">{{ dashboard_data.weather.description }}</p>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        {% if current_user.is_authenticated %}
+                    <div class="text-right">
+                        <p class="text-sm">{{ dashboard_data.weather.city }}</p>
+                        <p class="text-xs text-gray-500">Humidity: {{ dashboard_data.weather.humidity }}</p>
+                    </div>
+                </div>
+                {% if dashboard_data.weather.daytime_rain_forecast %}
+                <div class="mt-3 p-2 bg-blue-50 rounded-md">
+                    <p class="text-sm font-medium text-blue-800">Rain Expected:</p>
+                    <div class="text-xs text-blue-600 space-y-1">
+                    {% for date, hours in dashboard_data.weather.daytime_rain_forecast.items() %}
+                        <p>{{ date }}: {{ hours|join(', ') }}</p>
+                    {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% else %}
+                <p class="text-gray-500">Loading weather data...</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Current Schedule -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Active Schedule</h3>
+            <div id="current-schedule" class="space-y-2">
+                {% if dashboard_data and dashboard_data.schedule %}
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <p class="font-medium">{{ dashboard_data.schedule.name }}</p>
+                    <div class="text-sm text-gray-500 space-y-1">
+                        {% if dashboard_data.schedule.start_time %}
+                        <p>Active: {{ dashboard_data.schedule.start_time }} - {{ dashboard_data.schedule.end_time }}</p>
+                        {% endif %}
+                        {% if dashboard_data.schedule.shutdown_time %}
+                        <p>Shutdown at: {{ dashboard_data.schedule.shutdown_time }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-gray-500">No active schedule</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Horizon Tabs -->
+    <div class="border-b border-gray-200 mb-6">
+        <nav class="-mb-px flex space-x-8" aria-label="Time horizons">
+            <button class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-today">
+                Today
+            </button>
+            <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-week">
+                This Week
+            </button>
+            <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-month">
+                This Month
+            </button>
+            <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-year">
+                This Year
+            </button>
+        </nav>
+    </div>
+
+    <div class="md:flex md:space-x-6">
+        <!-- Main Activities Section -->
+        <div class="md:w-2/3">
+            <!-- Priority Activities -->
+            <div class="bg-white shadow rounded-lg p-6 mb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Coming Up</h2>
+                <div class="space-y-4" id="activities-list">
+                    <!-- Empty state -->
+                    <div class="text-center py-12" id="empty-state">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">No activities yet</h3>
+                        <p class="mt-1 text-sm text-gray-500">Get started by adding your first activity or schedule.</p>
+                        <div class="mt-6 space-x-4">
                             <button class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                                 Add Activity
                             </button>
                             <button class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600">
-                                New Schedule
+                                Create Schedule
                             </button>
-                            <button class="bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600">
-                                Add Place
-                            </button>
-                            <a href="#" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Profile</a>
-                            <a href="#" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Settings</a>
-                            <a href="{{ url_for('logout') }}" class="text-red-600 hover:text-red-900 px-3 py-2 rounded-md text-sm font-medium">Logout</a>
-                        {% else %}
-                            <a href="{{ url_for('login') }}" class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
-                                Sign In
-                            </a>
-                            <a href="{{ url_for('register') }}" class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600">
-                                Register
-                            </a>
-                        {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-        </nav>
 
-        <!-- Main Content -->
-        <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            <!-- Weather and Schedule Overview -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- Weather Widget -->
-                <div class="bg-white shadow rounded-lg p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Weather</h3>
-                    <div id="weather-widget" class="space-y-2">
-                        {% if dashboard_data and dashboard_data.weather %}
-                        <div class="flex items-center justify-between">
+            <!-- Calendar Events -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Calendar Events</h2>
+                <div id="calendar-events" class="space-y-4">
+                    {% if dashboard_data and dashboard_data.events %}
+                        {% for event in dashboard_data.events %}
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                             <div>
-                                <p class="text-2xl font-bold">{{ dashboard_data.weather.temperature }}°F</p>
-                                <p class="text-sm text-gray-500">{{ dashboard_data.weather.description }}</p>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-sm">{{ dashboard_data.weather.city }}</p>
-                                <p class="text-xs text-gray-500">Humidity: {{ dashboard_data.weather.humidity }}</p>
+                                <p class="font-medium">{{ event.title }}</p>
+                                <p class="text-sm text-gray-500">{{ event.start_time }}</p>
                             </div>
                         </div>
-                        {% if dashboard_data.weather.daytime_rain_forecast %}
-                        <div class="mt-3 p-2 bg-blue-50 rounded-md">
-                            <p class="text-sm font-medium text-blue-800">Rain Expected:</p>
-                            <div class="text-xs text-blue-600 space-y-1">
-                            {% for date, hours in dashboard_data.weather.daytime_rain_forecast.items() %}
-                                <p>{{ date }}: {{ hours|join(', ') }}</p>
-                            {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% else %}
-                        <p class="text-gray-500">Loading weather data...</p>
-                        {% endif %}
-                    </div>
+                        {% endfor %}
+                    {% else %}
+                    <p class="text-gray-500 text-center py-4">No upcoming events</p>
+                    {% endif %}
                 </div>
+            </div>
+        </div>
 
-                <!-- Current Schedule -->
-                <div class="bg-white shadow rounded-lg p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Active Schedule</h3>
-                    <div id="current-schedule" class="space-y-2">
-                        {% if dashboard_data and dashboard_data.schedule %}
-                        <div class="p-4 bg-gray-50 rounded-lg">
-                            <p class="font-medium">{{ dashboard_data.schedule.name }}</p>
-                            <div class="text-sm text-gray-500 space-y-1">
-                                {% if dashboard_data.schedule.start_time %}
-                                <p>Active: {{ dashboard_data.schedule.start_time }} - {{ dashboard_data.schedule.end_time }}</p>
-                                {% endif %}
-                                {% if dashboard_data.schedule.shutdown_time %}
-                                <p>Shutdown at: {{ dashboard_data.schedule.shutdown_time }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% else %}
-                        <p class="text-gray-500">No active schedule</p>
-                        {% endif %}
+        <!-- Sidebar -->
+        <div class="md:w-1/3">
+            <!-- Available Now Widget -->
+            <div class="bg-white shadow rounded-lg p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Open Now</h3>
+                <div id="entities-list">
+                    <!-- Empty state for entities -->
+                    <div class="text-center py-6" id="empty-entities">
+                        <p class="text-sm text-gray-500">Add your favorite places to see their current availability.</p>
+                        <button class="mt-4 bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600">
+                            Add Place
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Time Horizon Tabs -->
-            <div class="border-b border-gray-200 mb-6">
-                <nav class="-mb-px flex space-x-8" aria-label="Time horizons">
-                    <button class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-today">
-                        Today
-                    </button>
-                    <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-week">
-                        This Week
-                    </button>
-                    <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-month">
-                        This Month
-                    </button>
-                    <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-year">
-                        This Year
-                    </button>
-                </nav>
-            </div>
-
-            <div class="md:flex md:space-x-6">
-                <!-- Main Activities Section -->
-                <div class="md:w-2/3">
-                    <!-- Priority Activities -->
-                    <div class="bg-white shadow rounded-lg p-6 mb-6">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Coming Up</h2>
-                        <div class="space-y-4" id="activities-list">
-                            <!-- Empty state -->
-                            <div class="text-center py-12" id="empty-state">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <h3 class="mt-2 text-sm font-medium text-gray-900">No activities yet</h3>
-                                <p class="mt-1 text-sm text-gray-500">Get started by adding your first activity or schedule.</p>
-                                <div class="mt-6 space-x-4">
-                                    <button class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
-                                        Add Activity
-                                    </button>
-                                    <button class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600">
-                                        Create Schedule
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+            <!-- Quick Stats -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">At a Glance</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500">Upcoming this week</span>
+                        <span class="text-sm font-medium text-gray-900" id="weekly-count">0</span>
                     </div>
-
-                    <!-- Calendar Events -->
-                    <div class="bg-white shadow rounded-lg p-6">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Calendar Events</h2>
-                        <div id="calendar-events" class="space-y-4">
-                            {% if dashboard_data and dashboard_data.events %}
-                                {% for event in dashboard_data.events %}
-                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                    <div>
-                                        <p class="font-medium">{{ event.title }}</p>
-                                        <p class="text-sm text-gray-500">{{ event.start_time }}</p>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                            <p class="text-gray-500 text-center py-4">No upcoming events</p>
-                            {% endif %}
-                        </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500">Regular schedules</span>
+                        <span class="text-sm font-medium text-gray-900" id="schedule-count">0</span>
                     </div>
-                </div>
-
-                <!-- Sidebar -->
-                <div class="md:w-1/3">
-                    <!-- Available Now Widget -->
-                    <div class="bg-white shadow rounded-lg p-6 mb-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Open Now</h3>
-                        <div id="entities-list">
-                            <!-- Empty state for entities -->
-                            <div class="text-center py-6" id="empty-entities">
-                                <p class="text-sm text-gray-500">Add your favorite places to see their current availability.</p>
-                                <button class="mt-4 bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600">
-                                    Add Place
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Quick Stats -->
-                    <div class="bg-white shadow rounded-lg p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">At a Glance</h3>
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-500">Upcoming this week</span>
-                                <span class="text-sm font-medium text-gray-900" id="weekly-count">0</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-500">Regular schedules</span>
-                                <span class="text-sm font-medium text-gray-900" id="schedule-count">0</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-500">Places tracked</span>
-                                <span class="text-sm font-medium text-gray-900" id="places-count">0</span>
-                            </div>
-                        </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500">Places tracked</span>
+                        <span class="text-sm font-medium text-gray-900" id="places-count">0</span>
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
     </div>
+</main>
+{% endblock %}
 
-    <script>
-        // Fetch and display activities
-        async function fetchActivities(timeframe = 'day') {
-            try {
-                const response = await fetch(`/api/activities?timeframe=${timeframe}`);
-                const activities = await response.json();
-                const activitiesList = document.getElementById('activities-list');
-                const emptyState = document.getElementById('empty-state');
-                
-                if (activities.length === 0) {
-                    emptyState.style.display = 'block';
-                    return;
-                }
-
-                emptyState.style.display = 'none';
-                activitiesList.innerHTML = activities.map(activity => `
-                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div class="flex items-center">
-                            <div class="ml-3">
-                                <p class="text-sm font-medium text-gray-900">${activity.title}</p>
-                                <p class="text-sm text-gray-500">
-                                    ${new Date(activity.scheduled_time).toLocaleString()}
-                                    ${activity.category ? `• ${activity.category}` : ''}
-                                </p>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            ${activity.importance ? `
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                    activity.importance >= 0.7 ? 'bg-red-100 text-red-800' :
-                                    activity.importance >= 0.4 ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-green-100 text-green-800'
-                                }">
-                                    Priority: ${Math.round(activity.importance * 100)}%
-                                </span>
-                            ` : ''}
-                        </div>
-                    </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error fetching activities:', error);
+<script>
+    // Fetch and display activities
+    async function fetchActivities(timeframe = 'day') {
+        try {
+            const response = await fetch(`/api/activities?timeframe=${timeframe}`);
+            const activities = await response.json();
+            const activitiesList = document.getElementById('activities-list');
+            const emptyState = document.getElementById('empty-state');
+            
+            if (activities.length === 0) {
+                emptyState.style.display = 'block';
+                return;
             }
-        }
 
-        // Fetch and display available entities
-        async function fetchAvailableEntities() {
-            try {
-                const response = await fetch('/api/entities/available');
-                const entities = await response.json();
-                const entitiesList = document.getElementById('entities-list');
-                const emptyEntities = document.getElementById('empty-entities');
-                
-                if (entities.length === 0) {
-                    emptyEntities.style.display = 'block';
-                    return;
-                }
-
-                emptyEntities.style.display = 'none';
-                entitiesList.innerHTML = entities.map(entity => `
-                    <div class="flex items-center space-x-3 mb-3 p-2 hover:bg-gray-50 rounded">
-                        <div>
-                            <p class="text-sm font-medium text-gray-900">${entity.name}</p>
-                            <p class="text-xs text-gray-500">${entity.category}</p>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error fetching entities:', error);
-            }
-        }
-
-        // Tab handling
-        document.querySelectorAll('[id^="tab-"]').forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                // Remove active state from all tabs
-                document.querySelectorAll('[id^="tab-"]').forEach(t => {
-                    t.classList.remove('border-blue-500', 'text-blue-600');
-                    t.classList.add('border-transparent', 'text-gray-500');
-                });
-                
-                // Add active state to clicked tab
-                e.target.classList.remove('border-transparent', 'text-gray-500');
-                e.target.classList.add('border-blue-500', 'text-blue-600');
-                
-                // Fetch activities for the selected timeframe
-                const timeframe = e.target.id.replace('tab-', '');
-                fetchActivities(timeframe);
-            });
-        });
-
-        // Fetch weather data
-        async function fetchWeather() {
-            try {
-                const response = await fetch('/api/weather');
-                const weather = await response.json();
-                const weatherWidget = document.getElementById('weather-widget');
-                
-                if (weather.error) {
-                    weatherWidget.innerHTML = `<p class="text-red-500">${weather.error}</p>`;
-                    return;
-                }
-
-                weatherWidget.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-2xl font-bold">${weather.temperature}°F</p>
-                            <p class="text-sm text-gray-500">${weather.description}</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-sm">${weather.city}</p>
-                            <p class="text-xs text-gray-500">Humidity: ${weather.humidity}</p>
-                        </div>
-                    </div>
-                    ${weather.daytime_rain_forecast ? `
-                        <div class="mt-3 p-2 bg-blue-50 rounded-md">
-                            <p class="text-sm font-medium text-blue-800">Rain Expected:</p>
-                            <div class="text-xs text-blue-600 space-y-1">
-                                ${Object.entries(weather.daytime_rain_forecast)
-                                    .map(([date, hours]) => `<p>${date}: ${hours.join(', ')}</p>`)
-                                    .join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-                `;
-            } catch (error) {
-                console.error('Error fetching weather:', error);
-            }
-        }
-
-        // Fetch current schedule
-        async function fetchCurrentSchedule() {
-            try {
-                const response = await fetch('/api/schedule/current');
-                const schedule = await response.json();
-                const scheduleDiv = document.getElementById('current-schedule');
-                
-                if (schedule.error) {
-                    scheduleDiv.innerHTML = `<p class="text-gray-500">No active schedule</p>`;
-                    return;
-                }
-
-                scheduleDiv.innerHTML = `
-                    <div class="p-4 bg-gray-50 rounded-lg">
-                        <p class="font-medium">${schedule.name}</p>
-                        ${schedule.start_time ? `
+            emptyState.style.display = 'none';
+            activitiesList.innerHTML = activities.map(activity => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">${activity.title}</p>
                             <p class="text-sm text-gray-500">
-                                ${schedule.start_time} - ${schedule.end_time}
+                                ${new Date(activity.scheduled_time).toLocaleString()}
+                                ${activity.category ? `• ${activity.category}` : ''}
                             </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        ${activity.importance ? `
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                activity.importance >= 0.7 ? 'bg-red-100 text-red-800' :
+                                activity.importance >= 0.4 ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                            }">
+                                Priority: ${Math.round(activity.importance * 100)}%
+                            </span>
                         ` : ''}
                     </div>
-                `;
-            } catch (error) {
-                console.error('Error fetching schedule:', error);
-            }
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error fetching activities:', error);
         }
+    }
 
-        // Fetch calendar events
-        async function fetchCalendarEvents() {
-            try {
-                const response = await fetch('/api/calendar/events');
-                const events = await response.json();
-                const eventsDiv = document.getElementById('calendar-events');
-                
-                if (events.error || events.length === 0) {
-                    eventsDiv.innerHTML = `<p class="text-gray-500 text-center py-4">No upcoming events</p>`;
-                    return;
-                }
+    // Fetch and display available entities
+    async function fetchAvailableEntities() {
+        try {
+            const response = await fetch('/api/entities/available');
+            const entities = await response.json();
+            const entitiesList = document.getElementById('entities-list');
+            const emptyEntities = document.getElementById('empty-entities');
+            
+            if (entities.length === 0) {
+                emptyEntities.style.display = 'block';
+                return;
+            }
 
-                eventsDiv.innerHTML = events.map(event => `
-                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div>
-                            <p class="font-medium">${event.title}</p>
-                            <p class="text-sm text-gray-500">${event.start_time}</p>
+            emptyEntities.style.display = 'none';
+            entitiesList.innerHTML = entities.map(entity => `
+                <div class="flex items-center space-x-3 mb-3 p-2 hover:bg-gray-50 rounded">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">${entity.name}</p>
+                        <p class="text-xs text-gray-500">${entity.category}</p>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error fetching entities:', error);
+        }
+    }
+
+    // Tab handling
+    document.querySelectorAll('[id^="tab-"]').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            // Remove active state from all tabs
+            document.querySelectorAll('[id^="tab-"]').forEach(t => {
+                t.classList.remove('border-blue-500', 'text-blue-600');
+                t.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // Add active state to clicked tab
+            e.target.classList.remove('border-transparent', 'text-gray-500');
+            e.target.classList.add('border-blue-500', 'text-blue-600');
+            
+            // Fetch activities for the selected timeframe
+            const timeframe = e.target.id.replace('tab-', '');
+            fetchActivities(timeframe);
+        });
+    });
+
+    // Fetch weather data
+    async function fetchWeather() {
+        try {
+            const response = await fetch('/api/weather');
+            const weather = await response.json();
+            const weatherWidget = document.getElementById('weather-widget');
+            
+            if (weather.error) {
+                weatherWidget.innerHTML = `<p class="text-red-500">${weather.error}</p>`;
+                return;
+            }
+
+            weatherWidget.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-2xl font-bold">${weather.temperature}°F</p>
+                        <p class="text-sm text-gray-500">${weather.description}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm">${weather.city}</p>
+                        <p class="text-xs text-gray-500">Humidity: ${weather.humidity}</p>
+                    </div>
+                </div>
+                ${weather.daytime_rain_forecast ? `
+                    <div class="mt-3 p-2 bg-blue-50 rounded-md">
+                        <p class="text-sm font-medium text-blue-800">Rain Expected:</p>
+                        <div class="text-xs text-blue-600 space-y-1">
+                            ${Object.entries(weather.daytime_rain_forecast)
+                                .map(([date, hours]) => `<p>${date}: ${hours.join(', ')}</p>`)
+                                .join('')}
                         </div>
                     </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error fetching calendar events:', error);
-            }
+                ` : ''}
+            `;
+        } catch (error) {
+            console.error('Error fetching weather:', error);
         }
+    }
 
-        // Initial load
-        fetchActivities('day');
-        fetchAvailableEntities();
+    // Fetch current schedule
+    async function fetchCurrentSchedule() {
+        try {
+            const response = await fetch('/api/schedule/current');
+            const schedule = await response.json();
+            const scheduleDiv = document.getElementById('current-schedule');
+            
+            if (schedule.error) {
+                scheduleDiv.innerHTML = `<p class="text-gray-500">No active schedule</p>`;
+                return;
+            }
+
+            scheduleDiv.innerHTML = `
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <p class="font-medium">${schedule.name}</p>
+                    ${schedule.start_time ? `
+                        <p class="text-sm text-gray-500">
+                            ${schedule.start_time} - ${schedule.end_time}
+                        </p>
+                    ` : ''}
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error fetching schedule:', error);
+        }
+    }
+
+    // Fetch calendar events
+    async function fetchCalendarEvents() {
+        try {
+            const response = await fetch('/api/calendar/events');
+            const events = await response.json();
+            const eventsDiv = document.getElementById('calendar-events');
+            
+            if (events.error || events.length === 0) {
+                eventsDiv.innerHTML = `<p class="text-gray-500 text-center py-4">No upcoming events</p>`;
+                return;
+            }
+
+            eventsDiv.innerHTML = events.map(event => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="font-medium">${event.title}</p>
+                        <p class="text-sm text-gray-500">${event.start_time}</p>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error fetching calendar events:', error);
+        }
+    }
+
+    // Initial load
+    fetchActivities('day');
+    fetchAvailableEntities();
+    fetchWeather();
+    fetchCurrentSchedule();
+    fetchCalendarEvents();
+
+    // Weather refresh - every 20 minutes
+    setTimeout(() => {
         fetchWeather();
+        // Set up recurring weather updates
+        setInterval(fetchWeather, 1200000); // 20 minutes
+    }, 1200000);
+
+    // Other updates - every 5 minutes
+    setTimeout(() => {
+        fetchActivities(document.querySelector('.border-blue-500').id.replace('tab-', ''));
         fetchCurrentSchedule();
         fetchCalendarEvents();
-
-        // Weather refresh - every 20 minutes
-        setTimeout(() => {
-            fetchWeather();
-            // Set up recurring weather updates
-            setInterval(fetchWeather, 1200000); // 20 minutes
-        }, 1200000);
-
-        // Other updates - every 5 minutes
-        setTimeout(() => {
+        // Set up recurring updates for other data
+        setInterval(() => {
             fetchActivities(document.querySelector('.border-blue-500').id.replace('tab-', ''));
             fetchCurrentSchedule();
             fetchCalendarEvents();
-            // Set up recurring updates for other data
-            setInterval(() => {
-                fetchActivities(document.querySelector('.border-blue-500').id.replace('tab-', ''));
-                fetchCurrentSchedule();
-                fetchCalendarEvents();
-            }, 300000);
         }, 300000);
+    }, 300000);
 
-        // Entity updates - every 5 minutes
-        setTimeout(() => {
-            fetchAvailableEntities();
-            // Set up recurring entity updates
-            setInterval(fetchAvailableEntities, 300000);
-        }, 300000);
-    </script>
-</body>
-</html> 
+    // Entity updates - every 5 minutes
+    setTimeout(() => {
+        fetchAvailableEntities();
+        // Set up recurring entity updates
+        setInterval(fetchAvailableEntities, 300000);
+    }, 300000);
+</script> 

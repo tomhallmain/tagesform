@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, render_template, redirect, url_for, flash
+from flask import Flask, jsonify, request, render_template, redirect, url_for, flash, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_required, current_user, login_user, logout_user
 from flask_migrate import Migrate
@@ -8,15 +8,38 @@ import requests
 import json
 import pytz
 import os
+import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from services.integration_service import integration_service
 from utils.config import config
 
-app = Flask(__name__)
+# Set up logging based on debug mode
+logging.basicConfig(
+    level=logging.DEBUG if config.debug else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Create Flask app with explicit template folder
+app = Flask(__name__, 
+            template_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates')),
+            static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), 'static')))
+
+# Only log paths in debug mode
+if config.debug:
+    logger.debug(f"Template folder: {app.template_folder}")
+    logger.debug(f"Static folder: {app.static_folder}")
+    logger.debug(f"Templates available: {os.listdir(app.template_folder)}")
+    logger.debug(f"Static files available: {os.listdir(app.static_folder)}")
+
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = config.DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = config.SQLALCHEMY_TRACK_MODIFICATIONS
 app.config['DEBUG'] = config.debug
+
+# Ensure static files are handled correctly
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 if config.debug else None  # Only disable caching in debug mode
+app.static_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static'))
 
 # Ollama Configuration
 OLLAMA_BASE_URL = config.OLLAMA_BASE_URL
@@ -379,11 +402,304 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
+@app.route('/add-activity', methods=['GET', 'POST'])
+@login_required
+def add_activity():
+    if request.method == 'POST':
+        # Get form data
+        title = request.form.get('title')
+        description = request.form.get('description')
+        scheduled_date = request.form.get('scheduled_date')
+        scheduled_time = request.form.get('scheduled_time')
+        category = request.form.get('category')
+        duration = request.form.get('duration')
+        location = request.form.get('location')
+        participants = request.form.get('participants', '').split(',') if request.form.get('participants') else []
+        notes = request.form.get('notes')
+
+        # Create datetime object from date and time
+        scheduled_datetime = datetime.strptime(f"{scheduled_date} {scheduled_time}", "%Y-%m-%d %H:%M")
+
+        # Create new activity
+        activity = Activity(
+            title=title,
+            description=description,
+            scheduled_time=scheduled_datetime,
+            category=category,
+            duration=duration,
+            location=location,
+            participants=participants,
+            notes=notes,
+            user_id=current_user.id
+        )
+
+        # Infer importance using LLM
+        activity.importance = infer_activity_importance(activity)
+
+        db.session.add(activity)
+        db.session.commit()
+
+        flash('Activity added successfully!', 'success')
+        return redirect(url_for('index'))
+
+    return render_template('add_activity.html')
+
+@app.route('/new-schedule', methods=['GET', 'POST'])
+@login_required
+def new_schedule():
+    if request.method == 'POST':
+        # Get form data
+        title = request.form.get('title')
+        start_time = request.form.get('start_time')
+        end_time = request.form.get('end_time')
+        recurrence = request.form.get('recurrence')
+        category = request.form.get('category')
+        location = request.form.get('location')
+        description = request.form.get('description')
+
+        # Create new schedule
+        schedule = Schedule(
+            title=title,
+            start_time=datetime.strptime(start_time, "%H:%M"),
+            end_time=datetime.strptime(end_time, "%H:%M"),
+            recurrence=recurrence,
+            category=category,
+            location=location,
+            description=description,
+            user_id=current_user.id
+        )
+
+        db.session.add(schedule)
+        db.session.commit()
+
+        flash('Schedule created successfully!', 'success')
+        return redirect(url_for('index'))
+
+    return render_template('new_schedule.html')
+
+@app.route('/add-place', methods=['GET', 'POST'])
+@login_required
+def add_place():
+    if request.method == 'POST':
+        # Get form data
+        name = request.form.get('name')
+        category = request.form.get('category')
+        location = request.form.get('location')
+        contact_info = request.form.get('contact_info')
+        description = request.form.get('description')
+        tags = request.form.get('tags', '').split(',') if request.form.get('tags') else []
+
+        # Process operating hours
+        operating_hours = {}
+        days = request.form.getlist('days[]')
+        for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']:
+            if day in days:
+                operating_hours[day] = {
+                    'open': request.form.get(f'{day}_open'),
+                    'close': request.form.get(f'{day}_close')
+                }
+
+        # Create new entity
+        entity = Entity(
+            name=name,
+            category=category,
+            operating_hours=operating_hours,
+            location=location,
+            contact_info=contact_info,
+            description=description,
+            tags=tags
+        )
+
+        db.session.add(entity)
+        db.session.commit()
+
+        flash('Place added successfully!', 'success')
+        return redirect(url_for('index'))
+
+    return render_template('add_place.html')
+
+@app.route('/profile')
+@login_required
+def profile():
+    # Get user statistics
+    stats = {
+        'total_activities': Activity.query.filter_by(user_id=current_user.id).count(),
+        'active_schedules': Schedule.query.filter_by(user_id=current_user.id).count(),
+        'places_tracked': Entity.query.count()
+    }
+    return render_template('profile.html', stats=stats)
+
+@app.route('/update-profile', methods=['POST'])
+@login_required
+def update_profile():
+    username = request.form.get('username')
+    email = request.form.get('email')
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+
+    if new_password:
+        if new_password != confirm_password:
+            flash('Passwords do not match!', 'error')
+            return redirect(url_for('profile'))
+        current_user.set_password(new_password)
+
+    # Check if username or email already exists
+    if username != current_user.username and User.query.filter_by(username=username).first():
+        flash('Username already taken!', 'error')
+        return redirect(url_for('profile'))
+
+    if email != current_user.email and User.query.filter_by(email=email).first():
+        flash('Email already registered!', 'error')
+        return redirect(url_for('profile'))
+
+    current_user.username = username
+    current_user.email = email
+    db.session.commit()
+
+    flash('Profile updated successfully!', 'success')
+    return redirect(url_for('profile'))
+
+@app.route('/settings')
+@login_required
+def settings():
+    logger.debug("Rendering settings page")
+    logger.debug(f"Current user preferences: {current_user.preferences}")
+    return render_template('settings.html', preferences=current_user.preferences or {})
+
+@app.route('/update-notifications', methods=['POST'])
+@login_required
+def update_notifications():
+    preferences = current_user.preferences or {}
+    preferences['email_notifications'] = 'email_notifications' in request.form
+    preferences['browser_notifications'] = 'browser_notifications' in request.form
+    current_user.preferences = preferences
+    db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'message': 'Notification settings updated!',
+            'type': 'success'
+        })
+    
+    flash('Notification settings updated!', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/update-display', methods=['POST'])
+@login_required
+def update_display():
+    preferences = current_user.preferences or {}
+    preferences['default_view'] = request.form.get('default_view')
+    preferences['time_format'] = request.form.get('time_format')
+    current_user.preferences = preferences
+    db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'message': 'Display settings updated!',
+            'type': 'success'
+        })
+    
+    flash('Display settings updated!', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/update-weather', methods=['POST'])
+@login_required
+def update_weather():
+    preferences = current_user.preferences or {}
+    preferences['default_city'] = request.form.get('default_city')
+    preferences['temperature_unit'] = request.form.get('temperature_unit')
+    current_user.preferences = preferences
+    db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'message': 'Weather settings updated!',
+            'type': 'success'
+        })
+    
+    flash('Weather settings updated!', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/export-data')
+@login_required
+def export_data():
+    # Get all user data
+    activities = Activity.query.filter_by(user_id=current_user.id).all()
+    schedules = Schedule.query.filter_by(user_id=current_user.id).all()
+    
+    data = {
+        'user': {
+            'username': current_user.username,
+            'email': current_user.email,
+            'preferences': current_user.preferences
+        },
+        'activities': [{
+            'title': a.title,
+            'description': a.description,
+            'scheduled_time': a.scheduled_time.isoformat(),
+            'category': a.category,
+            'importance': a.importance,
+            'status': a.status,
+            'location': a.location,
+            'participants': a.participants,
+            'notes': a.notes
+        } for a in activities],
+        'schedules': [{
+            'title': s.title,
+            'start_time': s.start_time.isoformat(),
+            'end_time': s.end_time.isoformat(),
+            'recurrence': s.recurrence,
+            'category': s.category,
+            'location': s.location,
+            'description': s.description
+        } for s in schedules]
+    }
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(data)
+    
+    response = make_response(jsonify(data))
+    response.headers['Content-Disposition'] = 'attachment; filename=user_data.json'
+    response.headers['Content-Type'] = 'application/json'
+    return response
+
+@app.route('/delete-account', methods=['POST'])
+@login_required
+def delete_account():
+    # Delete all user data
+    Activity.query.filter_by(user_id=current_user.id).delete()
+    Schedule.query.filter_by(user_id=current_user.id).delete()
+    db.session.delete(current_user)
+    db.session.commit()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'message': 'Your account has been deleted.',
+            'type': 'success',
+            'redirect': url_for('index')
+        })
+    
+    logout_user()
+    flash('Your account has been deleted.', 'success')
+    return redirect(url_for('index'))
+
+@app.before_request
+def log_request_info():
+    """Log request information when in debug mode"""
+    if not config.debug:
+        return
+        
+    logger.debug('Headers: %s', request.headers)
+    logger.debug('Path: %s', request.path)
+    if request.path.startswith('/static/'):
+        logger.debug('Static file requested: %s', request.path)
+
 if __name__ == '__main__':
     with app.app_context():
-        if app.config['DEBUG']:
-            app.logger.info(f"Using Ollama at: {OLLAMA_BASE_URL}")
-            app.logger.info(f"Using model: {OLLAMA_MODEL}")
-            app.logger.info(f"Activity update interval: {TASK_UPDATE_INTERVAL} hours")
+        if config.debug:
+            logger.info(f"Using Ollama at: {OLLAMA_BASE_URL}")
+            logger.info(f"Using model: {OLLAMA_MODEL}")
+            logger.info(f"Activity update interval: {TASK_UPDATE_INTERVAL} hours")
+            logger.info(f"Debug mode: {app.debug}")
         db.create_all()
-    app.run(debug=app.config['DEBUG'])
+    app.run(debug=config.debug, use_reloader=True, host='localhost', port=5000)

@@ -92,12 +92,12 @@
                         <h3 class="mt-2 text-sm font-medium text-gray-900">No activities yet</h3>
                         <p class="mt-1 text-sm text-gray-500">Get started by adding your first activity or schedule.</p>
                         <div class="mt-6 space-x-4">
-                            <button class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+                            <a href="{{ url_for('add_activity') }}" class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                                 Add Activity
-                            </button>
-                            <button class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600">
+                            </a>
+                            <a href="{{ url_for('new_schedule') }}" class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600">
                                 Create Schedule
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -107,18 +107,7 @@
             <div class="bg-white shadow rounded-lg p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Calendar Events</h2>
                 <div id="calendar-events" class="space-y-4">
-                    {% if dashboard_data and dashboard_data.events %}
-                        {% for event in dashboard_data.events %}
-                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                            <div>
-                                <p class="font-medium">{{ event.title }}</p>
-                                <p class="text-sm text-gray-500">{{ event.start_time }}</p>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                    <p class="text-gray-500 text-center py-4">No upcoming events</p>
-                    {% endif %}
+                    <p class="text-gray-500 text-center py-4">Loading events...</p>
                 </div>
             </div>
         </div>
@@ -132,9 +121,9 @@
                     <!-- Empty state for entities -->
                     <div class="text-center py-6" id="empty-entities">
                         <p class="text-sm text-gray-500">Add your favorite places to see their current availability.</p>
-                        <button class="mt-4 bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600">
+                        <a href="{{ url_for('add_place') }}" class="mt-4 bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600">
                             Add Place
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -233,6 +222,52 @@
         }
     }
 
+    // Fetch and display calendar events
+    async function fetchCalendarEvents(timeframe = 'day') {
+        try {
+            const now = new Date();
+            let endDate = new Date(now);
+            
+            switch(timeframe) {
+                case 'week':
+                    endDate.setDate(now.getDate() + 7);
+                    break;
+                case 'month':
+                    endDate.setMonth(now.getMonth() + 1);
+                    break;
+                case 'year':
+                    endDate.setFullYear(now.getFullYear() + 1);
+                    break;
+                default: // day
+                    endDate.setDate(now.getDate() + 1);
+            }
+            
+            const response = await fetch(`/api/calendar/events?start_date=${now.toISOString()}&end_date=${endDate.toISOString()}`);
+            const events = await response.json();
+            const calendarEvents = document.getElementById('calendar-events');
+            
+            if (!events || events.length === 0) {
+                calendarEvents.innerHTML = '<p class="text-gray-500 text-center py-4">No upcoming events</p>';
+                return;
+            }
+
+            calendarEvents.innerHTML = events.map(event => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="font-medium">${event.title}</p>
+                        <p class="text-sm text-gray-500">${event.start_time}</p>
+                        ${event.description ? `<p class="text-sm text-gray-600 mt-1">${event.description}</p>` : ''}
+                        ${event.location ? `<p class="text-xs text-gray-500 mt-1">Location: ${event.location}</p>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error fetching calendar events:', error);
+            const calendarEvents = document.getElementById('calendar-events');
+            calendarEvents.innerHTML = '<p class="text-red-500 text-center py-4">Error loading events</p>';
+        }
+    }
+
     // Tab handling
     document.querySelectorAll('[id^="tab-"]').forEach(tab => {
         tab.addEventListener('click', (e) => {
@@ -243,12 +278,15 @@
             });
             
             // Add active state to clicked tab
-            e.target.classList.remove('border-transparent', 'text-gray-500');
-            e.target.classList.add('border-blue-500', 'text-blue-600');
+            tab.classList.remove('border-transparent', 'text-gray-500');
+            tab.classList.add('border-blue-500', 'text-blue-600');
             
-            // Fetch activities for the selected timeframe
-            const timeframe = e.target.id.replace('tab-', '');
+            // Get timeframe from tab ID
+            const timeframe = tab.id.replace('tab-', '');
+            
+            // Fetch data for the selected timeframe
             fetchActivities(timeframe);
+            fetchCalendarEvents(timeframe);
         });
     });
 
@@ -318,37 +356,12 @@
         }
     }
 
-    // Fetch calendar events
-    async function fetchCalendarEvents() {
-        try {
-            const response = await fetch('/api/calendar/events');
-            const events = await response.json();
-            const eventsDiv = document.getElementById('calendar-events');
-            
-            if (events.error || events.length === 0) {
-                eventsDiv.innerHTML = `<p class="text-gray-500 text-center py-4">No upcoming events</p>`;
-                return;
-            }
-
-            eventsDiv.innerHTML = events.map(event => `
-                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                        <p class="font-medium">${event.title}</p>
-                        <p class="text-sm text-gray-500">${event.start_time}</p>
-                    </div>
-                </div>
-            `).join('');
-        } catch (error) {
-            console.error('Error fetching calendar events:', error);
-        }
-    }
-
-    // Initial load
-    fetchActivities('day');
-    fetchAvailableEntities();
-    fetchWeather();
-    fetchCurrentSchedule();
-    fetchCalendarEvents();
+    // Initial data load
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchActivities('day');
+        fetchCalendarEvents('day');
+        fetchAvailableEntities();
+    });
 
     // Weather refresh - every 20 minutes
     setTimeout(() => {
@@ -361,12 +374,12 @@
     setTimeout(() => {
         fetchActivities(document.querySelector('.border-blue-500').id.replace('tab-', ''));
         fetchCurrentSchedule();
-        fetchCalendarEvents();
+        fetchCalendarEvents(document.querySelector('.border-blue-500').id.replace('tab-', ''));
         // Set up recurring updates for other data
         setInterval(() => {
             fetchActivities(document.querySelector('.border-blue-500').id.replace('tab-', ''));
             fetchCurrentSchedule();
-            fetchCalendarEvents();
+            fetchCalendarEvents(document.querySelector('.border-blue-500').id.replace('tab-', ''));
         }, 300000);
     }, 300000);
 

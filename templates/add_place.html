@@ -13,7 +13,7 @@
 
         <div>
             <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
-            <select name="category" id="category"
+            <select name="category" id="category" onchange="updateCuisineField(this.value)"
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 <option value="restaurant">Restaurant</option>
                 <option value="store">Store</option>
@@ -22,6 +22,13 @@
                 <option value="entertainment">Entertainment</option>
                 <option value="other">Other</option>
             </select>
+        </div>
+
+        <!-- Cuisine field - only shown for restaurants -->
+        <div id="cuisine-field" style="display: none;">
+            <label for="cuisine" class="block text-sm font-medium text-gray-700">Cuisine Type</label>
+            <input type="text" name="cuisine" id="cuisine"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
         </div>
 
         <div>
@@ -69,6 +76,12 @@
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
         </div>
 
+        <div class="flex items-center mb-4">
+            <input type="checkbox" name="visited" id="visited"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+            <label for="visited" class="ml-2 block text-sm text-gray-700">I have visited this place</label>
+        </div>
+
         <div class="flex justify-end space-x-4">
             <a href="{{ url_for('index') }}"
                 class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
@@ -81,24 +94,51 @@
         </div>
     </form>
 </div>
-
-{% block scripts %}
-<script>
-    // Enable/disable time inputs based on checkbox state
-    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-        const day = checkbox.value;
-        const openInput = document.getElementById(`${day}_open`);
-        const closeInput = document.getElementById(`${day}_close`);
-        
-        function updateTimeInputs() {
-            openInput.disabled = !checkbox.checked;
-            closeInput.disabled = !checkbox.checked;
-        }
-        
-        checkbox.addEventListener('change', updateTimeInputs);
-        updateTimeInputs(); // Initial state
-    });
-</script>
 {% endblock %}
 
+{% block scripts %}
+<!-- Add Place page scripts -->
+<script type="text/javascript">
+    // Function to update cuisine field visibility (needs to be in global scope for inline onchange)
+    function updateCuisineField(categoryValue) {
+        const cuisineField = document.getElementById('cuisine-field');
+        const cuisineInput = document.getElementById('cuisine');
+        if (!cuisineField || !cuisineInput) return;
+
+        if (categoryValue === 'restaurant') {
+            cuisineField.style.display = 'block';
+        } else {
+            cuisineField.style.display = 'none';
+            cuisineInput.value = ''; // Clear the cuisine input when switching to non-restaurant
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Enable/disable time inputs based on checkbox state
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            const day = checkbox.value;
+            const openInput = document.getElementById(`${day}_open`);
+            const closeInput = document.getElementById(`${day}_close`);
+            
+            // Skip if inputs don't exist
+            if (!openInput || !closeInput) return;
+            
+            function updateTimeInputs() {
+                if (openInput && closeInput) {
+                    openInput.disabled = !checkbox.checked;
+                    closeInput.disabled = !checkbox.checked;
+                }
+            }
+            
+            checkbox.addEventListener('change', updateTimeInputs);
+            updateTimeInputs(); // Initial state
+        });
+
+        // Set initial cuisine field visibility
+        const categorySelect = document.getElementById('category');
+        if (categorySelect) {
+            updateCuisineField(categorySelect.value);
+        }
+    });
+</script>
 {% endblock %} 

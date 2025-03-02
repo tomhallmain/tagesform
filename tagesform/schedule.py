@@ -1,4 +1,3 @@
-
 from utils.translations import I18N
 
 _ = I18N._
@@ -8,21 +7,21 @@ class Schedule:
         self.name = _('New Schedule') if name is None else name
         self.enabled = enabled
         self.weekday_options = weekday_options
-        self.start_time = start_time
-        self.end_time = end_time
-        self.shutdown_time = shutdown_time
+        self.start_time = int(start_time) if start_time is not None else None
+        self.end_time = int(end_time) if end_time is not None else None
+        self.shutdown_time = int(shutdown_time) if shutdown_time is not None else None
 
     def is_valid(self):
         return len(self.weekday_options) > 0
 
     def set_start_time(self, hour=0, minute=0):
-        self.start_time = Schedule.get_time(hour=hour, minute=minute)
+        self.start_time = Schedule.get_time(hour=int(hour), minute=int(minute))
 
     def set_end_time(self, hour=0, minute=0):
-        self.end_time = Schedule.get_time(hour=hour, minute=minute)
+        self.end_time = Schedule.get_time(hour=int(hour), minute=int(minute))
 
     def set_shutdown_time(self, hour=0, minute=0):
-        self.shutdown_time = Schedule.get_time(hour=hour, minute=minute)
+        self.shutdown_time = Schedule.get_time(hour=int(hour), minute=int(minute))
 
     def short_text(self):
         return str(self.name)
@@ -61,10 +60,20 @@ class Schedule:
 
     @staticmethod
     def get_time(hour=0, minute=0):
-        return hour * 60 + minute
+        try:
+            return int(hour) * 60 + int(minute)
+        except (ValueError, TypeError):
+            return None
 
     @staticmethod
     def from_dict(_dict):
+        if isinstance(_dict, dict):
+            for key in ['start_time', 'end_time', 'shutdown_time']:
+                if key in _dict and _dict[key] is not None:
+                    try:
+                        _dict[key] = int(_dict[key])
+                    except (ValueError, TypeError):
+                        _dict[key] = None
         return Schedule(**_dict)
 
     def to_dict(self):
@@ -82,10 +91,13 @@ class Schedule:
             self.readable_time(self.shutdown_time))
 
     def readable_time(self, time):
-        if not time or time < 0:
+        if time is None or (isinstance(time, (int, float)) and time < 0):
             return "N/A"
-        else:
-            return "{0}:{1}".format(int(time / 60), time % 60)
+        try:
+            time_val = int(time)
+            return "{0:02d}:{1:02d}".format(time_val // 60, time_val % 60)
+        except (ValueError, TypeError):
+            return "N/A"
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Schedule) and self.name == other.name

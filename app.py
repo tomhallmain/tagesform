@@ -12,6 +12,8 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from services.integration_service import integration_service
 from utils.config import config
+from threading import Thread
+from flask import copy_current_request_context
 
 # Set up logging based on debug mode
 logging.basicConfig(
@@ -53,7 +55,99 @@ login_manager.login_view = 'login'
 scheduler = BackgroundScheduler()
 
 # Database Models
-class User(UserMixin, db.Model):
+class JSONFieldMixin:
+    def update_json_field(self, field_name, updates, transform_func=None, validate_func=None):
+        """
+        Generic method to update any JSON field while handling SQLAlchemy change detection.
+        
+        Args:
+            field_name (str): Name of the JSON field to update
+            updates (dict): Dictionary of updates to apply
+            transform_func (callable, optional): Function to transform values before storing
+            validate_func (callable, optional): Function to validate updates before applying
+            
+        Returns:
+            dict: The updated JSON field value
+            
+        Raises:
+            ValueError: If validation fails
+            AttributeError: If field doesn't exist
+        """
+        try:
+            # Get current value, defaulting to empty dict
+            current = getattr(self, field_name) or {}
+            
+            # Create new value by copying current and updating
+            new_value = current.copy()
+            
+            # Transform updates if transform function provided
+            if transform_func:
+                updates = {k: transform_func(v) for k, v in updates.items()}
+            
+            # Validate updates if validate function provided
+            if validate_func and not validate_func(updates):
+                raise ValueError(f"Validation failed for {field_name} updates")
+            
+            # Update the dictionary
+            new_value.update(updates)
+            
+            # Force SQLAlchemy to detect the change
+            setattr(self, field_name, None)
+            db.session.commit()
+            
+            setattr(self, field_name, new_value)
+            db.session.commit()
+            
+            # Refresh the instance to ensure we have the latest data
+            db.session.refresh(self)
+            return getattr(self, field_name)
+            
+        except AttributeError:
+            raise AttributeError(f"Model has no JSON field named {field_name}")
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
+    def get_json_value(self, field_name, key, default=None):
+        """
+        Safely get a value from a JSON field.
+        
+        Args:
+            field_name (str): Name of the JSON field
+            key (str): Key to retrieve
+            default: Value to return if key doesn't exist
+            
+        Returns:
+            The value if found, else default
+        """
+        try:
+            field_data = getattr(self, field_name) or {}
+            return field_data.get(key, default)
+        except AttributeError:
+            return default
+
+    def set_json_value(self, field_name, key, value, transform_func=None, validate_func=None):
+        """
+        Safely set a single value in a JSON field.
+        
+        Args:
+            field_name (str): Name of the JSON field
+            key (str): Key to set
+            value: Value to set
+            transform_func (callable, optional): Function to transform value before storing
+            validate_func (callable, optional): Function to validate value before storing
+            
+        Returns:
+            dict: The updated JSON field value
+        """
+        return self.update_json_field(
+            field_name,
+            {key: value},
+            transform_func=transform_func,
+            validate_func=validate_func
+        )
+
+class User(UserMixin, JSONFieldMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -67,6 +161,17 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+        
+    def update_preferences(self, updates):
+        """
+        Update user preferences with type-specific transformations.
+        """
+        def transform_preferences(value):
+            if isinstance(value, str) and value.lower() in ['true', 'false']:
+                return value.lower() == 'true'
+            return value
+            
+        return self.update_json_field('preferences', updates, transform_func=transform_preferences)
 
 class Activity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -103,6 +208,73 @@ class Entity(db.Model):
     contact_info = db.Column(db.String(200))
     description = db.Column(db.Text)
     tags = db.Column(db.JSON)  # For better categorization and search
+    visited = db.Column(db.Boolean, default=False)  # Keep this as a column since it applies to all entities
+    properties = db.Column(db.JSON)  # Category-specific properties like cuisine, delivery_radius, etc.
+
+    def get_property(self, key, default=None):
+        """Safely get a property value"""
+        if self.properties is None:
+            return default
+        return self.properties.get(key, default)
+
+    def set_property(self, key, value):
+        """Safely set a property value"""
+        if self.properties is None:
+            self.properties = {}
+        self.properties[key] = value
+
+    @property
+    def cuisine(self):
+        """Get cuisine for restaurants"""
+        return self.get_property('cuisine') if self.category == 'restaurant' else None
+
+    def to_dict(self):
+        """Convert entity to dictionary format"""
+        data = {
+            'id': self.id,
+            'name': self.name,
+            'category': self.category,
+            'location': self.location,
+            'description': self.description,
+            'contact_info': self.contact_info,
+            'operating_hours': self.operating_hours,
+            'tags': self.tags,
+            'visited': self.visited,
+            'properties': self.properties or {}
+        }
+        return data
+
+class EventCache(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    date = db.Column(db.DateTime, nullable=False)
+    description = db.Column(db.Text)
+    location = db.Column(db.String(200))
+    source = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    year = db.Column(db.Integer, nullable=False)  # For efficient querying
+    
+    @staticmethod
+    def from_event_dict(event_dict):
+        """Create an EventCache instance from an event dictionary"""
+        return EventCache(
+            title=event_dict['title'],
+            date=datetime.strptime(event_dict['start_time'], '%Y-%m-%d %H:%M'),
+            description=event_dict.get('description'),
+            location=event_dict.get('location'),
+            source=event_dict['sources'][0] if event_dict.get('sources') else None,
+            year=datetime.strptime(event_dict['start_time'], '%Y-%m-%d %H:%M').year
+        )
+    
+    def to_dict(self):
+        """Convert to dictionary format matching the API response"""
+        return {
+            'title': self.title,
+            'start_time': self.date.strftime('%Y-%m-%d %H:%M'),
+            'description': self.description,
+            'location': self.location,
+            'sources': [self.source] if self.source else []
+        }
 
 def query_ollama(prompt, model=None):
     """Send a query to Ollama's API and return the response"""
@@ -191,13 +363,60 @@ def update_activity_importance():
             activity.importance = importance
         db.session.commit()
 
+def update_event_cache():
+    """Background job to update the event cache"""
+    with app.app_context():
+        try:
+            current_year = datetime.now().year
+            # Get events for current and next year
+            for year in [current_year, current_year + 1]:
+                # Get fresh events from APIs
+                events = integration_service.get_calendar_events(
+                    start_date=datetime(year, 1, 1),
+                    end_date=datetime(year, 12, 31)
+                )
+                
+                # Delete existing cache for this year
+                EventCache.query.filter_by(year=year).delete()
+                
+                # Add new events to cache
+                for event_dict in events:
+                    cache_entry = EventCache.from_event_dict(event_dict)
+                    db.session.add(cache_entry)
+                
+                db.session.commit()
+                logger.info(f"Updated event cache for year {year}")
+                
+        except Exception as e:
+            logger.error(f"Error updating event cache: {str(e)}")
+            db.session.rollback()
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Initialize scheduler with interval from environment
-scheduler.add_job(update_activity_importance, 'interval', hours=TASK_UPDATE_INTERVAL)
-scheduler.start()
+def init_scheduler():
+    """Initialize and start the scheduler"""
+    if config.is_main_werkzeug_process():  # Only run scheduler in main process
+        scheduler.add_job(update_activity_importance, 'interval', hours=TASK_UPDATE_INTERVAL)
+        scheduler.add_job(update_event_cache, 'interval', hours=6)  # Update cache every 6 hours
+        if not scheduler.running:
+            scheduler.start()
+            logger.info("Scheduler started")
+
+def start_scheduler():
+    """Start the scheduler if it's not already running"""
+    if config.is_main_werkzeug_process():  # Only run scheduler in main process
+        if not scheduler.running:
+            scheduler.start()
+            logger.info("Scheduler started")
+
+# Initial cache population - only when running the app, not during migrations
+def initialize_cache():
+    """Initialize the event cache if empty"""
+    with app.app_context():
+        if not EventCache.query.first():  # Only if cache is empty
+            update_event_cache()
 
 # Routes
 @app.route('/')
@@ -336,16 +555,51 @@ def get_current_schedule():
 @login_required
 def get_calendar_events():
     """Get calendar events for a specific date range"""
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    if start_date:
-        start_date = datetime.fromisoformat(start_date)
-    if end_date:
-        end_date = datetime.fromisoformat(end_date)
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
         
-    events = integration_service.get_calendar_events(start_date, end_date)
-    return jsonify(events)
+        if start_date:
+            start_date = datetime.fromisoformat(start_date)
+        if end_date:
+            end_date = datetime.fromisoformat(end_date)
+
+        # Try to get events from cache first
+        cached_events = []
+        if start_date and end_date:
+            cached_events = EventCache.query.filter(
+                EventCache.date >= start_date,
+                EventCache.date <= end_date
+            ).order_by(EventCache.date).all()
+            
+        if cached_events:
+            # Convert cached events to API format
+            return jsonify([event.to_dict() for event in cached_events])
+            
+        # If no cached events, fall back to live data
+        events = integration_service.get_calendar_events(start_date, end_date)
+        
+        # Cache the results in the background if we had to fetch live
+        if events:
+            @copy_current_request_context
+            def cache_results():
+                try:
+                    for event_dict in events:
+                        cache_entry = EventCache.from_event_dict(event_dict)
+                        db.session.add(cache_entry)
+                    db.session.commit()
+                    logger.info("Successfully cached events from live data")
+                except Exception as e:
+                    logger.error(f"Error caching events: {str(e)}")
+                    db.session.rollback()
+                    
+            Thread(target=cache_results).start()
+            
+        return jsonify(events)
+        
+    except Exception as e:
+        logger.error(f"Error getting calendar events: {str(e)}")
+        return jsonify([])
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -488,6 +742,16 @@ def add_place():
         contact_info = request.form.get('contact_info')
         description = request.form.get('description')
         tags = request.form.get('tags', '').split(',') if request.form.get('tags') else []
+        visited = 'visited' in request.form
+
+        # Initialize properties dictionary
+        properties = {}
+        
+        # Add category-specific properties
+        if category == 'restaurant':
+            cuisine = request.form.get('cuisine')
+            if cuisine:
+                properties['cuisine'] = cuisine
 
         # Process operating hours
         operating_hours = {}
@@ -507,7 +771,9 @@ def add_place():
             location=location,
             contact_info=contact_info,
             description=description,
-            tags=tags
+            tags=tags,
+            visited=visited,
+            properties=properties
         )
 
         db.session.add(entity)
@@ -569,11 +835,14 @@ def settings():
 @app.route('/update-notifications', methods=['POST'])
 @login_required
 def update_notifications():
-    preferences = current_user.preferences or {}
-    preferences['email_notifications'] = 'email_notifications' in request.form
-    preferences['browser_notifications'] = 'browser_notifications' in request.form
-    current_user.preferences = preferences
-    db.session.commit()
+    # Create updates dictionary from form data
+    updates = {
+        'email_notifications': 'email_notifications' in request.form,
+        'browser_notifications': 'browser_notifications' in request.form
+    }
+    
+    # Update preferences using the new method
+    preferences = current_user.update_preferences(updates)
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
@@ -587,16 +856,21 @@ def update_notifications():
 @app.route('/update-display', methods=['POST'])
 @login_required
 def update_display():
-    preferences = current_user.preferences or {}
-    preferences['default_view'] = request.form.get('default_view')
-    preferences['time_format'] = request.form.get('time_format')
-    current_user.preferences = preferences
-    db.session.commit()
+    # Create updates dictionary from form data
+    updates = {
+        'default_view': request.form.get('default_view'),
+        'time_format': request.form.get('time_format'),
+        'dark_mode': request.form.get('dark_mode') == 'true'
+    }
+    
+    # Update preferences using the new method
+    preferences = current_user.update_preferences(updates)
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
             'message': 'Display settings updated!',
-            'type': 'success'
+            'type': 'success',
+            'preferences': preferences
         })
     
     flash('Display settings updated!', 'success')
@@ -702,4 +976,5 @@ if __name__ == '__main__':
             logger.info(f"Activity update interval: {TASK_UPDATE_INTERVAL} hours")
             logger.info(f"Debug mode: {app.debug}")
         db.create_all()
+        init_scheduler()  # Initialize scheduler with jobs
     app.run(debug=config.debug, use_reloader=True, host='localhost', port=5000)

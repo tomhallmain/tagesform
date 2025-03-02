@@ -23,7 +23,7 @@ class EventGroup:
 class Event:
     def __init__(self, name="", date=datetime.datetime.now(), source=None,
                  fixed=False, country=None, other_name=None, notes=None):
-        self.name = name
+        self.name = str(name) if name else ""
         self.date = date
         self.sources = []
         self.fixed = fixed
@@ -35,17 +35,17 @@ class Event:
                 self.sources.append(source)
         if country is not None:
             if isinstance(country, list):
-                self.countries.extend(country)
+                self.countries.extend([str(c) for c in country])
             else:
-                self.countries.append(country)
+                self.countries.append(str(country))
         if notes is not None:
             if isinstance(notes, list):
-                self.notes.extend(notes)
+                self.notes.extend([str(n) if not isinstance(n, dict) else n for n in notes])
             else:
-                self.notes.append(notes)
+                self.notes.append(str(notes) if not isinstance(notes, dict) else notes)
         if other_name is not None:
             if not other_name in self.other_names:
-                self.other_names.append(other_name)
+                self.other_names.append(str(other_name))
 
     def merge(self, other):
         if self.fixed is None and other.fixed is not None:

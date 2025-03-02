@@ -43,6 +43,9 @@ class Config:
         self.OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'deepseek-r1:14b')
         self.TASK_UPDATE_INTERVAL = int(os.getenv('TASK_UPDATE_INTERVAL', '24'))
 
+        # Process settings
+        self.is_main_process = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
+
         # Validate critical settings
         self._validate_settings()
 
@@ -56,6 +59,10 @@ class Config:
         
         if not self.news_api_key:
             Utils.log_yellow("News API key not set. News functionality will be disabled.")
+
+    def is_main_werkzeug_process(self):
+        """Check if we're running in the main Werkzeug process"""
+        return self.is_main_process
 
 # Create a singleton instance
 config = Config()

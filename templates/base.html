@@ -1,42 +1,72 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Tagesform - Your Day, Your Way{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+    <script>
+        // Wait for DOM to be ready to apply theme
+        document.addEventListener('DOMContentLoaded', function() {
+            {% if current_user.is_authenticated and current_user.preferences %}
+                console.log('Current user preferences:', {{ current_user.preferences|tojson }});
+                // Convert Python boolean to JavaScript boolean using dictionary get()
+                const darkMode = {{ 'true' if current_user.preferences.get('dark_mode', False) else 'false' }};
+                console.log('Dark mode preference:', darkMode);
+                if (darkMode) {
+                    document.documentElement.classList.add('dark');
+                    console.log('Dark mode enabled');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    console.log('Dark mode disabled');
+                }
+            {% endif %}
+        });
+    </script>
+    <style>
+        /* Force dark mode styles to be included */
+        .dark .dark\:bg-gray-900 { background-color: #111827; }
+        .dark .dark\:text-white { color: #ffffff; }
+        .dark .dark\:bg-gray-800 { background-color: #1f2937; }
+        .dark .dark\:bg-gray-700 { background-color: #374151; }
+        .dark .dark\:text-gray-300 { color: #d1d5db; }
+        .dark .dark\:text-gray-400 { color: #9ca3af; }
+        .dark .dark\:border-gray-600 { border-color: #4b5563; }
+        .dark .dark\:border-gray-700 { border-color: #374151; }
+        .dark .dark\:divide-gray-700 { border-color: #374151; }
+    </style>
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200 min-h-full">
     <div class="min-h-screen">
         <!-- Navigation -->
-        <nav class="bg-white shadow-lg">
+        <nav class="bg-white dark:bg-gray-800 shadow-lg">
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex justify-between h-16">
                     <div class="flex">
                         <div class="flex-shrink-0 flex items-center">
-                            <a href="{{ url_for('index') }}" class="text-xl font-bold text-gray-800">Tagesform</a>
+                            <a href="{{ url_for('index') }}" class="text-xl font-bold text-gray-800 dark:text-white">Tagesform</a>
                         </div>
                     </div>
                     <div class="flex items-center space-x-4">
                         {% if current_user.is_authenticated %}
-                            <a href="{{ url_for('add_activity') }}" class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+                            <a href="{{ url_for('add_activity') }}" class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
                                 Add Activity
                             </a>
-                            <a href="{{ url_for('new_schedule') }}" class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600">
+                            <a href="{{ url_for('new_schedule') }}" class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700">
                                 New Schedule
                             </a>
-                            <a href="{{ url_for('add_place') }}" class="bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600">
+                            <a href="{{ url_for('add_place') }}" class="bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700">
                                 Add Place
                             </a>
-                            <a href="{{ url_for('profile') }}" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Profile</a>
-                            <a href="{{ url_for('settings') }}" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Settings</a>
-                            <a href="{{ url_for('logout') }}" class="text-red-600 hover:text-red-900 px-3 py-2 rounded-md text-sm font-medium">Logout</a>
+                            <a href="{{ url_for('profile') }}" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium">Profile</a>
+                            <a href="{{ url_for('settings') }}" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium">Settings</a>
+                            <a href="{{ url_for('logout') }}" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 px-3 py-2 rounded-md text-sm font-medium">Logout</a>
                         {% else %}
-                            <a href="{{ url_for('login') }}" class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+                            <a href="{{ url_for('login') }}" class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
                                 Sign In
                             </a>
-                            <a href="{{ url_for('register') }}" class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600">
+                            <a href="{{ url_for('register') }}" class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700">
                                 Register
                             </a>
                         {% endif %}
@@ -50,7 +80,7 @@
             {% if messages %}
                 {% for category, message in messages %}
                     <div class="max-w-7xl mx-auto px-4 py-2">
-                        <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-800{% else %}bg-green-50 text-green-800{% endif %}">
+                        <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 dark:bg-red-900 text-red-800 dark:text-red-200{% else %}bg-green-50 dark:bg-green-900 text-green-800 dark:text-green-200{% endif %}">
                             {{ message }}
                         </div>
                     </div>
@@ -62,6 +92,7 @@
         {% block content %}{% endblock %}
     </div>
 
+    <!-- Page-specific scripts -->
     {% block scripts %}{% endblock %}
 </body>
 </html> 

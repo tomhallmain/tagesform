@@ -1,4 +1,3 @@
-
 from ..utils.utils import Utils
 
 class JobQueue:

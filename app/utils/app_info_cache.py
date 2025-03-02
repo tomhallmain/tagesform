@@ -2,7 +2,7 @@ import datetime
 import json
 import os
 
-from utils.runner_app_config import RunnerAppConfig
+from ..utils.runner_app_config import RunnerAppConfig
 
 class AppInfoCache:
     CACHE_LOC = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), "app_info_cache.json")

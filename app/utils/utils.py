@@ -10,7 +10,7 @@ import threading
 import time
 import unicodedata
 
-from utils.custom_formatter import CustomFormatter
+from ..utils.custom_formatter import CustomFormatter
 
 # create logger
 logger = logging.getLogger("muse")

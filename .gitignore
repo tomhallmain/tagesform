@@ -7,5 +7,6 @@ temp/
 temp_*
 !utils/temp_dir.py
 instance/*
-migrations/*
+migrations/__pycache__/
+migrations/versions/__pycache__/
 .env

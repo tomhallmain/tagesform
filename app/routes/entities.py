@@ -4,7 +4,9 @@ from datetime import datetime
 import pytz
 from ..models import Entity, db
 
-entities_bp = Blueprint('entities', __name__)
+# Create two separate blueprints
+entities_bp = Blueprint('entities', __name__)  # For entity pages
+entity_api_bp = Blueprint('entity_api', __name__, url_prefix='/api')  # For entity API endpoints
 
 @entities_bp.route('/add-place', methods=['GET', 'POST'])
 @login_required
@@ -59,7 +61,7 @@ def add_place():
 
     return render_template('add_place.html')
 
-@entities_bp.route('/api/entities/available')
+@entity_api_bp.route('/entities/available')
 @login_required
 def get_available_entities():
     current_time = datetime.now(pytz.UTC)

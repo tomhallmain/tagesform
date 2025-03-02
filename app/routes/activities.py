@@ -4,7 +4,9 @@ from datetime import datetime, timedelta
 from ..models import Activity, db
 from ..services.activity_service import infer_activity_importance
 
-activities_bp = Blueprint('activities', __name__)
+# Create two separate blueprints
+activities_bp = Blueprint('activities', __name__)  # For activity pages
+activity_api_bp = Blueprint('activity_api', __name__, url_prefix='/api')  # For activity API endpoints
 
 @activities_bp.route('/add-activity', methods=['GET', 'POST'])
 @login_required
@@ -48,7 +50,7 @@ def add_activity():
 
     return render_template('add_activity.html')
 
-@activities_bp.route('/api/activities', methods=['GET'])
+@activity_api_bp.route('/activities', methods=['GET'])
 @login_required
 def get_activities():
     timeframe = request.args.get('timeframe', 'day')
@@ -73,7 +75,7 @@ def get_activities():
     
     return jsonify([activity.to_dict() for activity in activities])
 
-@activities_bp.route('/api/activities/analyze', methods=['POST'])
+@activity_api_bp.route('/activities/analyze', methods=['POST'])
 @login_required
 def analyze_activity():
     """Endpoint to get LLM analysis of an activity without saving it"""

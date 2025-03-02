@@ -4,7 +4,9 @@ from datetime import datetime
 from ..models import Schedule, db
 from ..services.integration_service import integration_service
 
-schedules_bp = Blueprint('schedules', __name__)
+# Create two separate blueprints
+schedules_bp = Blueprint('schedules', __name__)  # For schedule pages
+schedule_api_bp = Blueprint('schedule_api', __name__, url_prefix='/api')  # For schedule API endpoints
 
 @schedules_bp.route('/new-schedule', methods=['GET', 'POST'])
 @login_required
@@ -39,7 +41,7 @@ def new_schedule():
 
     return render_template('new_schedule.html')
 
-@schedules_bp.route('/api/schedule/current')
+@schedule_api_bp.route('/schedule/current')
 @login_required
 def get_current_schedule():
     """Get the currently active schedule"""

@@ -3,8 +3,11 @@ from flask_login import login_user, logout_user, current_user, login_required
 from ..models import User, db
 from ..models import Activity, Schedule, Entity
 
-auth_bp = Blueprint('auth', __name__)
+# Create two separate blueprints
+auth_bp = Blueprint('auth', __name__)  # For auth routes
+profile_bp = Blueprint('profile', __name__)  # For profile routes
 
+# Auth routes
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -60,7 +63,8 @@ def logout():
     logout_user()
     return redirect(url_for('main.index'))
 
-@auth_bp.route('/profile')
+# Profile routes
+@profile_bp.route('/')
 @login_required
 def profile():
     """User profile page"""
@@ -71,7 +75,7 @@ def profile():
     }
     return render_template('profile.html', user=current_user, stats=stats)
 
-@auth_bp.route('/update_profile', methods=['POST'])
+@profile_bp.route('/update', methods=['POST'])
 @login_required
 def update_profile():
     """Handle profile updates"""
@@ -83,10 +87,10 @@ def update_profile():
     # Validate username and email aren't taken by other users
     if username != current_user.username and User.query.filter_by(username=username).first():
         flash('Username already exists', 'error')
-        return redirect(url_for('auth.profile'))
+        return redirect(url_for('profile.profile'))
     if email != current_user.email and User.query.filter_by(email=email).first():
         flash('Email already registered', 'error')
-        return redirect(url_for('auth.profile'))
+        return redirect(url_for('profile.profile'))
 
     # Update user information
     current_user.username = username
@@ -96,9 +100,9 @@ def update_profile():
     if new_password:
         if new_password != confirm_password:
             flash('Passwords do not match', 'error')
-            return redirect(url_for('auth.profile'))
+            return redirect(url_for('profile.profile'))
         current_user.set_password(new_password)
 
     db.session.commit()
     flash('Profile updated successfully', 'success')
-    return redirect(url_for('auth.profile')) 
+    return redirect(url_for('profile.profile')) 

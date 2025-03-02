@@ -44,16 +44,21 @@ def create_app():
 
     # Register blueprints
     from .routes import (
-        auth_bp, activities_bp, schedules_bp,
-        entities_bp, settings_bp, main_bp
+        auth_bp, profile_bp, activities_bp, activity_api_bp,
+        schedules_bp, schedule_api_bp, entities_bp, entity_api_bp,
+        settings_bp, main_bp
     )
     
     app.register_blueprint(main_bp)  # Main routes should be registered first
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-    app.register_blueprint(activities_bp, url_prefix='/activities')
-    app.register_blueprint(schedules_bp, url_prefix='/schedules')
-    app.register_blueprint(entities_bp, url_prefix='/entities')
-    app.register_blueprint(settings_bp, url_prefix='/settings')
+    app.register_blueprint(auth_bp)  # Auth routes at root level
+    app.register_blueprint(profile_bp, url_prefix='/profile')  # Profile routes under /profile
+    app.register_blueprint(activities_bp)  # Activity pages at root level
+    app.register_blueprint(activity_api_bp)  # Activity API routes under /api
+    app.register_blueprint(schedules_bp)  # Schedule pages at root level
+    app.register_blueprint(schedule_api_bp)  # Schedule API routes under /api
+    app.register_blueprint(entities_bp)  # Entity pages at root level
+    app.register_blueprint(entity_api_bp)  # Entity API routes under /api
+    app.register_blueprint(settings_bp, url_prefix='/settings')  # Settings remain under /settings
 
     # Initialize scheduler
     if config.is_main_werkzeug_process():

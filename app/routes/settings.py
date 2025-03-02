@@ -2,9 +2,9 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from ..models import db
 
-settings_bp = Blueprint('settings', __name__)
+settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 
-@settings_bp.route('/settings')
+@settings_bp.route('/')
 @login_required
 def settings():
     return render_template('settings.html', preferences=current_user.preferences or {})

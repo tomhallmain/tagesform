@@ -28,7 +28,7 @@
         <!-- Edit Form (Hidden by default) -->
         <div id="edit-form" class="hidden p-6 border-b border-gray-200 dark:border-gray-700">
             <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Edit Profile</h2>
-            <form method="POST" action="{{ url_for('auth.update_profile') }}" class="space-y-4">
+            <form method="POST" action="{{ url_for('profile.update_profile') }}" class="space-y-4">
                 <div>
                     <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
                     <input type="text" name="username" id="username" value="{{ user.username }}"

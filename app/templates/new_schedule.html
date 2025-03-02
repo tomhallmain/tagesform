@@ -2,32 +2,32 @@
 
 {% block content %}
 <div class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-    <h1 class="text-2xl font-bold text-gray-900 mb-6">Create New Schedule</h1>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Create New Schedule</h1>
     
     <form method="POST" class="space-y-6">
         <div>
-            <label for="title" class="block text-sm font-medium text-gray-700">Schedule Title</label>
+            <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Schedule Title</label>
             <input type="text" name="title" id="title" required
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
         </div>
 
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label for="start_time" class="block text-sm font-medium text-gray-700">Start Time</label>
+                <label for="start_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Time</label>
                 <input type="time" name="start_time" id="start_time" required
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
             </div>
             <div>
-                <label for="end_time" class="block text-sm font-medium text-gray-700">End Time</label>
+                <label for="end_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300">End Time</label>
                 <input type="time" name="end_time" id="end_time" required
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
             </div>
         </div>
 
         <div>
-            <label for="recurrence" class="block text-sm font-medium text-gray-700">Recurrence</label>
+            <label for="recurrence" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Recurrence</label>
             <select name="recurrence" id="recurrence"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 <option value="daily">Daily</option>
                 <option value="weekdays">Weekdays</option>
                 <option value="weekly">Weekly</option>
@@ -37,9 +37,9 @@
         </div>
 
         <div>
-            <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
+            <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
             <select name="category" id="category"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 <option value="work">Work</option>
                 <option value="social">Social</option>
                 <option value="health">Health</option>
@@ -49,20 +49,20 @@
         </div>
 
         <div>
-            <label for="location" class="block text-sm font-medium text-gray-700">Location</label>
+            <label for="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
             <input type="text" name="location" id="location"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
         </div>
 
         <div>
-            <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+            <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
             <textarea name="description" id="description" rows="3"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
         </div>
 
         <div class="flex justify-end space-x-4">
-            <a href="{{ url_for('index') }}"
-                class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <a href="{{ url_for('main.index') }}"
+                class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                 Cancel
             </a>
             <button type="submit"

@@ -11,6 +11,7 @@ class Entity(db.Model, JSONFieldMixin):
     tags = db.Column(db.JSON)  # For better categorization and search
     visited = db.Column(db.Boolean, default=False)  # Keep this as a column since it applies to all entities
     properties = db.Column(db.JSON)  # Category-specific properties like cuisine, delivery_radius, etc.
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_entity_user'), nullable=False)
 
     def get_property(self, key, default=None):
         """Safely get a property value"""
@@ -37,5 +38,6 @@ class Entity(db.Model, JSONFieldMixin):
             'operating_hours': self.operating_hours,
             'tags': self.tags,
             'visited': self.visited,
-            'properties': self.properties or {}
+            'properties': self.properties or {},
+            'user_id': self.user_id
         } 

@@ -9,6 +9,7 @@ class User(UserMixin, JSONFieldMixin, db.Model):
     password_hash = db.Column(db.String(128))
     activities = db.relationship('Activity', backref='owner', lazy=True)
     schedules = db.relationship('Schedule', backref='owner', lazy=True)
+    entities = db.relationship('Entity', backref='owner', lazy=True)
     preferences = db.Column(db.JSON)  # Store user preferences for importance inference
 
     def set_password(self, password):

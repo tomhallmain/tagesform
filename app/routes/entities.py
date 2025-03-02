@@ -55,7 +55,7 @@ def add_place():
         db.session.commit()
 
         flash('Place added successfully!', 'success')
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))
 
     return render_template('add_place.html')
 

@@ -35,7 +35,7 @@ def new_schedule():
         db.session.commit()
 
         flash('Schedule created successfully!', 'success')
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))
 
     return render_template('new_schedule.html')
 

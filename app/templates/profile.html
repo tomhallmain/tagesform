@@ -17,10 +17,6 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
                     <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ user.email }}</p>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Account Created</label>
-                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ user.created_at.strftime('%B %d, %Y') }}</p>
-                </div>
             </div>
             <div class="mt-8 flex space-x-4">
                 <a href="{{ url_for('settings.settings') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -64,18 +60,6 @@
                     </button>
                 </div>
             </form>
-        </div>
-
-        <!-- Preferences Section -->
-        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Preferences</h2>
-            {% if user.preferences %}
-                <div class="bg-gray-50 dark:bg-gray-700 rounded p-4">
-                    <pre class="text-sm text-gray-900 dark:text-gray-200">{{ user.preferences|tojson(indent=2) }}</pre>
-                </div>
-            {% else %}
-                <p class="text-gray-500 dark:text-gray-400">No preferences set</p>
-            {% endif %}
         </div>
 
         <!-- Activity Stats -->

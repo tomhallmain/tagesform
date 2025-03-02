@@ -5,7 +5,7 @@ import pandas as pd
 import time
 
 from extensions.soup_utils import SoupUtils
-from utils.utils import Utils
+from ..utils.utils import Utils
 
 
 BASE_URL = "https://en.wikipedia.org"

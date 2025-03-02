@@ -5,7 +5,7 @@ import pandas as pd
 import time
 
 from extensions.soup_utils import SoupUtils
-from utils.utils import Utils
+from ..utils.utils import Utils
 
 
 def clean_wiki_text(text):

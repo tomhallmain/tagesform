@@ -1,7 +1,7 @@
 from datetime import datetime
 import requests
 
-from utils.config import config
+from ..utils.config import config
 
 
 class OpenWeatherResponse:

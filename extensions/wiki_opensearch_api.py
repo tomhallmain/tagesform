@@ -2,7 +2,7 @@
 import requests
 
 from extensions.soup_utils import SoupUtils
-from utils.utils import Utils
+from ..utils.utils import Utils
 
 
 class WikiOpenSearchResponse:

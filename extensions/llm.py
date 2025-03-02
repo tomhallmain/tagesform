@@ -2,7 +2,7 @@
 import json
 from urllib import request
 
-from utils.utils import Utils
+from ..utils.utils import Utils
 
 class LLMResponseException(Exception):
     """Raised when LLM call fails"""

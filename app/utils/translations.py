@@ -1,7 +1,7 @@
 import gettext
 import os
 
-from utils.utils import Utils
+from ..utils.utils import Utils
 
 _locale = Utils.get_default_user_language()
 

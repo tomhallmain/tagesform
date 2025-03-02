@@ -1,5 +1,5 @@
 
-from utils.utils import Utils
+from ..utils.utils import Utils
 
 class JobQueue:
     def __init__(self, name="JobQueue", max_size=50):

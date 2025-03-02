@@ -92,10 +92,10 @@
                         <h3 class="mt-2 text-sm font-medium text-gray-900">No activities yet</h3>
                         <p class="mt-1 text-sm text-gray-500">Get started by adding your first activity or schedule.</p>
                         <div class="mt-6 space-x-4">
-                            <a href="{{ url_for('add_activity') }}" class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+                            <a href="{{ url_for('activities.add_activity') }}" class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                                 Add Activity
                             </a>
-                            <a href="{{ url_for('new_schedule') }}" class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600">
+                            <a href="{{ url_for('schedules.new_schedule') }}" class="bg-green-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-600">
                                 Create Schedule
                             </a>
                         </div>
@@ -121,7 +121,7 @@
                     <!-- Empty state for entities -->
                     <div class="text-center py-6" id="empty-entities">
                         <p class="text-sm text-gray-500">Add your favorite places to see their current availability.</p>
-                        <a href="{{ url_for('add_place') }}" class="mt-4 bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600">
+                        <a href="{{ url_for('entities.add_place') }}" class="mt-4 bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600">
                             Add Place
                         </a>
                     </div>

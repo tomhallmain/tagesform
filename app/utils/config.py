@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from utils.utils import Utils
+from ..utils.utils import Utils
 
 # Load environment variables at module level
 load_dotenv()

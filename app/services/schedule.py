@@ -1,4 +1,4 @@
-from utils.translations import I18N
+from ..utils.translations import I18N
 
 _ = I18N._
 

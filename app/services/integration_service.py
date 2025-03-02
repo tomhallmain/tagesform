@@ -1,8 +1,8 @@
 from datetime import datetime
-from tagesform.calendar_aggregator import CalendarAggregator
-from tagesform.open_weather import OpenWeatherAPI
-from tagesform.schedules_manager import SchedulesManager
-from utils.config import config
+from .calendar_aggregator import CalendarAggregator
+from .open_weather import OpenWeatherAPI
+from .schedules_manager import SchedulesManager
+from ..utils.config import config
 
 class IntegrationService:
     def __init__(self):

@@ -2,7 +2,7 @@ import datetime
 
 from extensions.soup_utils import SoupUtils
 from library_data.blacklist import blacklist
-from utils.utils import Utils
+from ..utils.utils import Utils
 
 
 class HackerNewsItem:

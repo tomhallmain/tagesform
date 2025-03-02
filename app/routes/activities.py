@@ -1,0 +1,94 @@
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask_login import login_required, current_user
+from datetime import datetime, timedelta
+from ..models import Activity, db
+from ..services.activity_service import infer_activity_importance
+
+activities_bp = Blueprint('activities', __name__)
+
+@activities_bp.route('/add-activity', methods=['GET', 'POST'])
+@login_required
+def add_activity():
+    if request.method == 'POST':
+        # Get form data
+        title = request.form.get('title')
+        description = request.form.get('description')
+        scheduled_date = request.form.get('scheduled_date')
+        scheduled_time = request.form.get('scheduled_time')
+        category = request.form.get('category')
+        duration = request.form.get('duration')
+        location = request.form.get('location')
+        participants = request.form.get('participants', '').split(',') if request.form.get('participants') else []
+        notes = request.form.get('notes')
+
+        # Create datetime object from date and time
+        scheduled_datetime = datetime.strptime(f"{scheduled_date} {scheduled_time}", "%Y-%m-%d %H:%M")
+
+        # Create new activity
+        activity = Activity(
+            title=title,
+            description=description,
+            scheduled_time=scheduled_datetime,
+            category=category,
+            duration=duration,
+            location=location,
+            participants=participants,
+            notes=notes,
+            user_id=current_user.id
+        )
+
+        # Infer importance using LLM
+        activity.importance = infer_activity_importance(activity)
+
+        db.session.add(activity)
+        db.session.commit()
+
+        flash('Activity added successfully!', 'success')
+        return redirect(url_for('main.index'))
+
+    return render_template('add_activity.html')
+
+@activities_bp.route('/api/activities', methods=['GET'])
+@login_required
+def get_activities():
+    timeframe = request.args.get('timeframe', 'day')
+    activities = Activity.query.filter_by(status='upcoming', user_id=current_user.id)
+    
+    now = datetime.utcnow()
+    if timeframe == 'day':
+        end_time = now + timedelta(days=1)
+    elif timeframe == 'week':
+        end_time = now + timedelta(weeks=1)
+    elif timeframe == 'month':
+        end_time = now + timedelta(days=30)
+    elif timeframe == 'year':
+        end_time = now + timedelta(days=365)
+    else:
+        end_time = now + timedelta(days=1)
+    
+    activities = activities.filter(
+        Activity.scheduled_time >= now,
+        Activity.scheduled_time <= end_time
+    ).order_by(Activity.scheduled_time, Activity.importance.desc()).all()
+    
+    return jsonify([activity.to_dict() for activity in activities])
+
+@activities_bp.route('/api/activities/analyze', methods=['POST'])
+@login_required
+def analyze_activity():
+    """Endpoint to get LLM analysis of an activity without saving it"""
+    data = request.json
+    temp_activity = Activity(
+        title=data.get('title'),
+        description=data.get('description'),
+        scheduled_time=datetime.fromisoformat(data.get('scheduled_time')),
+        category=data.get('category'),
+        duration=data.get('duration'),
+        location=data.get('location'),
+        participants=data.get('participants'),
+        user_id=current_user.id
+    )
+    importance = infer_activity_importance(temp_activity)
+    return jsonify({
+        'importance': importance
+    }) 

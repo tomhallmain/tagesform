@@ -3,10 +3,10 @@ from copy import deepcopy
 import time
 import traceback
 
-from tagesform.run_config import RunConfig
+from ..services.run_config import RunConfig
 from utils.temp_dir import TempDir
-from utils.translations import I18N
-from utils.utils import Utils
+from ..utils.translations import I18N
+from ..utils.utils import Utils
 
 _ = I18N._
 

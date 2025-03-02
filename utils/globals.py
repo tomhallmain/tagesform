@@ -1,8 +1,8 @@
 from enum import Enum
 import os
 
-from utils.config import config
-from utils.translations import I18N
+from ..utils.config import config
+from ..utils.translations import I18N
 
 _ = I18N._
 

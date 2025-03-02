@@ -1,9 +1,9 @@
 
 import datetime
 
-from tagesform.schedule import Schedule
-from utils.app_info_cache import app_info_cache
-from utils.utils import Utils
+from ..services.schedule import Schedule
+from ..utils.app_info_cache import app_info_cache
+from ..utils.utils import Utils
 
 class ScheduledShutdownException(Exception):
     """Exception raised when a scheduled shutdown is requested."""

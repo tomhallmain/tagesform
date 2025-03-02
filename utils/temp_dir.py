@@ -2,7 +2,7 @@ import os
 import shutil
 import tempfile
 
-from utils.utils import Utils
+from ..utils.utils import Utils
 
 class TempDir:
     prefix = "tmp_tagesform_"

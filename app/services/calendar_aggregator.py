@@ -2,8 +2,8 @@ import datetime
 import requests
 import time
 
-from utils.config import config
-from utils.utils import Utils
+from ..utils.config import config
+from ..utils.utils import Utils
 
 
 class EventGroup:

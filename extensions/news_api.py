@@ -4,8 +4,8 @@ import datetime
 import requests
 
 from library_data.blacklist import blacklist
-from utils.config import config
-from utils.utils import Utils
+from ..utils.config import config
+from ..utils.utils import Utils
 
 
 class NewsResponse:

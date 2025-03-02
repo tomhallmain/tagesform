@@ -6,7 +6,7 @@ import pandas as pd
 import io
 import re
 
-from utils.utils import Utils
+from ..utils.utils import Utils
 
 
 class WebConnectionException(Exception):

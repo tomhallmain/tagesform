@@ -151,7 +151,10 @@
 </main>
 {% endblock %}
 
-<script>
+{% block scripts %}
+<script defer>
+    console.log('Index page script loading...');
+
     // Fetch and display activities
     async function fetchActivities(timeframe = 'day') {
         try {
@@ -356,11 +359,30 @@
         }
     }
 
+    // Fetch stats
+    async function fetchStats() {
+        console.log('Fetching stats...');
+        try {
+            const response = await fetch('/api/stats');
+            const stats = await response.json();
+            console.log('Stats received:', stats);
+            
+            // Update the stats in the UI
+            document.getElementById('weekly-count').textContent = stats.weekly_count;
+            document.getElementById('schedule-count').textContent = stats.schedule_count;
+            document.getElementById('places-count').textContent = stats.places_count;
+        } catch (error) {
+            console.error('Error fetching stats:', error);
+        }
+    }
+
     // Initial data load
     document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOM loaded in index page - fetching initial data');
         fetchActivities('day');
         fetchCalendarEvents('day');
         fetchAvailableEntities();
+        fetchStats();
     });
 
     // Weather refresh - every 20 minutes
@@ -375,11 +397,13 @@
         fetchActivities(document.querySelector('.border-blue-500').id.replace('tab-', ''));
         fetchCurrentSchedule();
         fetchCalendarEvents(document.querySelector('.border-blue-500').id.replace('tab-', ''));
+        fetchStats();
         // Set up recurring updates for other data
         setInterval(() => {
             fetchActivities(document.querySelector('.border-blue-500').id.replace('tab-', ''));
             fetchCurrentSchedule();
             fetchCalendarEvents(document.querySelector('.border-blue-500').id.replace('tab-', ''));
+            fetchStats();
         }, 300000);
     }, 300000);
 
@@ -389,4 +413,5 @@
         // Set up recurring entity updates
         setInterval(fetchAvailableEntities, 300000);
     }, 300000);
-</script> 
+</script>
+{% endblock %} 

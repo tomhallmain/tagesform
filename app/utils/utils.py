@@ -119,20 +119,16 @@ class Utils:
         # create two work vectors of integer distances
         v0 = [0] * (len(t) + 1)
         v1 = [0] * (len(t) + 1)
-
         # initialize v0 (the previous row of distances)
         # this row is A[0][i]: edit distance from an empty s to t;
         # that distance is the number of characters to append to  s to make t.
         for i in range(len(t) + 1):
             v0[i] = i
-
         for i in range(len(s)):
             # calculate v1 (current row distances) from the previous row v0
-
             # first element of v1 is A[i + 1][0]
             # edit distance is delete (i + 1) chars from s to match empty t
             v1[0] = i + 1
-
             for j in range(len(t)):
                 # calculating costs for A[i + 1][j + 1]
                 deletion_cost = v0[j + 1] + 1
@@ -171,7 +167,7 @@ class Utils:
         threshold = min(threshold, int(min_len * 0.8))
         if do_print:
             print(f"Threshold:  {threshold}, Distance: {l_distance}\ns0: {s0}\ns1: {s1}\n")
-        return l_distance < threshold
+        return l_distance < threshold or (min_len > 3 and threshold < 1 and l_distance == 1)
 
     @staticmethod
     def remove_substring_by_indices(string, start_index, end_index):

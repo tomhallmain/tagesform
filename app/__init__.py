@@ -37,6 +37,10 @@ def create_app():
     login_manager.init_app(app)
     Migrate(app, db)
 
+    # Register custom filters
+    from .utils.filters import title_case
+    app.jinja_env.filters['title_case'] = title_case
+
     # User loader for Flask-Login
     @login_manager.user_loader
     def load_user(user_id):

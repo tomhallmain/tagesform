@@ -36,25 +36,28 @@
             {% for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] %}
             <div class="grid grid-cols-3 gap-4 mb-2">
                 <div class="flex items-center">
-                    <input type="checkbox" name="days[]" value="{{ day }}" id="{{ day }}"
+                    <input type="checkbox" name="days[]" value="{{ day }}" id="{{ day }}" checked
                         class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded">
                     <label for="{{ day }}" class="ml-2 block text-sm text-gray-700 dark:text-gray-300 capitalize">{{ day }}</label>
                 </div>
                 <div>
                     <input type="time" name="{{ day }}_open" id="{{ day }}_open"
-                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="Open time (optional)">
                 </div>
                 <div>
                     <input type="time" name="{{ day }}_close" id="{{ day }}_close"
-                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="Close time (optional)">
                 </div>
             </div>
             {% endfor %}
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Note: If no times are specified, default daytime hours will be assumed</p>
         </div>
 
         <div>
             <label for="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
-            <input type="text" name="location" id="location" required
+            <input type="text" name="location" id="location"
                 class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
         </div>
 

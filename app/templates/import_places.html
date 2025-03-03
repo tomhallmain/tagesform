@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Import Places - Tagesform{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Import Places from CSV</h2>
+        
+        <!-- Instructions -->
+        <div class="mb-8 text-gray-600 dark:text-gray-300">
+            <h3 class="text-lg font-medium mb-2">CSV Format Requirements:</h3>
+            <ul class="list-disc list-inside space-y-1">
+                <li>Required column: <code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">name</code></li>
+                <li>Optional columns:
+                    <ul class="list-disc list-inside ml-4 space-y-1">
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">category</code> - Type of place</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">cuisine</code> - Type of cuisine (for restaurants)</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">location</code> - Place location</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">visited</code> - true/false/t/f/y/n or blank (defaults to false)</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">rating</code> - See rating options below (defaults to bad)</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">notes</code> - Additional information</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3 class="text-lg font-medium mt-6 mb-2">Valid Categories:</h3>
+            <div class="flex flex-wrap gap-2">
+                {% for category in ['restaurant', 'cafe', 'bar', 'park', 'store', 'service', 'gym', 'theater', 'museum', 'library', 'school', 'hospital', 'pharmacy', 'bank', 'other'] %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                        {{ category }}
+                    </span>
+                {% endfor %}
+            </div>
+
+            <h3 class="text-lg font-medium mt-6 mb-2">Valid Ratings:</h3>
+            <div class="space-y-4">
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Great:</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            great
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            best
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            amazing
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            awesome
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            delicious
+                        </span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Good:</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            good
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            nice
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            decent
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            pleasant
+                        </span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">OK:</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                            ok/okay
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                            so-so
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                            mediocre
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                            average
+                        </span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bad:</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                            bad
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                            poor
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                            disappointing
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                            subpar
+                        </span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Terrible:</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                            terrible
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                            worst
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                            awful
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                            disgusting
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Note: true/t/yes/y/1 will be converted to "good", false/f/no/n/0 will be converted to "bad"</p>
+
+            <h3 class="text-lg font-medium mt-6 mb-2">Data Quality Rules:</h3>
+            <ul class="list-disc list-inside space-y-1">
+                <li>All text values will be trimmed of extra spaces</li>
+                <li>Category, cuisine, and location will be converted to lowercase</li>
+                <li>Invalid categories will be set to "other" (with a warning)</li>
+                <li>Similar cuisines will be matched to common cuisine types</li>
+                <li>Similar ratings will be matched to valid rating values</li>
+                <li>Boolean values in rating field will be converted to "good" (true) or "bad" (false)</li>
+                <li>Similar words will be matched to appropriate rating levels (e.g., "amazing" → "great", "awful" → "terrible")</li>
+            </ul>
+        </div>
+
+        <!-- Upload Form -->
+        <form method="POST" enctype="multipart/form-data" class="space-y-6">
+            <!-- Drag & Drop Zone -->
+            <div id="drop-zone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+                <div class="space-y-2">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                        <label for="file-upload" class="relative cursor-pointer rounded-md font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 focus-within:outline-none">
+                            <span>Upload a CSV file</span>
+                            <input id="file-upload" name="file" type="file" class="sr-only" accept=".csv">
+                        </label>
+                        <p>or drag and drop</p>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">CSV files only</p>
+                </div>
+            </div>
+
+            <!-- Selected File Info -->
+            <div id="file-info" class="hidden">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Selected file: <span id="file-name" class="font-medium"></span></p>
+            </div>
+
+            <!-- Submit Button -->
+            <div>
+                <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600">
+                    Import Places
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileUpload = document.getElementById('file-upload');
+    const fileInfo = document.getElementById('file-info');
+    const fileName = document.getElementById('file-name');
+
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    // Highlight drop zone when item is dragged over it
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+    });
+
+    // Handle dropped files
+    dropZone.addEventListener('drop', handleDrop, false);
+
+    // Handle file input change
+    fileUpload.addEventListener('change', handleFiles, false);
+
+    function preventDefaults (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    function highlight(e) {
+        dropZone.classList.add('border-blue-500', 'dark:border-blue-400');
+    }
+
+    function unhighlight(e) {
+        dropZone.classList.remove('border-blue-500', 'dark:border-blue-400');
+    }
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles({ target: { files: files } });
+    }
+
+    function handleFiles(e) {
+        const files = e.target.files;
+        if (files.length) {
+            const file = files[0];
+            if (file.name.endsWith('.csv')) {
+                fileUpload.files = files;
+                showFileInfo(file.name);
+            } else {
+                alert('Please upload a CSV file');
+            }
+        }
+    }
+
+    function showFileInfo(name) {
+        fileName.textContent = name;
+        fileInfo.classList.remove('hidden');
+    }
+</script>
+{% endblock %} 

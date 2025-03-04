@@ -18,18 +18,25 @@ login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 scheduler = BackgroundScheduler()
 
-def create_app():
+def create_app(config_name=None):
     """Application factory function"""
     app = Flask(__name__,
                 template_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates')),
                 static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), 'static')))
 
     # Configuration
-    app.config['SECRET_KEY'] = config.SECRET_KEY
-    app.config['SQLALCHEMY_DATABASE_URI'] = config.DATABASE_URL
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = config.SQLALCHEMY_TRACK_MODIFICATIONS
-    app.config['DEBUG'] = config.debug
-    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 if config.debug else None
+    if config_name == 'testing':
+        app.config['TESTING'] = True
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SECRET_KEY'] = 'test-secret-key'
+        app.config['DEBUG'] = False
+        app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    else:
+        app.config['SECRET_KEY'] = config.SECRET_KEY
+        app.config['SQLALCHEMY_DATABASE_URI'] = config.DATABASE_URL
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = config.SQLALCHEMY_TRACK_MODIFICATIONS
+        app.config['DEBUG'] = config.debug
+        app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 if config.debug else None
 
     # Initialize extensions with app
     from .models import db, User
@@ -38,8 +45,9 @@ def create_app():
     Migrate(app, db)
 
     # Register custom filters
-    from .utils.filters import title_case
+    from .utils.filters import title_case, format_rating
     app.jinja_env.filters['title_case'] = title_case
+    app.jinja_env.filters['format_rating'] = format_rating
 
     # User loader for Flask-Login
     @login_manager.user_loader
@@ -64,8 +72,8 @@ def create_app():
     app.register_blueprint(entity_api_bp)  # Entity API routes under /api
     app.register_blueprint(settings_bp, url_prefix='/settings')  # Settings remain under /settings
 
-    # Initialize scheduler
-    if config.is_main_werkzeug_process():
+    # Initialize scheduler only for non-testing environments
+    if config_name != 'testing' and config.is_main_werkzeug_process():
         from .tasks import init_scheduler
         init_scheduler(app, scheduler)
 

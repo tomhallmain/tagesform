@@ -3,10 +3,9 @@ __pycache__
 app_info_cache.json
 configs/*
 !configs/config_example.json
+tagesform.egg-info/
 temp/
 temp_*
 !utils/temp_dir.py
 instance/*
-migrations/__pycache__/
-migrations/versions/__pycache__/
 .env

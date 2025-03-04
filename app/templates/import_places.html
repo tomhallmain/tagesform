@@ -4,6 +4,26 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                {% if category == 'error' %}
+                    <div class="rounded-lg bg-red-50 dark:bg-red-900/30 p-4 mb-6 border border-red-100 dark:border-red-900/50">
+                        <div class="text-sm text-red-800 dark:text-red-100">{{ message }}</div>
+                    </div>
+                {% elif category == 'warning' %}
+                    <div class="rounded-lg bg-yellow-50 dark:bg-yellow-900/30 p-4 mb-6 border border-yellow-100 dark:border-yellow-900/50">
+                        <div class="text-sm text-yellow-800 dark:text-yellow-100">{{ message }}</div>
+                    </div>
+                {% else %}
+                    <div class="rounded-lg bg-green-50 dark:bg-green-900/30 p-4 mb-6 border border-green-100 dark:border-green-900/50">
+                        <div class="text-sm text-green-800 dark:text-green-100">{{ message }}</div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Import Places from CSV</h2>
         

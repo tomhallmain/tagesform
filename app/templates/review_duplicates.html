@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Review Duplicates - Tagesform{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Review Potential Duplicates</h2>
+    <p class="text-gray-600 dark:text-gray-400 mb-6">Please review the following potential duplicates before importing.</p>
+
+    <div class="mb-8 flex justify-end space-x-4">
+        <a href="{{ url_for('entities.review_non_duplicates') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">Review Non-Duplicates</a>
+        <a href="{{ url_for('entities.review_all') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800">Review All Imports</a>
+        <a href="{{ url_for('entities.import_places') }}" class="inline-flex items-center px-4 py-2 border border-red-300 dark:border-red-600 rounded-md shadow-sm text-sm font-medium text-red-700 dark:text-red-300 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/30">Cancel Import</a>
+    </div>
+
+    {% if duplicates %}
+        <div class="grid grid-cols-1 gap-6">
+        {% for duplicate in duplicates %}
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div class="px-4 py-4 bg-yellow-50 dark:bg-yellow-900/30 border-b border-yellow-100 dark:border-yellow-900/50">
+                <h3 class="text-lg font-medium text-yellow-800 dark:text-yellow-100">Potential Duplicate #{{ loop.index }}</h3>
+            </div>
+            <div class="px-6 py-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
+                        <h4 class="text-base font-medium text-gray-900 dark:text-white mb-4">New Place</h4>
+                        <dl class="space-y-3">
+                            <div class="grid grid-cols-3 gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Name</dt>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.new.name }}</dd>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Category</dt>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.new.category }}</dd>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Location</dt>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.new.location or 'Not specified' }}</dd>
+                            </div>
+                            
+                            {% if duplicate.new.properties and duplicate.new.properties.cuisine %}
+                            <div class="grid grid-cols-3 gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Cuisine</dt>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.new.properties.cuisine }}</dd>
+                            </div>
+                            {% endif %}
+                            
+                            {% if duplicate.new.description %}
+                            <div class="grid grid-cols-3 gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</dt>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.new.description }}</dd>
+                            </div>
+                            {% endif %}
+                        </dl>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
+                        <h4 class="text-base font-medium text-gray-900 dark:text-white mb-4">Existing Place</h4>
+                        <dl class="space-y-3">
+                            <div class="grid grid-cols-3 gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Name</dt>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.existing.name }}</dd>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Category</dt>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.existing.category }}</dd>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Location</dt>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.existing.location or 'Not specified' }}</dd>
+                            </div>
+                            
+                            {% if duplicate.existing.properties and duplicate.existing.properties.cuisine %}
+                            <div class="grid grid-cols-3 gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Cuisine</dt>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.existing.properties.cuisine }}</dd>
+                            </div>
+                            {% endif %}
+                            
+                            {% if duplicate.existing.description %}
+                            <div class="grid grid-cols-3 gap-4">
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</dt>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.existing.description }}</dd>
+                            </div>
+                            {% endif %}
+                        </dl>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-4">
+                    <button onclick="handleDuplicate({{ duplicate.index }}, 'update')" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800">Update Existing</button>
+                    <button onclick="handleDuplicate({{ duplicate.index }}, 'import')" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800">Import as New</button>
+                    <button onclick="handleDuplicate({{ duplicate.index }}, 'skip')" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">Skip</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        </div>
+    {% else %}
+        <div class="rounded-lg bg-yellow-50 dark:bg-yellow-900/30 p-4 border border-yellow-100 dark:border-yellow-900/50">
+            <div class="text-sm text-yellow-800 dark:text-yellow-100">
+                No duplicates found. You can proceed with the import.
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function handleDuplicate(index, action) {
+    fetch(`/api/entities/handle-duplicate/${index}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: action })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                // Reload the current page to show remaining duplicates
+                window.location.reload();
+            }
+        } else {
+            alert('Error handling duplicate: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error handling duplicate: ' + error);
+    });
+}
+</script>
+{% endblock %} 

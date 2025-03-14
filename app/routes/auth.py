@@ -10,25 +10,33 @@ profile_bp = Blueprint('profile', __name__)  # For profile routes
 # Auth routes
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    # If already logged in, redirect to index
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
     
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        user = User.query.filter_by(username=username).first()
         
-        if user is None or not user.check_password(password):
+        user = User.query.filter_by(username=username).first()
+        if user is None:
+            flash('Invalid username or password', 'error')
+            return redirect(url_for('auth.login'))
+            
+        if not user.check_password(password):
             flash('Invalid username or password', 'error')
             return redirect(url_for('auth.login'))
         
-        login_user(user)
+        # Log the user in and remember them
+        login_user(user, remember=True)
+        
+        # Get the next page from the query string
         next_page = request.args.get('next')
         if not next_page or not next_page.startswith('/'):
             next_page = url_for('main.index')
         return redirect(next_page)
     
-    # Handle GET request
+    # GET request - show login form
     return render_template('login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])

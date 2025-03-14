@@ -62,14 +62,24 @@ def test_successful_login(client, test_user):
 
 def test_invalid_login(client, test_user):
     """Test login with invalid credentials"""
-    # Make sure we start with a clean session
+    # Make sure we start with a clean session and logout any current user
     with client.session_transaction() as sess:
         sess.clear()
+    client.get('/logout', follow_redirects=True)  # Ensure we're logged out
     
+    # First request - should get a redirect
     response = client.post('/login', data={
         'username': test_user.username,
         'password': 'wrongpassword'
-    }, follow_redirects=True)  # Follow redirects to see the error message
+    }, follow_redirects=False)
+    
+    # Check for redirect
+    assert response.status_code == 302
+    assert response.location == '/login'  # Should redirect back to login
+    
+    # Now follow the redirect
+    response = client.get(response.location)
+    assert response.status_code == 200
     
     # Check that we're not logged in
     with client.session_transaction() as sess:
@@ -78,7 +88,7 @@ def test_invalid_login(client, test_user):
     # Check for error message
     assert b'Invalid username or password' in response.data
     
-    # Check that we're back on the login page
+    # Check that we're on the login page
     assert b'Sign in to your account' in response.data
 
 def test_logout(client, auth):

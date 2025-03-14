@@ -16,6 +16,14 @@
             </p>
         </div>
 
+        {% if error %}
+        <div class="rounded-md bg-red-50 dark:bg-red-900 p-4">
+            <div class="text-sm text-red-700 dark:text-red-200">
+                {{ error }}
+            </div>
+        </div>
+        {% endif %}
+
         <form class="mt-8 space-y-6" action="{{ url_for('auth.login') }}" method="POST">
             <div class="rounded-md shadow-sm -space-y-px">
                 <div>

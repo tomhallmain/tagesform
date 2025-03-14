@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 # Initialize extensions
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
+login_manager.login_message = 'Invalid username or password'
+login_manager.login_message_category = 'error'
 scheduler = BackgroundScheduler()
 
 def create_app(config_name=None):

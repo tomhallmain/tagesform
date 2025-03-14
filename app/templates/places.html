@@ -55,7 +55,12 @@
                                 </thead>
                                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                     {% for place in places %}
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" onclick="window.location='{{ url_for('entities.edit_place', entity_id=place.id) }}'">
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer group" 
+                                        onclick="window.location='{{ url_for('entities.edit_place', entity_id=place.id) }}'"
+                                        title="{% if place.description %}Description: {{ place.description }}
+{% endif %}{% if place.location %}Location: {{ place.location | title_case }}
+{% endif %}{% if place.contact_info %}Contact: {{ place.contact_info }}
+{% endif %}{% if place.tags %}Tags: {{ place.tags | join(', ') }}{% endif %}">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs" data-value="{{ place.name }}" title="{{ place.name }}">
                                             {{ place.name }}
                                         </td>

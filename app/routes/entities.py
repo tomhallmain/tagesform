@@ -99,7 +99,6 @@ class ImportData(db.Model):
 @login_required
 def add_place():
     if request.method == 'POST':
-        # Get form data
         name = request.form.get('name')
         category = request.form.get('category')
         location = request.form.get('location')
@@ -107,8 +106,28 @@ def add_place():
         description = request.form.get('description')
         tags = request.form.get('tags', '').split(',') if request.form.get('tags') else []
         visited = 'visited' in request.form
-        rating = request.form.get('rating')  # Get rating as string
-        rating = int(rating) if rating else None  # Convert to int if not empty, else None
+        rating_str = request.form.get('rating')
+
+        # Validate rating
+        rating = None
+        if rating_str:
+            try:
+                rating = int(rating_str)
+                if rating < 0 or rating > 4:
+                    flash('Invalid rating value. Must be between 0 and 4.')
+                    return render_template('add_place.html'), 400
+            except ValueError:
+                flash('Invalid rating value. Must be a number.')
+                return render_template('add_place.html'), 400
+
+        # If a valid rating is provided, automatically set visited to True
+        if rating is not None:
+            visited = True
+
+        # Rest of validation and entity creation
+        if not name:
+            flash('Name is required.')
+            return render_template('add_place.html'), 400
 
         # Initialize properties dictionary
         properties = {}
@@ -782,7 +801,6 @@ def edit_place(entity_id):
         return redirect(url_for('entities.list_places'))
     
     if request.method == 'POST':
-        # Get form data
         name = request.form.get('name')
         category = request.form.get('category')
         location = request.form.get('location')
@@ -790,8 +808,28 @@ def edit_place(entity_id):
         description = request.form.get('description')
         tags = request.form.get('tags', '').split(',') if request.form.get('tags') else []
         visited = 'visited' in request.form
-        rating = request.form.get('rating')  # Get rating as string
-        rating = int(rating) if rating else None  # Convert to int if not empty, else None
+        rating_str = request.form.get('rating')
+
+        # Validate rating
+        rating = None
+        if rating_str:
+            try:
+                rating = int(rating_str)
+                if rating < 0 or rating > 4:
+                    flash('Invalid rating value. Must be between 0 and 4.')
+                    return render_template('edit_place.html', place=entity), 400
+            except ValueError:
+                flash('Invalid rating value. Must be a number.')
+                return render_template('edit_place.html', place=entity), 400
+
+        # If a valid rating is provided, automatically set visited to True
+        if rating is not None:
+            visited = True
+
+        # Rest of validation and entity update
+        if not name:
+            flash('Name is required.')
+            return render_template('edit_place.html', place=entity), 400
 
         # Initialize properties dictionary
         properties = entity.properties or {}
@@ -822,7 +860,7 @@ def edit_place(entity_id):
             entity.description = description
             entity.tags = tags
             entity.visited = visited
-            entity.rating = rating  # Add rating update
+            entity.rating = rating
             entity.properties = properties
 
             db.session.commit()

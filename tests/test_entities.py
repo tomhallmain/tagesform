@@ -209,4 +209,126 @@ def test_handle_duplicate_actions(client, auth, test_user, db_session):
     # Verify the duplicate was moved to non_duplicates
     import_data = ImportData.query.get(import_id)
     assert len(import_data.json_data['duplicates']) == 0
-    assert len(import_data.json_data['non_duplicates']) == 1 
+    assert len(import_data.json_data['non_duplicates']) == 1
+
+def test_add_place_with_rating(client, auth, db_session):
+    """Test adding a place with different rating scenarios"""
+    auth.login()
+
+    # Test case 1: Add place with rating - should automatically set visited to true
+    response = client.post('/add-place', data={
+        'name': 'Excellent Restaurant',  # More distinct name
+        'category': 'restaurant',
+        'rating': '4',  # Great rating
+        'visited': ''  # Even if visited is unchecked, it should be set to true when rating is provided
+    })
+    assert response.status_code == 302  # Successful redirect
+    
+    place1 = Entity.query.filter_by(name='Excellent Restaurant').first()
+    assert place1 is not None
+    assert place1.rating == 4
+    assert place1.visited is True  # Should be True because a rating was provided
+
+    # Test case 2: Add place with no rating but marked as visited
+    response = client.post('/add-place', data={
+        'name': 'Neighborhood Cafe',  # Completely different name
+        'category': 'cafe',  # Different category too
+        'rating': '',  # No rating
+        'visited': 'on'  # Visited (checkbox checked)
+    })
+    assert response.status_code == 302
+
+    place2 = Entity.query.filter_by(name='Neighborhood Cafe').first()
+    assert place2 is not None
+    assert place2.rating is None
+    assert place2.visited is True
+
+    # Test case 3: Add place with rating and visited explicitly set
+    response = client.post('/add-place', data={
+        'name': 'Downtown Bar',  # Another distinct name
+        'category': 'bar',  # Different category
+        'rating': '2',  # OK rating
+        'visited': 'on'  # Visited explicitly set
+    })
+    assert response.status_code == 302
+
+    place3 = Entity.query.filter_by(name='Downtown Bar').first()
+    assert place3 is not None
+    assert place3.rating == 2
+    assert place3.visited is True
+
+def test_edit_place_rating_and_visited(client, auth, test_user, db_session):
+    """Test editing a place's rating and visited status"""
+    auth.login()
+
+    # Create a test place
+    place = Entity(
+        name="Test Place",
+        category="restaurant",
+        rating=None,
+        visited=False,
+        user_id=test_user.id
+    )
+    db_session.add(place)
+    db_session.commit()
+
+    # Test case 1: Update to add rating - should automatically set visited to true
+    response = client.post(f'/edit-place/{place.id}', data={
+        'name': 'Test Place',
+        'category': 'restaurant',
+        'rating': '4',
+        'visited': ''  # Even if visited is unchecked, it should be set to true when rating is provided
+    })
+    assert response.status_code == 302
+
+    place = Entity.query.get(place.id)
+    assert place.rating == 4
+    assert place.visited is True  # Should be True because a rating was provided
+
+    # Test case 2: Update to remove rating but keep visited
+    response = client.post(f'/edit-place/{place.id}', data={
+        'name': 'Test Place',
+        'category': 'restaurant',
+        'rating': '',
+        'visited': 'on'
+    })
+    assert response.status_code == 302
+
+    place = Entity.query.get(place.id)
+    assert place.rating is None
+    assert place.visited is True
+
+    # Test case 3: Update to add rating with visited explicitly set
+    response = client.post(f'/edit-place/{place.id}', data={
+        'name': 'Test Place',
+        'category': 'restaurant',
+        'rating': '2',
+        'visited': 'on'
+    })
+    assert response.status_code == 302
+
+    place = Entity.query.get(place.id)
+    assert place.rating == 2
+    assert place.visited is True
+
+def test_rating_validation(client, auth):
+    """Test validation of rating values"""
+    auth.login()
+
+    # Test invalid rating value
+    response = client.post('/add-place', data={
+        'name': 'Test Place',
+        'category': 'restaurant',
+        'rating': '5'  # Invalid rating (should be 0-4)
+    })
+    assert response.status_code == 400
+    assert b'Invalid rating value' in response.data
+
+    # Test non-numeric rating
+    response = client.post('/add-place', data={
+        'name': 'Test Place',
+        'category': 'restaurant',
+        'rating': 'invalid'
+    })
+    assert response.status_code == 400
+    assert b'Invalid rating value' in response.data 

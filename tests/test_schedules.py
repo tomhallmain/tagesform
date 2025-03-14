@@ -14,12 +14,11 @@ def test_create_schedule(client, auth, test_user, db_session):
     """Test creating a new schedule"""
     auth.login()
     
-    # Prepare schedule data
-    now = datetime.now()
+    # Prepare schedule data - 9:00 to 17:00
     schedule_data = {
         'title': 'Test Schedule',
-        'start_time': now.strftime('%H:%M'),
-        'end_time': (now + timedelta(hours=1)).strftime('%H:%M'),
+        'start_time': '09:00',  # Will be converted to minutes in the route
+        'end_time': '17:00',    # Will be converted to minutes in the route
         'recurrence': 'daily',
         'category': 'work',
         'location': 'Office',
@@ -33,6 +32,8 @@ def test_create_schedule(client, auth, test_user, db_session):
     # Verify schedule was created
     schedule = Schedule.query.filter_by(title='Test Schedule').first()
     assert schedule is not None
+    assert schedule.start_time == 9 * 60  # 9:00 = 540 minutes
+    assert schedule.end_time == 17 * 60   # 17:00 = 1020 minutes
     assert schedule.recurrence == 'daily'
     assert schedule.category == 'work'
     assert schedule.location == 'Office'
@@ -43,12 +44,11 @@ def test_get_current_schedule(client, auth, test_user, db_session):
     """Test getting current schedule"""
     auth.login()
     
-    # Create a test schedule
-    now = datetime.now()
+    # Create a test schedule - 9:00 to 17:00
     schedule = Schedule(
         title='Current Schedule',
-        start_time=now.time(),
-        end_time=(now + timedelta(hours=1)).time(),
+        start_time=9 * 60,    # 9:00 = 540 minutes
+        end_time=17 * 60,     # 17:00 = 1020 minutes
         recurrence='daily',
         category='work',
         user_id=test_user.id
@@ -61,8 +61,10 @@ def test_get_current_schedule(client, auth, test_user, db_session):
     assert response.status_code == 200
     data = response.get_json()
     
-    # The exact response format would depend on your integration_service implementation
     assert data is not None
+    if data.get('schedule'):  # If there's a current schedule
+        assert data['schedule']['start_time'] == '09:00'
+        assert data['schedule']['end_time'] == '17:00'
 
 def test_schedule_validation(client, auth):
     """Test schedule validation during creation"""
@@ -73,19 +75,29 @@ def test_schedule_validation(client, auth):
         'title': '',  # Missing title
         'start_time': '',  # Missing start time
         'end_time': ''  # Missing end time
-    }, follow_redirects=True)
+    })
     
-    assert response.status_code == 200
-    # Your form validation error messages would go here
-    # assert b'Title is required' in response.data
+    assert response.status_code == 400
+    assert b'Title is required' in response.data
+    assert b'Start time and end time are required' in response.data
+
+    # Test with invalid time format
+    response = client.post('/new-schedule', data={
+        'title': 'Test Schedule',
+        'start_time': 'invalid',
+        'end_time': 'invalid'
+    })
+    
+    assert response.status_code == 400
+    assert b'Invalid time format. Please use HH:MM format' in response.data
 
 def test_schedule_user_isolation(client, auth, test_user, db_session):
     """Test that users can only see their own schedules"""
-    # Create a schedule for test_user
+    # Create a schedule for test_user - 9:00 to 17:00
     schedule = Schedule(
         title='Test Schedule',
-        start_time=datetime.now().time(),
-        end_time=(datetime.now() + timedelta(hours=1)).time(),
+        start_time=9 * 60,    # 9:00 = 540 minutes
+        end_time=17 * 60,     # 17:00 = 1020 minutes
         user_id=test_user.id
     )
     db_session.add(schedule)
@@ -105,7 +117,6 @@ def test_schedule_user_isolation(client, auth, test_user, db_session):
     })
     
     # Try to access schedules
-    # This would need to be adjusted based on your actual endpoint for viewing schedules
     response = client.get('/schedules')
     assert response.status_code == 200
     assert b'Test Schedule' not in response.data  # Should not see test_user's schedule
@@ -115,11 +126,10 @@ def test_invalid_schedule_times(client, auth):
     auth.login()
     
     # Test with end time before start time
-    now = datetime.now()
     schedule_data = {
         'title': 'Invalid Schedule',
-        'start_time': now.strftime('%H:%M'),
-        'end_time': (now - timedelta(hours=1)).strftime('%H:%M'),
+        'start_time': '17:00',  # 5 PM
+        'end_time': '09:00',    # 9 AM (invalid as it's before start time)
         'recurrence': 'daily'
     }
     

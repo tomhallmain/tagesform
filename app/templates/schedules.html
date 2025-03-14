@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Your Schedules</h1>
+        <a href="{{ url_for('schedules.new_schedule') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Add New Schedule
+        </a>
+    </div>
+
+    {% if schedules %}
+    <div class="grid gap-6">
+        {% for schedule in schedules %}
+        <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900">{{ schedule.title }}</h2>
+                    <p class="text-gray-600">
+                        {{ schedule.minutes_to_time(schedule.start_time) }} - {{ schedule.minutes_to_time(schedule.end_time) }}
+                    </p>
+                    {% if schedule.recurrence %}
+                    <p class="text-sm text-gray-500">Repeats: {{ schedule.recurrence }}</p>
+                    {% endif %}
+                </div>
+                {% if schedule.category %}
+                <span class="px-3 py-1 text-sm rounded-full 
+                    {% if schedule.category == 'work' %}bg-blue-100 text-blue-800
+                    {% elif schedule.category == 'personal' %}bg-green-100 text-green-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ schedule.category }}
+                </span>
+            </div>
+            {% endif %}
+            
+            {% if schedule.location or schedule.description %}
+            <div class="mt-4 text-gray-600">
+                {% if schedule.location %}
+                <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i>{{ schedule.location }}</p>
+                {% endif %}
+                {% if schedule.description %}
+                <p class="text-sm mt-2">{{ schedule.description }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <p class="text-gray-600">You don't have any schedules yet.</p>
+        <a href="{{ url_for('schedules.new_schedule') }}" class="mt-4 inline-block text-blue-500 hover:text-blue-700">
+            Create your first schedule
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

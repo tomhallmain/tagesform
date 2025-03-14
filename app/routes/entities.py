@@ -591,7 +591,14 @@ def import_places():
 @entities_bp.route('/places')
 @login_required
 def list_places():
-    places = Entity.query.filter_by(user_id=current_user.id).all()
+    places = Entity.query.filter_by(user_id=current_user.id)\
+        .order_by(
+            Entity.visited.asc(),  # First sort by visited (True first)
+            Entity.updated_at.desc(),  # Then by most recently updated
+            Entity.rating.desc().nullsfirst(),  # Then by rating (highest first, nulls before non-nulls)
+            Entity.category,  # Then by category alphabetically
+            Entity.name  # Finally by name alphabetically
+        ).all()
     return render_template('places.html', places=places)
 
 @entity_api_bp.route('/entities/available')

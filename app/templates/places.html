@@ -61,16 +61,16 @@
 {% endif %}{% if place.location %}Location: {{ place.location | title_case }}
 {% endif %}{% if place.contact_info %}Contact: {{ place.contact_info }}
 {% endif %}{% if place.tags %}Tags: {{ place.tags | join(', ') }}{% endif %}">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs" data-value="{{ place.name }}" title="{{ place.name }}">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs" data-value="{{ place.name }}"">
                                             {{ place.name }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate w-32" data-value="{{ place.category }}" title="{{ place.category | title_case }}">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate w-32" data-value="{{ place.category }}"">
                                             {{ place.category | title_case }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate w-48" data-value="{{ place.location or '' }}" title="{{ place.location | title_case if place.location else '-' }}">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate w-48" data-value="{{ place.location or '' }}"">
                                             {{ place.location | title_case if place.location else '-' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate w-32" data-value="{{ place.properties.cuisine if place.properties and place.properties.cuisine else '' }}" title="{{ place.properties.cuisine | title_case if place.properties and place.properties.cuisine else '-' }}">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate w-32" data-value="{{ place.properties.cuisine if place.properties and place.properties.cuisine else '' }}">
                                             {{ place.properties.cuisine | title_case if place.properties and place.properties.cuisine else '-' }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-24" data-value="{{ '1' if place.visited else '0' }}">

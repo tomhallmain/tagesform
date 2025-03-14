@@ -23,8 +23,21 @@ def add_activity():
         participants = request.form.get('participants', '').split(',') if request.form.get('participants') else []
         notes = request.form.get('notes')
 
-        # Create datetime object from date and time
-        scheduled_datetime = datetime.strptime(f"{scheduled_date} {scheduled_time}", "%Y-%m-%d %H:%M")
+        # Validate required fields
+        if not title:
+            flash('Title is required', 'error')
+            return render_template('add_activity.html'), 400
+            
+        if not scheduled_date or not scheduled_time:
+            flash('Date and time are required', 'error')
+            return render_template('add_activity.html'), 400
+
+        try:
+            # Create datetime object from date and time
+            scheduled_datetime = datetime.strptime(f"{scheduled_date} {scheduled_time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            flash('Invalid date or time format', 'error')
+            return render_template('add_activity.html'), 400
 
         # Create new activity
         activity = Activity(
@@ -32,7 +45,7 @@ def add_activity():
             description=description,
             scheduled_time=scheduled_datetime,
             category=category,
-            duration=duration,
+            duration=int(duration) if duration else None,
             location=location,
             participants=participants,
             notes=notes,

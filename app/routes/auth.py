@@ -19,7 +19,7 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user is None or not user.check_password(password):
-            flash('Invalid username or password')
+            flash('Invalid username or password', 'error')
             return redirect(url_for('auth.login'))
         
         login_user(user)
@@ -28,6 +28,7 @@ def login():
             next_page = url_for('main.index')
         return redirect(next_page)
     
+    # Handle GET request
     return render_template('login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
@@ -68,6 +69,9 @@ def logout():
 @login_required
 def profile():
     """User profile page"""
+    if not current_user.is_authenticated:
+        return redirect(url_for('auth.login'))
+        
     stats = {
         'total_activities': Activity.query.filter_by(user_id=current_user.id).count(),
         'active_schedules': Schedule.query.filter_by(user_id=current_user.id).count(),
@@ -79,6 +83,9 @@ def profile():
 @login_required
 def update_profile():
     """Handle profile updates"""
+    if not current_user.is_authenticated:
+        return redirect(url_for('auth.login'))
+        
     username = request.form.get('username')
     email = request.form.get('email')
     new_password = request.form.get('new_password')

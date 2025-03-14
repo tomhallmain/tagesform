@@ -26,7 +26,7 @@ def app():
         'APPLICATION_ROOT': '/',
         'PREFERRED_URL_SCHEME': 'http',
         'WTF_CSRF_ENABLED': False,  # Disable CSRF for testing
-        'LOGIN_DISABLED': True  # Disable login requirement for testing
+        'LOGIN_DISABLED': False  # Enable login protection for testing
     })
     
     # Create a test database
@@ -96,18 +96,13 @@ def auth(client, test_user, app):
         def login(self, username='test', password='test123'):
             # Make the login request
             response = self._client.post(
-                '/auth/login',
+                '/login',  # Updated path
                 data={'username': username, 'password': password},
                 follow_redirects=True
             )
-            
-            # Set up the session with Flask-Login's session key
-            with self._client.session_transaction() as sess:
-                sess['_user_id'] = str(self._test_user.id)
-            
             return response
 
         def logout(self):
-            return self._client.get('/auth/logout')
+            return self._client.get('/logout', follow_redirects=True)
 
     return AuthActions(client, test_user, app) 

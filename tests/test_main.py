@@ -25,6 +25,7 @@ def test_stats_endpoint(client, auth, test_user, db_session):
     
     # Create some test data
     now = datetime.utcnow()
+    tomorrow = now + timedelta(days=1)
     
     # Activity within a week
     activity1 = Activity(
@@ -40,11 +41,11 @@ def test_stats_endpoint(client, auth, test_user, db_session):
         user_id=test_user.id
     )
     
-    # Schedule
+    # Schedule - using full datetime objects
     schedule = Schedule(
         title='Test Schedule',
-        start_time=now.time(),
-        end_time=(now + timedelta(hours=1)).time(),
+        start_time=tomorrow.replace(hour=9, minute=0, second=0, microsecond=0),  # 9 AM tomorrow
+        end_time=tomorrow.replace(hour=17, minute=0, second=0, microsecond=0),   # 5 PM tomorrow
         user_id=test_user.id
     )
     

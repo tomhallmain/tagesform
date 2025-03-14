@@ -51,6 +51,7 @@ def get_calendar_events():
 def health_check():
     """Health check endpoint that also verifies Ollama connection"""
     import requests
+    from sqlalchemy import text
     from ..services.ollama_service import ollama_service
     from ..models import db
     from ..utils.config import config
@@ -60,9 +61,17 @@ def health_check():
     except requests.exceptions.RequestException:
         ollama_status = "unavailable"
 
+    # Check database connection using SQLAlchemy 2.0 API
+    try:
+        with db.engine.connect() as conn:
+            result = conn.execute(text('SELECT 1')).scalar()
+            db_status = 'connected' if result == 1 else 'error'
+    except Exception:
+        db_status = 'error'
+
     return jsonify({
         'status': 'healthy',
         'ollama_status': ollama_status,
-        'database': 'connected' if db.engine.execute('SELECT 1').scalar() else 'error',
+        'database': db_status,
         'model': config.OLLAMA_MODEL
     }) 

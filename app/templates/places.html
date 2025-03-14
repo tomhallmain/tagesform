@@ -55,7 +55,7 @@
                                 </thead>
                                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                     {% for place in places %}
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" onclick="window.location='{{ url_for('entities.edit_place', entity_id=place.id) }}'">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs" data-value="{{ place.name }}" title="{{ place.name }}">
                                             {{ place.name }}
                                         </td>
@@ -74,7 +74,7 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-24" data-value="{{ place.rating if place.rating is not none else '-1' }}">
                                             {{ place.rating | format_rating if place.rating is not none else '-' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-24">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-24" onclick="event.stopPropagation();">
                                             <form action="{{ url_for('entities.delete_place', entity_id=place.id) }}" method="POST" class="inline no-ajax" onsubmit="return confirm('Are you sure you want to delete this place?');">
                                                 <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
                                             </form>

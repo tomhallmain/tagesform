@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Edit Place</h1>
+    
+    <form method="POST" id="editPlaceForm" class="space-y-6">
+        <div>
+            <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Place Name</label>
+            <input type="text" name="name" id="name" required value="{{ place.name }}"
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+
+        <div>
+            <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
+            <select name="category" id="category" onchange="updateCuisineField(this.value)"
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <option value="restaurant" {% if place.category == 'restaurant' %}selected{% endif %}>Restaurant</option>
+                <option value="store" {% if place.category == 'store' %}selected{% endif %}>Store</option>
+                <option value="service" {% if place.category == 'service' %}selected{% endif %}>Service</option>
+                <option value="gym" {% if place.category == 'gym' %}selected{% endif %}>Gym</option>
+                <option value="entertainment" {% if place.category == 'entertainment' %}selected{% endif %}>Entertainment</option>
+                <option value="other" {% if place.category == 'other' %}selected{% endif %}>Other</option>
+            </select>
+        </div>
+
+        <!-- Cuisine field - only shown for restaurants -->
+        <div id="cuisine-field" style="display: {% if place.category == 'restaurant' %}block{% else %}none{% endif %};">
+            <label for="cuisine" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cuisine Type</label>
+            <input type="text" name="cuisine" id="cuisine" value="{{ place.properties.cuisine if place.properties and place.properties.cuisine else '' }}"
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Operating Hours</label>
+            {% for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] %}
+            <div class="grid grid-cols-3 gap-4 mb-2">
+                <div class="flex items-center">
+                    <input type="checkbox" name="days[]" value="{{ day }}" id="{{ day }}"
+                        {% if place.operating_hours and day in place.operating_hours %}checked{% endif %}
+                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded">
+                    <label for="{{ day }}" class="ml-2 block text-sm text-gray-700 dark:text-gray-300 capitalize">{{ day }}</label>
+                </div>
+                <div>
+                    <input type="time" name="{{ day }}_open" id="{{ day }}_open"
+                        value="{{ place.operating_hours[day]['open'] if place.operating_hours and day in place.operating_hours else '' }}"
+                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="Open time (optional)">
+                </div>
+                <div>
+                    <input type="time" name="{{ day }}_close" id="{{ day }}_close"
+                        value="{{ place.operating_hours[day]['close'] if place.operating_hours and day in place.operating_hours else '' }}"
+                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="Close time (optional)">
+                </div>
+            </div>
+            {% endfor %}
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Note: If no times are specified, default daytime hours will be assumed</p>
+        </div>
+
+        <div>
+            <label for="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
+            <input type="text" name="location" id="location" value="{{ place.location or '' }}"
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+
+        <div>
+            <label for="contact_info" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Contact Information</label>
+            <input type="text" name="contact_info" id="contact_info" value="{{ place.contact_info or '' }}"
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+
+        <div>
+            <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+            <textarea name="description" id="description" rows="3"
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ place.description or '' }}</textarea>
+        </div>
+
+        <div>
+            <label for="tags" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tags (comma-separated)</label>
+            <input type="text" name="tags" id="tags" value="{{ place.tags|join(',') if place.tags else '' }}"
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+
+        <div class="flex items-center mb-4">
+            <input type="checkbox" name="visited" id="visited" {% if place.visited %}checked{% endif %}
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded">
+            <label for="visited" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">I have visited this place</label>
+        </div>
+
+        <div class="flex justify-end space-x-4">
+            <a href="{{ url_for('entities.list_places') }}"
+                class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                Cancel
+            </a>
+            <button type="submit"
+                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+    // Function to update cuisine field visibility
+    function updateCuisineField(categoryValue) {
+        const cuisineField = document.getElementById('cuisine-field');
+        const cuisineInput = document.getElementById('cuisine');
+        if (!cuisineField || !cuisineInput) return;
+
+        if (categoryValue === 'restaurant') {
+            cuisineField.style.display = 'block';
+        } else {
+            cuisineField.style.display = 'none';
+            cuisineInput.value = ''; // Clear the cuisine input when switching to non-restaurant
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Enable/disable time inputs based on checkbox state
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            const day = checkbox.value;
+            const openInput = document.getElementById(`${day}_open`);
+            const closeInput = document.getElementById(`${day}_close`);
+            
+            // Skip if inputs don't exist
+            if (!openInput || !closeInput) return;
+            
+            function updateTimeInputs() {
+                if (openInput && closeInput) {
+                    openInput.disabled = !checkbox.checked;
+                    closeInput.disabled = !checkbox.checked;
+                }
+            }
+            
+            checkbox.addEventListener('change', updateTimeInputs);
+            updateTimeInputs(); // Initial state
+        });
+
+        // Set initial cuisine field visibility
+        const categorySelect = document.getElementById('category');
+        if (categorySelect) {
+            updateCuisineField(categorySelect.value);
+        }
+    });
+</script>
+{% endblock %} 

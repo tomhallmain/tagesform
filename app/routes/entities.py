@@ -764,4 +764,66 @@ def review_all():
     import_data.json_data = {'non_duplicates': all_entries}
     db.session.commit()
     
-    return render_template('review_import.html', places=all_entries) 
+    return render_template('review_import.html', places=all_entries)
+
+@entities_bp.route('/edit-place/<int:entity_id>', methods=['GET', 'POST'])
+@login_required
+def edit_place(entity_id):
+    entity = Entity.query.get_or_404(entity_id)
+    
+    # Ensure user owns this entity
+    if entity.user_id != current_user.id:
+        flash('You do not have permission to edit this place.', 'error')
+        return redirect(url_for('entities.list_places'))
+    
+    if request.method == 'POST':
+        # Get form data
+        name = request.form.get('name')
+        category = request.form.get('category')
+        location = request.form.get('location')
+        contact_info = request.form.get('contact_info')
+        description = request.form.get('description')
+        tags = request.form.get('tags', '').split(',') if request.form.get('tags') else []
+        visited = 'visited' in request.form
+
+        # Initialize properties dictionary
+        properties = entity.properties or {}
+        
+        # Add category-specific properties
+        if category == 'restaurant':
+            cuisine = request.form.get('cuisine')
+            if cuisine:
+                properties['cuisine'] = cuisine
+
+        # Process operating hours
+        operating_hours = {}
+        days = request.form.getlist('days[]')
+        for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']:
+            if day in days:
+                operating_hours[day] = {
+                    'open': request.form.get(f'{day}_open'),
+                    'close': request.form.get(f'{day}_close')
+                }
+
+        try:
+            # Update entity
+            entity.name = name
+            entity.category = category
+            entity.operating_hours = operating_hours
+            entity.location = location
+            entity.contact_info = contact_info
+            entity.description = description
+            entity.tags = tags
+            entity.visited = visited
+            entity.properties = properties
+
+            db.session.commit()
+            flash('Place updated successfully!', 'success')
+            return redirect(url_for('entities.list_places'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating place: {str(e)}', 'error')
+            return render_template('edit_place.html', place=entity)
+
+    return render_template('edit_place.html', place=entity) 

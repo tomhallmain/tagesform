@@ -105,4 +105,13 @@ def auth(client, test_user, app):
         def logout(self):
             return self._client.get('/logout', follow_redirects=True)
 
-    return AuthActions(client, test_user, app) 
+    return AuthActions(client, test_user, app)
+
+@pytest.fixture(autouse=True)
+def cleanup_session(client):
+    """Clean up the session after each test."""
+    yield
+    # Clear session and log out after each test
+    with client.session_transaction() as sess:
+        sess.clear()
+    client.get('/logout', follow_redirects=True) 

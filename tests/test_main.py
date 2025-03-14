@@ -14,7 +14,10 @@ def test_index_authenticated(client, auth):
     auth.login()
     response = client.get('/')
     assert response.status_code == 200
-    assert b'Dashboard' in response.data
+    # Check for sections that are actually on the page
+    assert b'Current Weather' in response.data
+    assert b'Active Schedule' in response.data
+    assert b'Coming Up' in response.data
 
 def test_stats_endpoint(client, auth, test_user, db_session):
     """Test the stats API endpoint"""

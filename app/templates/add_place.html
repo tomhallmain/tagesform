@@ -54,6 +54,31 @@
                 class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
         </div>
 
+        <!-- Rating field -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Rating</label>
+            <div class="flex items-center space-x-6">
+                <div class="flex items-center">
+                    <input type="radio" name="rating" id="rating_null" value="" checked
+                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600">
+                    <label for="rating_null" class="ml-2 text-sm text-gray-700 dark:text-gray-300">Not Rated</label>
+                </div>
+                {% for rating, label in [
+                    (0, 'Terrible'),
+                    (1, 'Bad'),
+                    (2, 'OK'),
+                    (3, 'Good'),
+                    (4, 'Great')
+                ] %}
+                <div class="flex items-center">
+                    <input type="radio" name="rating" id="rating{{ rating }}" value="{{ rating }}"
+                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600">
+                    <label for="rating{{ rating }}" class="ml-2 text-sm text-gray-700 dark:text-gray-300">{{ label }}</label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Operating Hours</label>
             {% for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] %}

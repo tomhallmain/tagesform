@@ -107,6 +107,8 @@ def add_place():
         description = request.form.get('description')
         tags = request.form.get('tags', '').split(',') if request.form.get('tags') else []
         visited = 'visited' in request.form
+        rating = request.form.get('rating')  # Get rating as string
+        rating = int(rating) if rating else None  # Convert to int if not empty, else None
 
         # Initialize properties dictionary
         properties = {}
@@ -153,6 +155,7 @@ def add_place():
                                 description=description,
                                 tags=','.join(tags),
                                 visited=visited,
+                                rating=rating,  # Add rating to template context
                                 cuisine=properties.get('cuisine'),
                                 operating_hours=operating_hours)
 
@@ -167,6 +170,7 @@ def add_place():
                 description=description,
                 tags=tags,
                 visited=visited,
+                rating=rating,  # Add rating to entity creation
                 properties=properties,
                 user_id=current_user.id
             )
@@ -194,6 +198,7 @@ def add_place():
                                 description=description,
                                 tags=','.join(tags),
                                 visited=visited,
+                                rating=rating,  # Add rating to template context
                                 cuisine=properties.get('cuisine'),
                                 operating_hours=operating_hours)
 
@@ -785,6 +790,8 @@ def edit_place(entity_id):
         description = request.form.get('description')
         tags = request.form.get('tags', '').split(',') if request.form.get('tags') else []
         visited = 'visited' in request.form
+        rating = request.form.get('rating')  # Get rating as string
+        rating = int(rating) if rating else None  # Convert to int if not empty, else None
 
         # Initialize properties dictionary
         properties = entity.properties or {}
@@ -815,6 +822,7 @@ def edit_place(entity_id):
             entity.description = description
             entity.tags = tags
             entity.visited = visited
+            entity.rating = rating  # Add rating update
             entity.properties = properties
 
             db.session.commit()

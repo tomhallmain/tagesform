@@ -54,6 +54,13 @@
                 class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
         </div>
 
+        <!-- Visited checkbox -->
+        <div class="flex items-center mb-4">
+            <input type="checkbox" name="visited" id="visited"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded">
+            <label for="visited" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">I have visited this place</label>
+        </div>
+
         <!-- Rating field -->
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Rating</label>
@@ -127,12 +134,6 @@
                 class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
         </div>
 
-        <div class="flex items-center mb-4">
-            <input type="checkbox" name="visited" id="visited"
-                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded">
-            <label for="visited" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">I have visited this place</label>
-        </div>
-
         <div class="flex justify-end space-x-4">
             <a href="{{ url_for('main.index') }}"
                 class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
@@ -168,6 +169,8 @@
         // Enable/disable time inputs based on checkbox state
         document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             const day = checkbox.value;
+            if (!day || !day.match(/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/)) return;
+            
             const openInput = document.getElementById(`${day}_open`);
             const closeInput = document.getElementById(`${day}_close`);
             
@@ -190,6 +193,17 @@
         if (categorySelect) {
             updateCuisineField(categorySelect.value);
         }
+
+        // Handle rating radio button changes
+        document.querySelectorAll('input[name="rating"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const visitedCheckbox = document.getElementById('visited');
+                // If a rating other than "Not Rated" is selected, check the visited box
+                if (this.value !== '') {
+                    visitedCheckbox.checked = true;
+                }
+            });
+        });
 
         // Clear any existing flash messages
         document.querySelectorAll('.flash-message').forEach(msg => msg.remove());

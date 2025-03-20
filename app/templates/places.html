@@ -4,9 +4,6 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Toast Container -->
-    <div id="toast-container" class="fixed bottom-4 right-4 z-50"></div>
-    
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white">My Places</h2>
@@ -191,30 +188,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Toast notification function
-    function showToast(message, type = 'success') {
-        const toast = document.createElement('div');
-        toast.className = `${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-6 py-4 rounded-lg shadow-lg mb-4 transition-opacity duration-500`;
-        toast.style.opacity = '0';
-        toast.innerHTML = message;
-        
-        const container = document.getElementById('toast-container');
-        container.appendChild(toast);
-        
-        // Fade in
-        setTimeout(() => {
-            toast.style.opacity = '1';
-        }, 10);
-        
-        // Fade out and remove after 3 seconds
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => {
-                container.removeChild(toast);
-            }, 500);
-        }, 3000);
-    }
-    
     // Handle sharing form submissions
     document.querySelectorAll('form.share-form').forEach(form => {
         // Prevent the row click event when clicking the form or its children

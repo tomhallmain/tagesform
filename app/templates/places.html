@@ -4,6 +4,9 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50"></div>
+    
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white">My Places</h2>
@@ -80,15 +83,15 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-24" data-value="{{ place.rating if place.rating is not none else '-1' }}">
                                             {{ place.rating | format_rating if place.rating is not none else '-' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-32" onclick="event.stopPropagation();">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-32">
                                             {% if place.user_id == current_user.id %}
-                                                <form action="{{ url_for('entities.share_place', entity_id=place.id) }}" method="POST" class="inline no-ajax">
+                                                <form action="{{ url_for('entities.share_place', entity_id=place.id) }}" method="POST" class="inline share-form no-ajax">
                                                     {% if place.is_public %}
-                                                        <button type="submit" name="share_action" value="make_private" class="text-blue-600 hover:text-blue-900" onclick="event.stopPropagation();">
+                                                        <button type="submit" name="share_action" value="make_private" class="text-blue-600 hover:text-blue-900">
                                                             <i class="fas fa-globe" title="Public - Click to make private"></i>
                                                         </button>
                                                     {% else %}
-                                                        <button type="submit" name="share_action" value="make_public" class="text-blue-600 hover:text-blue-900" onclick="event.stopPropagation();">
+                                                        <button type="submit" name="share_action" value="make_public" class="text-blue-600 hover:text-blue-900">
                                                             <i class="fas fa-lock" title="Private - Click to make public"></i>
                                                         </button>
                                                     {% endif %}
@@ -185,6 +188,80 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Update current sort
             currentSort = { column, direction };
+        });
+    });
+
+    // Toast notification function
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-6 py-4 rounded-lg shadow-lg mb-4 transition-opacity duration-500`;
+        toast.style.opacity = '0';
+        toast.innerHTML = message;
+        
+        const container = document.getElementById('toast-container');
+        container.appendChild(toast);
+        
+        // Fade in
+        setTimeout(() => {
+            toast.style.opacity = '1';
+        }, 10);
+        
+        // Fade out and remove after 3 seconds
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                container.removeChild(toast);
+            }, 500);
+        }, 3000);
+    }
+    
+    // Handle sharing form submissions
+    document.querySelectorAll('form.share-form').forEach(form => {
+        // Prevent the row click event when clicking the form or its children
+        form.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();  // Ensure the row click doesn't fire
+            
+            try {
+                const button = this.querySelector('button');
+                const formData = new FormData(this);
+                formData.set('share_action', button.value);
+                
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast(data.message);
+                    
+                    // Update the button icon and action
+                    const icon = button.querySelector('i');
+                    
+                    if (data.is_public) {
+                        icon.className = 'fas fa-globe';
+                        icon.title = 'Public - Click to make private';
+                        button.value = 'make_private';
+                    } else {
+                        icon.className = 'fas fa-lock';
+                        icon.title = 'Private - Click to make public';
+                        button.value = 'make_public';
+                    }
+                } else {
+                    showToast(data.error || 'An error occurred', 'error');
+                }
+            } catch (error) {
+                showToast('An error occurred while updating sharing status', 'error');
+            }
         });
     });
 });

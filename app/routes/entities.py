@@ -891,7 +891,7 @@ def edit_place(entity_id):
 
     return render_template('edit_place.html', place=entity)
 
-@entities_bp.route('/share-place/<int:entity_id>', methods=['POST'])
+@entities_bp.route('/<int:entity_id>/share', methods=['POST'])
 @login_required
 def share_place(entity_id):
     current_app.logger.debug(f"Share place route called for entity_id: {entity_id}")
@@ -903,6 +903,8 @@ def share_place(entity_id):
     
     if entity.user_id != current_user.id:
         current_app.logger.warning(f"User {current_user.id} attempted to modify sharing settings for entity {entity_id} owned by user {entity.user_id}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': 'You do not have permission to share this place.'}), 403
         abort(403)
     
     action = request.form.get('share_action')
@@ -910,18 +912,28 @@ def share_place(entity_id):
     
     if action == 'make_public':
         entity.is_public = True
+        message = 'Place is now public and can be viewed by all users.'
         current_app.logger.debug("Making entity public")
     elif action == 'make_private':
         entity.is_public = False
+        message = 'Place is now private.'
         current_app.logger.debug("Making entity private")
     else:
         current_app.logger.error(f"Invalid action received: {action}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': 'Invalid action.'}), 400
         abort(400)
     
     db.session.commit()
     current_app.logger.debug("Changes committed to database")
     
-    flash('Sharing settings updated successfully', 'success')
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'message': message,
+            'is_public': entity.is_public
+        })
+    
+    flash(message, 'success')
     return redirect(url_for('entities.list_places'))
 
 @entities_bp.route('/share-with/<int:entity_id>', methods=['POST'])

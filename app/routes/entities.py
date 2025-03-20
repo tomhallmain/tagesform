@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session, current_app, abort
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 import pytz
@@ -894,25 +894,34 @@ def edit_place(entity_id):
 @entities_bp.route('/share-place/<int:entity_id>', methods=['POST'])
 @login_required
 def share_place(entity_id):
+    current_app.logger.debug(f"Share place route called for entity_id: {entity_id}")
+    current_app.logger.debug(f"Request form data: {request.form}")
+    
     entity = Entity.query.get_or_404(entity_id)
+    current_app.logger.debug(f"Found entity: {entity.name} (owned by user_id: {entity.user_id})")
+    current_app.logger.debug(f"Current user_id: {current_user.id}")
     
-    # Ensure user owns this entity
     if entity.user_id != current_user.id:
-        flash('You do not have permission to share this place.', 'error')
-        return redirect(url_for('entities.list_places'))
+        current_app.logger.warning(f"User {current_user.id} attempted to modify sharing settings for entity {entity_id} owned by user {entity.user_id}")
+        abort(403)
     
-    action = request.form.get('action')
+    action = request.form.get('share_action')
+    current_app.logger.debug(f"Action requested: {action}")
+    
     if action == 'make_public':
         entity.is_public = True
-        entity.shared_with = []  # Clear individual shares when making public
-        flash('Place is now public and can be viewed by all users.', 'success')
+        current_app.logger.debug("Making entity public")
     elif action == 'make_private':
         entity.is_public = False
-        flash('Place is now private.', 'success')
+        current_app.logger.debug("Making entity private")
     else:
-        flash('Invalid action.', 'error')
+        current_app.logger.error(f"Invalid action received: {action}")
+        abort(400)
     
     db.session.commit()
+    current_app.logger.debug("Changes committed to database")
+    
+    flash('Sharing settings updated successfully', 'success')
     return redirect(url_for('entities.list_places'))
 
 @entities_bp.route('/share-with/<int:entity_id>', methods=['POST'])

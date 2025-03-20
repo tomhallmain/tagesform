@@ -82,26 +82,32 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-32" onclick="event.stopPropagation();">
                                             {% if place.user_id == current_user.id %}
-                                                <form action="{{ url_for('entities.share_place', entity_id=place.id) }}" method="POST" class="inline">
+                                                <form action="{{ url_for('entities.share_place', entity_id=place.id) }}" method="POST" class="inline no-ajax">
                                                     {% if place.is_public %}
-                                                        <button type="submit" name="action" value="make_private" class="text-blue-600 hover:text-blue-900">Make Private</button>
+                                                        <button type="submit" name="share_action" value="make_private" class="text-blue-600 hover:text-blue-900" onclick="event.stopPropagation();">
+                                                            <i class="fas fa-globe" title="Public - Click to make private"></i>
+                                                        </button>
                                                     {% else %}
-                                                        <button type="submit" name="action" value="make_public" class="text-blue-600 hover:text-blue-900">Make Public</button>
+                                                        <button type="submit" name="share_action" value="make_public" class="text-blue-600 hover:text-blue-900" onclick="event.stopPropagation();">
+                                                            <i class="fas fa-lock" title="Private - Click to make public"></i>
+                                                        </button>
                                                     {% endif %}
                                                 </form>
                                             {% else %}
                                                 <span class="text-gray-500">
                                                     {% if place.is_public %}
-                                                        Public
+                                                        <i class="fas fa-globe" title="Public"></i>
                                                     {% else %}
-                                                        Shared with you
+                                                        <i class="fas fa-user-friends" title="Shared with you"></i>
                                                     {% endif %}
                                                 </span>
                                             {% endif %}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-24" onclick="event.stopPropagation();">
                                             <form action="{{ url_for('entities.delete_place', entity_id=place.id) }}" method="POST" class="inline no-ajax" onsubmit="return confirm('Are you sure you want to delete this place?');">
-                                                <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
+                                                <button type="submit" class="text-red-600 hover:text-red-900">
+                                                    <i class="fas fa-trash" title="Delete place"></i>
+                                                </button>
                                             </form>
                                         </td>
                                     </tr>

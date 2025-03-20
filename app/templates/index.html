@@ -211,10 +211,13 @@
                 return;
             }
 
+            // Store current user ID as JavaScript variable
+            const currentUserId = {{ current_user.id }};
+            
             // Group entities by ownership/sharing status
-            const ownedEntities = entities.filter(e => e.user_id === {{ current_user.id }});
-            const sharedEntities = entities.filter(e => e.user_id !== {{ current_user.id }} && !e.is_public);
-            const publicEntities = entities.filter(e => e.user_id !== {{ current_user.id }} && e.is_public);
+            const ownedEntities = entities.filter(e => e.user_id === currentUserId);
+            const sharedEntities = entities.filter(e => e.user_id !== currentUserId && !e.is_public);
+            const publicEntities = entities.filter(e => e.user_id !== currentUserId && e.is_public);
 
             // Smart sorting algorithm
             function sortAndLimitEntities() {
@@ -256,7 +259,8 @@
             entitiesList.innerHTML = `
                 <div class="space-y-2">
                     ${displayEntities.map(entity => `
-                        <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded transition-colors duration-200">
+                        <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded transition-colors duration-200"
+                             title="${entity.description ? `Description: ${entity.description}\n` : ''}${entity.location ? `Location: ${entity.location}\n` : ''}${entity.contact_info ? `Contact: ${entity.contact_info}\n` : ''}${entity.tags ? `Tags: ${entity.tags.join(', ')}` : ''}">
                             <div>
                                 <p class="text-sm font-medium text-gray-900">${entity.name}</p>
                                 <p class="text-xs text-gray-500">${entity.category}</p>

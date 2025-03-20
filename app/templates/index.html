@@ -216,49 +216,67 @@
             const sharedEntities = entities.filter(e => e.user_id !== {{ current_user.id }} && !e.is_public);
             const publicEntities = entities.filter(e => e.user_id !== {{ current_user.id }} && e.is_public);
 
+            // Smart sorting algorithm
+            function sortAndLimitEntities() {
+                const MAX_TOTAL_ITEMS = 5;  // Maximum items to show in widget
+                const results = [];
+                
+                // Always try to include at least one owned place if available
+                if (ownedEntities.length > 0) {
+                    // Randomly select one owned place
+                    const randomOwnedIndex = Math.floor(Math.random() * ownedEntities.length);
+                    results.push({
+                        ...ownedEntities[randomOwnedIndex],
+                        type: 'owned'
+                    });
+                }
+
+                // Create a pool of remaining places with weighted randomization
+                const remainingPool = [
+                    ...ownedEntities.filter((_, i) => i !== (results[0]?.id)).map(e => ({ ...e, type: 'owned', weight: 0.5 })),
+                    ...sharedEntities.map(e => ({ ...e, type: 'shared', weight: 0.3 })),
+                    ...publicEntities.map(e => ({ ...e, type: 'public', weight: 0.2 }))
+                ];
+
+                // Shuffle remaining pool with weights
+                const shuffledPool = remainingPool.sort(() => Math.random() - 0.5)
+                    .sort((a, b) => (Math.random() * b.weight) - (Math.random() * a.weight));
+
+                // Fill remaining slots
+                const remainingSlots = MAX_TOTAL_ITEMS - results.length;
+                results.push(...shuffledPool.slice(0, remainingSlots));
+
+                return results;
+            }
+
+            const displayEntities = sortAndLimitEntities();
             emptyEntities.style.display = 'none';
+
+            // Create a more engaging display
             entitiesList.innerHTML = `
-                ${ownedEntities.length > 0 ? `
-                    <div class="mb-4">
-                        <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Your Places</h4>
-                        ${ownedEntities.map(entity => `
-                            <div class="flex items-center space-x-3 mb-2 p-2 hover:bg-gray-50 rounded">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-900">${entity.name}</p>
-                                    <p class="text-xs text-gray-500">${entity.category}</p>
-                                </div>
+                <div class="space-y-2">
+                    ${displayEntities.map(entity => `
+                        <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded transition-colors duration-200">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">${entity.name}</p>
+                                <p class="text-xs text-gray-500">${entity.category}</p>
                             </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
-                
-                ${sharedEntities.length > 0 ? `
-                    <div class="mb-4">
-                        <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Shared With You</h4>
-                        ${sharedEntities.map(entity => `
-                            <div class="flex items-center space-x-3 mb-2 p-2 hover:bg-gray-50 rounded">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-900">${entity.name}</p>
-                                    <p class="text-xs text-gray-500">${entity.category}</p>
-                                </div>
+                            <div class="flex items-center">
+                                ${entity.type === 'owned' ? 
+                                    '<span class="text-xs text-blue-600"><i class="fas fa-user-circle" title="Your place"></i></span>' :
+                                    entity.type === 'shared' ? 
+                                    '<span class="text-xs text-purple-600"><i class="fas fa-user-friends" title="Shared with you"></i></span>' :
+                                    '<span class="text-xs text-green-600"><i class="fas fa-globe" title="Public place"></i></span>'
+                                }
                             </div>
-                        `).join('')}
+                        </div>
+                    `).join('')}
+                    <div class="pt-2 text-center">
+                        <a href="{{ url_for('entities.list_places') }}" class="text-xs text-blue-600 hover:text-blue-800 transition-colors duration-200">
+                            View all available places →
+                        </a>
                     </div>
-                ` : ''}
-                
-                ${publicEntities.length > 0 ? `
-                    <div>
-                        <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Public Places</h4>
-                        ${publicEntities.map(entity => `
-                            <div class="flex items-center space-x-3 mb-2 p-2 hover:bg-gray-50 rounded">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-900">${entity.name}</p>
-                                    <p class="text-xs text-gray-500">${entity.category}</p>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
+                </div>
             `;
         } catch (error) {
             console.error('Error fetching entities:', error);

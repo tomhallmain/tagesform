@@ -229,7 +229,7 @@ def delete_place(entity_id):
     entity = Entity.query.get_or_404(entity_id)
     
     # Ensure user owns this entity
-    if entity.user_id != current_user.id:
+    if not entity.can_edit(current_user.id):
         flash('You do not have permission to delete this place.', 'error')
         return redirect(url_for('entities.list_places'))
     
@@ -591,14 +591,20 @@ def import_places():
 @entities_bp.route('/places')
 @login_required
 def list_places():
-    places = Entity.query.filter_by(user_id=current_user.id)\
-        .order_by(
-            Entity.visited.asc(),  # First sort by visited (True first)
-            Entity.updated_at.desc(),  # Then by most recently updated
-            Entity.rating.desc().nullsfirst(),  # Then by rating (highest first, nulls before non-nulls)
-            Entity.category,  # Then by category alphabetically
-            Entity.name  # Finally by name alphabetically
-        ).all()
+    # Get all places the user owns, has shared with them, or are public
+    places = Entity.query.filter(
+        db.or_(
+            Entity.user_id == current_user.id,
+            Entity.is_public == True,
+            Entity.shared_with.contains([current_user.id])
+        )
+    ).order_by(
+        Entity.visited.asc(),  # First sort by visited (True first)
+        Entity.updated_at.desc(),  # Then by most recently updated
+        Entity.rating.desc().nullsfirst(),  # Then by rating (highest first, nulls before non-nulls)
+        Entity.category,  # Then by category alphabetically
+        Entity.name  # Finally by name alphabetically
+    ).all()
     return render_template('places.html', places=places)
 
 @entity_api_bp.route('/entities/available')
@@ -802,8 +808,8 @@ def review_all():
 def edit_place(entity_id):
     entity = Entity.query.get_or_404(entity_id)
     
-    # Ensure user owns this entity
-    if entity.user_id != current_user.id:
+    # Check if user can edit this entity
+    if not entity.can_edit(current_user.id):
         flash('You do not have permission to edit this place.', 'error')
         return redirect(url_for('entities.list_places'))
     
@@ -857,6 +863,9 @@ def edit_place(entity_id):
                     'close': request.form.get(f'{day}_close')
                 }
 
+        # Add visibility handling
+        is_public = 'is_public' in request.form
+        
         try:
             # Update entity
             entity.name = name
@@ -869,6 +878,7 @@ def edit_place(entity_id):
             entity.visited = visited
             entity.rating = rating
             entity.properties = properties
+            entity.is_public = is_public
 
             db.session.commit()
             flash('Place updated successfully!', 'success')
@@ -879,4 +889,91 @@ def edit_place(entity_id):
             flash(f'Error updating place: {str(e)}', 'error')
             return render_template('edit_place.html', place=entity)
 
-    return render_template('edit_place.html', place=entity) 
+    return render_template('edit_place.html', place=entity)
+
+@entities_bp.route('/share-place/<int:entity_id>', methods=['POST'])
+@login_required
+def share_place(entity_id):
+    entity = Entity.query.get_or_404(entity_id)
+    
+    # Ensure user owns this entity
+    if entity.user_id != current_user.id:
+        flash('You do not have permission to share this place.', 'error')
+        return redirect(url_for('entities.list_places'))
+    
+    action = request.form.get('action')
+    if action == 'make_public':
+        entity.is_public = True
+        entity.shared_with = []  # Clear individual shares when making public
+        flash('Place is now public and can be viewed by all users.', 'success')
+    elif action == 'make_private':
+        entity.is_public = False
+        flash('Place is now private.', 'success')
+    else:
+        flash('Invalid action.', 'error')
+    
+    db.session.commit()
+    return redirect(url_for('entities.list_places'))
+
+@entities_bp.route('/share-with/<int:entity_id>', methods=['POST'])
+@login_required
+def share_with_user(entity_id):
+    entity = Entity.query.get_or_404(entity_id)
+    
+    # Ensure user owns this entity
+    if entity.user_id != current_user.id:
+        flash('You do not have permission to share this place.', 'error')
+        return redirect(url_for('entities.list_places'))
+    
+    username = request.form.get('username')
+    if not username:
+        flash('Username is required.', 'error')
+        return redirect(url_for('entities.list_places'))
+    
+    # Find the user to share with
+    from ..models import User
+    user_to_share = User.query.filter_by(username=username).first()
+    if not user_to_share:
+        flash(f'User "{username}" not found.', 'error')
+        return redirect(url_for('entities.list_places'))
+    
+    if user_to_share.id == current_user.id:
+        flash('You cannot share with yourself.', 'error')
+        return redirect(url_for('entities.list_places'))
+    
+    if entity.share_with(user_to_share.id):
+        flash(f'Place shared with {username}.', 'success')
+    else:
+        flash(f'Place is already shared with {username}.', 'info')
+    
+    db.session.commit()
+    return redirect(url_for('entities.list_places'))
+
+@entities_bp.route('/unshare-with/<int:entity_id>', methods=['POST'])
+@login_required
+def unshare_with_user(entity_id):
+    entity = Entity.query.get_or_404(entity_id)
+    
+    # Ensure user owns this entity
+    if entity.user_id != current_user.id:
+        flash('You do not have permission to modify sharing settings.', 'error')
+        return redirect(url_for('entities.list_places'))
+    
+    user_id = request.form.get('user_id')
+    if not user_id:
+        flash('User ID is required.', 'error')
+        return redirect(url_for('entities.list_places'))
+    
+    try:
+        user_id = int(user_id)
+    except ValueError:
+        flash('Invalid user ID.', 'error')
+        return redirect(url_for('entities.list_places'))
+    
+    if entity.unshare_with(user_id):
+        flash('User removed from sharing list.', 'success')
+    else:
+        flash('User was not in the sharing list.', 'info')
+    
+    db.session.commit()
+    return redirect(url_for('entities.list_places')) 

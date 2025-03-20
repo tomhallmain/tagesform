@@ -16,6 +16,8 @@ class Entity(db.Model, JSONFieldMixin):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_entity_user'), nullable=False)
+    is_public = db.Column(db.Boolean, default=False)  # Whether the entity is shared with other users
+    shared_with = db.Column(db.JSON)  # List of user IDs this entity is shared with
 
     __table_args__ = (
         db.UniqueConstraint('name', 'category', 'location', 'user_id', name='uq_entity_name_category_location_user'),
@@ -50,8 +52,40 @@ class Entity(db.Model, JSONFieldMixin):
             'properties': self.properties or {},
             'created_at': self.created_at,
             'updated_at': self.updated_at,
-            'user_id': self.user_id
+            'user_id': self.user_id,
+            'is_public': self.is_public,
+            'shared_with': self.shared_with or []
         }
+
+    def can_view(self, user_id):
+        """Check if a user can view this entity"""
+        if self.is_public:
+            return True
+        if user_id == self.user_id:
+            return True
+        if self.shared_with and user_id in self.shared_with:
+            return True
+        return False
+
+    def can_edit(self, user_id):
+        """Check if a user can edit this entity"""
+        return user_id == self.user_id
+
+    def share_with(self, user_id):
+        """Share this entity with another user"""
+        if not self.shared_with:
+            self.shared_with = []
+        if user_id not in self.shared_with:
+            self.shared_with.append(user_id)
+            return True
+        return False
+
+    def unshare_with(self, user_id):
+        """Remove sharing with a user"""
+        if self.shared_with and user_id in self.shared_with:
+            self.shared_with.remove(user_id)
+            return True
+        return False
 
     @classmethod
     def find_duplicates(cls, name, category, location, user_id):

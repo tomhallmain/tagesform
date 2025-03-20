@@ -80,10 +80,24 @@ def profile():
     if not current_user.is_authenticated:
         return redirect(url_for('auth.login'))
         
+    # Get all places accessible to the user
+    owned_places = Entity.query.filter_by(user_id=current_user.id).count()
+    shared_places = Entity.query.filter(
+        Entity.user_id != current_user.id,
+        Entity.shared_with.contains([current_user.id])
+    ).count()
+    public_places = Entity.query.filter(
+        Entity.user_id != current_user.id,
+        Entity.is_public == True
+    ).count()
+    
     stats = {
         'total_activities': Activity.query.filter_by(user_id=current_user.id).count(),
         'active_schedules': Schedule.query.filter_by(user_id=current_user.id).count(),
-        'places_tracked': Entity.query.filter_by(user_id=current_user.id).count()
+        'places_tracked': owned_places + shared_places + public_places,
+        'owned_places': owned_places,
+        'shared_places': shared_places,
+        'public_places': public_places
     }
     return render_template('profile.html', user=current_user, stats=stats)
 

@@ -211,15 +211,55 @@
                 return;
             }
 
+            // Group entities by ownership/sharing status
+            const ownedEntities = entities.filter(e => e.user_id === {{ current_user.id }});
+            const sharedEntities = entities.filter(e => e.user_id !== {{ current_user.id }} && !e.is_public);
+            const publicEntities = entities.filter(e => e.user_id !== {{ current_user.id }} && e.is_public);
+
             emptyEntities.style.display = 'none';
-            entitiesList.innerHTML = entities.map(entity => `
-                <div class="flex items-center space-x-3 mb-3 p-2 hover:bg-gray-50 rounded">
-                    <div>
-                        <p class="text-sm font-medium text-gray-900">${entity.name}</p>
-                        <p class="text-xs text-gray-500">${entity.category}</p>
+            entitiesList.innerHTML = `
+                ${ownedEntities.length > 0 ? `
+                    <div class="mb-4">
+                        <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Your Places</h4>
+                        ${ownedEntities.map(entity => `
+                            <div class="flex items-center space-x-3 mb-2 p-2 hover:bg-gray-50 rounded">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">${entity.name}</p>
+                                    <p class="text-xs text-gray-500">${entity.category}</p>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
-                </div>
-            `).join('');
+                ` : ''}
+                
+                ${sharedEntities.length > 0 ? `
+                    <div class="mb-4">
+                        <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Shared With You</h4>
+                        ${sharedEntities.map(entity => `
+                            <div class="flex items-center space-x-3 mb-2 p-2 hover:bg-gray-50 rounded">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">${entity.name}</p>
+                                    <p class="text-xs text-gray-500">${entity.category}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                
+                ${publicEntities.length > 0 ? `
+                    <div>
+                        <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Public Places</h4>
+                        ${publicEntities.map(entity => `
+                            <div class="flex items-center space-x-3 mb-2 p-2 hover:bg-gray-50 rounded">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">${entity.name}</p>
+                                    <p class="text-xs text-gray-500">${entity.category}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            `;
         } catch (error) {
             console.error('Error fetching entities:', error);
         }

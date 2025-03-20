@@ -77,6 +77,15 @@
                 <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                     <p class="text-sm text-gray-500 dark:text-gray-400">Places Tracked</p>
                     <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.places_tracked }}</p>
+                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        <p>{{ stats.owned_places }} owned</p>
+                        {% if stats.shared_places > 0 %}
+                        <p>{{ stats.shared_places }} shared with you</p>
+                        {% endif %}
+                        {% if stats.public_places > 0 %}
+                        <p>{{ stats.public_places }} public</p>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>

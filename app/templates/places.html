@@ -26,32 +26,32 @@
                             <table id="places-table" class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-700">
                                     <tr>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-1/4 max-w-xs" data-sort="name">
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-64" data-sort="name">
                                             Name
                                             <span class="sort-icon ml-1">↕</span>
                                         </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-32" data-sort="category">
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-28" data-sort="category">
                                             Category
                                             <span class="sort-icon ml-1">↕</span>
                                         </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-48" data-sort="location">
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-40" data-sort="location">
                                             Location
                                             <span class="sort-icon ml-1">↕</span>
                                         </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-32" data-sort="cuisine">
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-28" data-sort="cuisine">
                                             Cuisine
                                             <span class="sort-icon ml-1">↕</span>
                                         </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-24" data-sort="visited">
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-16" data-sort="visited">
                                             Visited
                                             <span class="sort-icon ml-1">↕</span>
                                         </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-24" data-sort="rating">
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 w-16" data-sort="rating">
                                             Rating
                                             <span class="sort-icon ml-1">↕</span>
                                         </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-32">Sharing</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24">Actions</th>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12">Share</th>
+                                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12"></th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -62,25 +62,25 @@
 {% endif %}{% if place.location %}Location: {{ place.location | title_case }}
 {% endif %}{% if place.contact_info %}Contact: {{ place.contact_info }}
 {% endif %}{% if place.tags %}Tags: {{ place.tags | join(', ') }}{% endif %}">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs" data-value="{{ place.name }}"">
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs" data-value="{{ place.name }}">
                                             {{ place.name }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate w-32" data-value="{{ place.category }}"">
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate" data-value="{{ place.category }}">
                                             {{ place.category | title_case }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate w-48" data-value="{{ place.location or '' }}"">
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate" data-value="{{ place.location or '' }}">
                                             {{ place.location | title_case if place.location else '-' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate w-32" data-value="{{ place.properties.cuisine if place.properties and place.properties.cuisine else '' }}">
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate" data-value="{{ place.properties.cuisine if place.properties and place.properties.cuisine else '' }}">
                                             {{ place.properties.cuisine | title_case if place.properties and place.properties.cuisine else '-' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-24" data-value="{{ '1' if place.visited else '0' }}">
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300" data-value="{{ '1' if place.visited else '0' }}">
                                             {{ 'Yes' if place.visited else 'No' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-24" data-value="{{ place.rating if place.rating is not none else '-1' }}">
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300" data-value="{{ place.rating if place.rating is not none else '-1' }}">
                                             {{ place.rating | format_rating if place.rating is not none else '-' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-32">
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                                             {% if place.user_id == current_user.id %}
                                                 <form action="{{ url_for('entities.share_place', entity_id=place.id) }}" method="POST" class="inline share-form no-ajax">
                                                     {% if place.is_public %}
@@ -103,7 +103,7 @@
                                                 </span>
                                             {% endif %}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 w-24" onclick="event.stopPropagation();">
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300" onclick="event.stopPropagation();">
                                             <form action="{{ url_for('entities.delete_place', entity_id=place.id) }}" method="POST" class="inline no-ajax" onsubmit="return confirm('Are you sure you want to delete this place?');">
                                                 <button type="submit" class="text-red-600 hover:text-red-900">
                                                     <i class="fas fa-trash" title="Delete place"></i>

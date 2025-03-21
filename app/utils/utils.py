@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 import unicodedata
+from tzlocal import get_localzone
 
 from ..utils.custom_formatter import CustomFormatter
 
@@ -431,6 +432,17 @@ class Utils:
         for key in keys_list:
             sorted_dict[key] = _dict[key]
         return sorted_dict
+
+    @staticmethod
+    def get_user_timezone():
+        """Get the user's system timezone using tzlocal.
+        Returns a pytz timezone object."""
+        try:
+            return get_localzone()
+        except Exception as e:
+            # Fallback to UTC if we can't determine the local timezone
+            import pytz
+            return pytz.UTC
 
 
 if __name__ == "__main__":

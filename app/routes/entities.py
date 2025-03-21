@@ -1,13 +1,14 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session, current_app, abort
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-import pytz
 import csv
 import io
 from ..models import Entity, db
 from ..utils.utils import Utils
 import uuid
 import json
+from functools import lru_cache
+import random
 
 # Define valid categories and common cuisines
 VALID_CATEGORIES = {
@@ -16,9 +17,9 @@ VALID_CATEGORIES = {
 }
 
 COMMON_CUISINES = {
-    'italian', 'chinese', 'japanese', 'mexican', 'indian', 'thai', 'french',
-    'american', 'mediterranean', 'greek', 'spanish', 'vietnamese', 'korean',
-    'middle eastern', 'turkish', 'brazilian', 'peruvian', 'fusion'
+    'british', 'german', 'italian', 'chinese', 'japanese', 'mexican', 'indian', 'thai',
+    'french', 'american', 'mediterranean', 'greek', 'spanish', 'vietnamese', 'korean',
+    'middle eastern', 'turkish', 'brazilian', 'peruvian', 'fusion', 'other'
 }
 
 # Define valid ratings and their mappings
@@ -609,14 +610,136 @@ def list_places():
 
 @entity_api_bp.route('/entities/available')
 @login_required
-def get_available_entities():
+def api_available_entities():
+    """API endpoint for available entities with smart sorting"""
     current_time = datetime.now(pytz.UTC)
     current_day = current_time.strftime('%A').lower()
+    current_hour = current_time.hour
     
-    # Query entities that are currently open
-    available_entities = Entity.query.all()  # TODO: Add filtering based on operating hours
+    # Query all entities that might be available
+    available_entities = Entity.query.filter(
+        db.or_(
+            Entity.user_id == current_user.id,
+            Entity.is_public == True,
+            Entity.shared_with.contains([current_user.id])
+        )
+    ).all()
     
-    return jsonify([entity.to_dict() for entity in available_entities])
+    # Filter for entities that are currently open based on operating hours
+    open_entities = []
+    for entity in available_entities:
+        is_open = False
+        if entity.operating_hours and current_day in entity.operating_hours:
+            hours = entity.operating_hours[current_day]
+            if hours and 'open' in hours and 'close' in hours:
+                try:
+                    open_hour = int(hours['open'].split(':')[0])
+                    close_hour = int(hours['close'].split(':')[0])
+                    # Handle cases where closing time is past midnight
+                    if close_hour < open_hour:
+                        close_hour += 24
+                    if open_hour <= current_hour < close_hour:
+                        is_open = True
+                except (ValueError, IndexError):
+                    # If hours are invalid, assume it's open
+                    is_open = True
+            else:
+                # If hours are missing open/close times, assume it's open
+                is_open = True
+        else:
+            # If no operating hours specified, assume it's open
+            is_open = True
+        
+        if is_open:
+            open_entities.append(entity)
+    
+    # Get sorted entities
+    sorted_entities = get_sorted_available_entities(open_entities, current_user.id)
+    
+    # Get dashboard suggestions
+    dashboard_suggestions = get_dashboard_suggestions(sorted_entities)
+    
+    # Convert to dictionary format
+    result = {
+        'owned': [e.to_dict() for e in sorted_entities['owned']],
+        'shared': [e.to_dict() for e in sorted_entities['shared']],
+        'public': [e.to_dict() for e in sorted_entities['public']],
+        'dashboard_suggestions': [e.to_dict() for e in dashboard_suggestions],
+        'hour_key': get_hour_key(current_user.id)
+    }
+    
+    return jsonify(result)
+
+@entities_bp.route('/available')
+@login_required
+def list_available():
+    """Show expanded view of all available places"""
+    user_timezone = Utils.get_user_timezone()
+    current_time = datetime.now(user_timezone)
+    current_day = current_time.strftime('%A').lower()
+    current_hour = current_time.hour
+    
+    # Query all entities that might be available
+    available_entities = Entity.query.filter(
+        db.or_(
+            Entity.user_id == current_user.id,
+            Entity.is_public == True,
+            Entity.shared_with.contains([current_user.id])
+        )
+    ).all()
+
+    # Debug print all operating hours
+    if current_app.debug:
+        current_app.logger.debug("Available entities:")
+        for entity in available_entities:
+            current_app.logger.debug(f"Entity: {entity.name} - Operating hours: {entity.operating_hours}")
+    
+    # Filter for entities that are currently open based on operating hours
+    open_entities = []
+    for entity in available_entities:
+        if entity.operating_hours and current_day in entity.operating_hours:
+            hours = entity.operating_hours[current_day]
+            if hours and 'open' in hours and 'close' in hours:
+                try:
+                    open_hour = int(hours['open'].split(':')[0])
+                    close_hour = int(hours['close'].split(':')[0])
+                    # Handle cases where closing time is past midnight
+                    if close_hour < open_hour:
+                        close_hour += 24
+                    if open_hour <= current_hour < close_hour:
+                        open_entities.append(entity)
+                    else:
+                        current_app.logger.debug(f"Not open: {entity.name} - {open_hour} <= {current_hour} < {close_hour}")
+                except (ValueError, IndexError):
+                    # If hours are invalid, assume it's open
+                    current_app.logger.debug(f"Invalid hours for {entity.name}: {hours}")
+                    open_entities.append(entity)
+            else:
+                # If hours are missing open/close times, assume it's open
+                current_app.logger.debug(f"Missing hours for {entity.name}")
+                open_entities.append(entity)
+        else:
+            # If no operating hours specified, assume it's open
+            current_app.logger.debug(f"No hours specified for {entity.name}")
+            open_entities.append(entity)
+
+    if current_app.debug:
+        current_app.logger.debug("Open entities:")
+        for entity in open_entities:
+            current_app.logger.debug(f"Entity: {entity.name} - Operating hours: {entity.operating_hours}")
+
+    # Convert entities to a serializable format for caching
+    entities_data = [e.to_json_dict() for e in open_entities]
+    entities_key = json.dumps(entities_data)
+    
+    # Get sorted entities with different groupings
+    sorted_entities = get_sorted_available_entities(entities_key, current_user.id)
+    
+    return render_template(
+        'entities/available.html',
+        entities=sorted_entities,
+        hour_key=get_hour_key(current_user.id)  # For displaying last update time
+    )
 
 @entity_api_bp.route('/entities/remove-from-import/<int:index>', methods=['POST'])
 @login_required
@@ -997,4 +1120,148 @@ def unshare_with_user(entity_id):
         flash('User was not in the sharing list.', 'info')
     
     db.session.commit()
-    return redirect(url_for('entities.list_places')) 
+    return redirect(url_for('entities.list_places'))
+
+# Cache results for 1 hour
+@lru_cache(maxsize=128)
+def get_hour_key(user_id):
+    """Generate a cache key based on the current hour and user ID"""
+    now = datetime.now()
+    return f"{now.strftime('%Y%m%d%H')}_{user_id}"
+
+@lru_cache(maxsize=128)
+def get_sorted_available_entities(entities_key, user_id):
+    """Smart sort available entities based on relevance, status, and ratings with randomization"""
+    # entities_key is a string representation of the entities list for caching
+    # We need to reconstruct the entities from the key
+    entities_data = json.loads(entities_key)
+    entities = [Entity.from_json_dict(data) for data in entities_data]
+    
+    # Filter out poorly rated places (ratings 0-1)
+    entities = [e for e in entities if e.rating is None or e.rating > 1]
+    
+    # Group entities by ownership/sharing status
+    owned = [e for e in entities if e.user_id == user_id]
+    shared = [e for e in entities if e.user_id != user_id and not e.is_public]
+    public = [e for e in entities if e.user_id != user_id and e.is_public]
+    
+    # Calculate weights for each entity based on rating
+    def get_weight(entity):
+        base_weight = {
+            'owned': 0.5,
+            'shared': 0.3,
+            'public': 0.2
+        }
+        
+        # Determine ownership type
+        if entity.user_id == user_id:
+            ownership_weight = base_weight['owned']
+        elif not entity.is_public:
+            ownership_weight = base_weight['shared']
+        else:
+            ownership_weight = base_weight['public']
+        
+        # Rating weight with ranges that overlap
+        rating_weight = 0.0
+        if not entity.visited or entity.rating is None:
+            # Unvisited places get a high weight (0.3-0.5)
+            rating_weight = 0.3 + (random.random() * 0.2)
+        elif entity.rating is not None:
+            # Define rating ranges that overlap
+            rating_ranges = {
+                4: (0.3, 0.5),  # Excellent: 0.3-0.5
+                3: (0.2, 0.4),  # Good: 0.2-0.4
+                2: (0.1, 0.4)   # OK: 0.1-0.4
+            }
+            min_weight, max_weight = rating_ranges.get(entity.rating, (0.0, 0.2))
+            rating_weight = min_weight + (random.random() * (max_weight - min_weight))
+        
+        # Add larger random factor (0.0 to 0.4) for more variety
+        random_weight = random.random() * 0.4
+        
+        # Combine weights
+        return ownership_weight + rating_weight + random_weight
+    
+    # Add weights and randomize each list
+    def weighted_shuffle(items):
+        weighted_items = [(item, get_weight(item)) for item in items]
+        # Sort by weight but with randomization influence
+        weighted_items.sort(key=lambda x: (-x[1], random.random()))
+        return [item for item, _ in weighted_items]
+    
+    # Apply weighted shuffle to each list
+    owned = weighted_shuffle(owned)
+    shared = weighted_shuffle(shared)
+    public = weighted_shuffle(public)
+    
+    # Group by category with randomization
+    category_groups = {}
+    for entity in entities:
+        if entity.category not in category_groups:
+            category_groups[entity.category] = {
+                'owned': [],
+                'shared': [],
+                'public': []
+            }
+        
+        # Store entity in appropriate category group
+        if entity.user_id == user_id:
+            category_groups[entity.category]['owned'].append(entity)
+        elif not entity.is_public:
+            category_groups[entity.category]['shared'].append(entity)
+        else:
+            category_groups[entity.category]['public'].append(entity)
+    
+    # Apply weighted shuffle to each category group
+    for category in category_groups.values():
+        category['owned'] = weighted_shuffle(category['owned'])
+        category['shared'] = weighted_shuffle(category['shared'])
+        category['public'] = weighted_shuffle(category['public'])
+    
+    return {
+        'owned': owned,
+        'shared': shared,
+        'public': public,
+        'by_category': category_groups,
+        'categories': sorted(category_groups.keys())
+    }
+
+def get_dashboard_suggestions(sorted_entities, max_items=5):
+    """Get a curated list of suggestions for the dashboard widget"""
+    import random
+    
+    # Helper function to get a random item from a list
+    def get_random_item(items):
+        return random.choice(items) if items else None
+    
+    # Helper function to get a random item with minimum rating
+    def get_random_item_with_min_rating(items, min_rating):
+        eligible = [item for item in items if item.rating and item.rating >= min_rating]
+        return random.choice(eligible) if eligible else None
+    
+    suggestions = []
+    
+    # Always try to include at least one owned place
+    if sorted_entities['owned']:
+        suggestions.append(get_random_item(sorted_entities['owned']))
+    
+    # Try to include at least one good or excellent place
+    all_places = sorted_entities['owned'] + sorted_entities['shared'] + sorted_entities['public']
+    good_place = get_random_item_with_min_rating(all_places, 3)
+    if good_place and good_place not in suggestions:
+        suggestions.append(good_place)
+    
+    # Fill remaining slots with a mix of places
+    remaining_slots = max_items - len(suggestions)
+    if remaining_slots > 0:
+        # Create a pool of remaining places
+        remaining_pool = []
+        for place in all_places:
+            if place not in suggestions:
+                remaining_pool.append(place)
+        
+        # Randomly select from remaining pool
+        random.shuffle(remaining_pool)
+        suggestions.extend(remaining_pool[:remaining_slots])
+    
+    return suggestions[:max_items] 

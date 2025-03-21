@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-semibold text-gray-900">Places Open Now</h1>
+        <p class="text-sm text-gray-500">Last updated: {{ hour_key.split('_')[0][8:10] }}:00</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white shadow rounded-lg p-4 mb-6">
+        <div class="flex flex-wrap gap-4 items-center">
+            <div class="flex-1 min-w-[200px]">
+                <label for="search-filter" class="block text-sm font-medium text-gray-700">Search</label>
+                <input type="text" id="search-filter" placeholder="Search places..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label for="category-filter" class="block text-sm font-medium text-gray-700">Category</label>
+                <select id="category-filter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="all">All Categories</option>
+                    {% for category in entities.categories %}
+                    <option value="{{ category }}">{{ category|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label for="ownership-filter" class="block text-sm font-medium text-gray-700">Show</label>
+                <select id="ownership-filter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="all">All Places</option>
+                    <option value="owned">My Places</option>
+                    <option value="shared">Shared With Me</option>
+                    <option value="public">Public Places</option>
+                </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label for="sort-by" class="block text-sm font-medium text-gray-700">Sort By</label>
+                <select id="sort-by" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="weight">Recommended Order</option>
+                    <option value="rating">Rating (High to Low)</option>
+                    <option value="name">Name (A-Z)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Places Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="places-grid">
+        {% for place in entities.owned + entities.shared + entities.public %}
+        <div class="bg-white shadow rounded-lg p-4 hover:shadow-md transition-shadow duration-200 cursor-pointer place-card"
+             data-category="{{ place.category }}"
+             data-ownership="{% if place.user_id == current_user.id %}owned{% elif not place.is_public %}shared{% else %}public{% endif %}"
+             data-rating="{{ place.rating or 0 }}"
+             onclick="window.location='{{ url_for('entities.edit_place', entity_id=place.id) }}'"
+             title="{% if place.description %}Description: {{ place.description }}
+{% endif %}{% if place.location %}Location: {{ place.location }}
+{% endif %}{% if place.contact_info %}Contact: {{ place.contact_info }}
+{% endif %}{% if place.tags %}Tags: {{ place.tags|join(', ') }}
+{% endif %}{% if place.properties and place.properties.cuisine %}Cuisine: {{ place.properties.cuisine }}{% endif %}">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="text-sm font-medium text-gray-900">{{ place.name }}</h3>
+                    <p class="text-xs text-gray-500">
+                        {% if place.rating == 4 %}
+                        Rating: Excellent
+                        {% elif place.rating == 3 %}
+                        Rating: Good
+                        {% elif place.rating == 2 %}
+                        Rating: OK
+                        {% elif place.rating == 1 %}
+                        Rating: Poor
+                        {% elif place.rating == 0 %}
+                        Rating: Terrible
+                        {% else %}
+                        Not rated
+                        {% endif %}
+                    </p>
+                    {% if place.operating_hours %}
+                    <p class="text-xs text-gray-600 mt-1">
+                        {% set days = [] %}
+                        {% for day, hours in place.operating_hours.items() %}
+                            {% if hours and hours.get('open') and hours.get('close') %}
+                                {% set _ = days.append(day[:3]|title) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if days %}
+                            Open: {{ days|join(', ') }}
+                            {% if place.operating_hours.get(current_day) %}
+                                <br>{{ place.operating_hours[current_day].get('open', '') }} - {{ place.operating_hours[current_day].get('close', '') }}
+                            {% endif %}
+                        {% else %}
+                            Hours vary
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+                <span class="text-xs {% if place.user_id == current_user.id %}text-blue-600{% elif not place.is_public %}text-purple-600{% else %}text-green-600{% endif %}">
+                    <i class="fas {% if place.user_id == current_user.id %}fa-user-circle{% elif not place.is_public %}fa-user-friends{% else %}fa-globe{% endif %}" 
+                       title="{% if place.user_id == current_user.id %}Your place{% elif not place.is_public %}Shared with you{% else %}Public place{% endif %}"></i>
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchFilter = document.getElementById('search-filter');
+    const categoryFilter = document.getElementById('category-filter');
+    const ownershipFilter = document.getElementById('ownership-filter');
+    const sortBy = document.getElementById('sort-by');
+    const placesGrid = document.getElementById('places-grid');
+
+    // Store the original order when the page loads
+    const originalOrder = Array.from(document.querySelectorAll('.place-card')).map(card => card.cloneNode(true));
+
+    function applyFilters() {
+        const searchTerm = searchFilter.value.toLowerCase();
+        const category = categoryFilter.value;
+        const ownership = ownershipFilter.value;
+        const sort = sortBy.value;
+
+        // Show/hide places based on search, category and ownership
+        document.querySelectorAll('.place-card').forEach(card => {
+            const name = card.querySelector('h3').textContent.toLowerCase();
+            const title = card.getAttribute('title').toLowerCase();
+            const matchesSearch = searchTerm === '' || 
+                name.includes(searchTerm) || 
+                title.includes(searchTerm) ||
+                (card.dataset.category === 'restaurant' && title.includes('cuisine: ' + searchTerm));
+            const matchesCategory = category === 'all' || card.dataset.category === category;
+            const matchesOwnership = ownership === 'all' || card.dataset.ownership === ownership;
+            card.style.display = matchesSearch && matchesCategory && matchesOwnership ? '' : 'none';
+        });
+
+        // Apply sorting
+        const cards = Array.from(document.querySelectorAll('.place-card'));
+        if (sort === 'weight') {
+            // Restore original order for visible cards
+            const visibleCards = cards.filter(card => card.style.display !== 'none');
+            visibleCards.forEach(card => {
+                const originalIndex = originalOrder.findIndex(original => 
+                    original.dataset.category === card.dataset.category && 
+                    original.dataset.ownership === card.dataset.ownership &&
+                    original.querySelector('h3').textContent === card.querySelector('h3').textContent
+                );
+                if (originalIndex !== -1) {
+                    card.dataset.originalIndex = originalIndex;
+                }
+            });
+            cards.sort((a, b) => {
+                const indexA = parseInt(a.dataset.originalIndex || 0);
+                const indexB = parseInt(b.dataset.originalIndex || 0);
+                return indexA - indexB;
+            });
+        } else {
+            cards.sort((a, b) => {
+                switch (sort) {
+                    case 'rating':
+                        return parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating);
+                    case 'name':
+                        return a.querySelector('h3').textContent.localeCompare(b.querySelector('h3').textContent);
+                    default:
+                        return 0;
+                }
+            });
+        }
+
+        // Reorder cards
+        cards.forEach(card => {
+            placesGrid.appendChild(card);
+        });
+    }
+
+    // Add event listeners
+    searchFilter.addEventListener('input', applyFilters);
+    categoryFilter.addEventListener('change', applyFilters);
+    ownershipFilter.addEventListener('change', applyFilters);
+    sortBy.addEventListener('change', applyFilters);
+});
+</script>
+{% endblock %} 

@@ -19,6 +19,11 @@
 
         {% if places %}
         <div class="mt-4">
+            <!-- Search Filter -->
+            <div class="mb-4">
+                <label for="search-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
+                <input type="text" id="search-filter" placeholder="Search places..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            </div>
             <div class="flex flex-col">
                 <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                     <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
@@ -142,8 +147,59 @@
 document.addEventListener('DOMContentLoaded', function() {
     const table = document.getElementById('places-table');
     const headers = table.querySelectorAll('th[data-sort]');
+    const searchFilter = document.getElementById('search-filter');
     let currentSort = { column: null, direction: 'asc' };
 
+    // Store the original order when the page loads
+    const originalOrder = Array.from(table.querySelectorAll('tbody tr')).map(row => row.cloneNode(true));
+
+    function applyFilters() {
+        const searchTerm = searchFilter.value.toLowerCase();
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        // Filter rows based on search term
+        rows.forEach(row => {
+            const name = row.querySelector('td[data-value]').textContent.toLowerCase();
+            const title = row.getAttribute('title').toLowerCase();
+            const cuisine = row.querySelector('td[data-value="' + row.querySelector('td:nth-child(4)').dataset.value + '"]').dataset.value.toLowerCase();
+            const matchesSearch = searchTerm === '' || 
+                name.includes(searchTerm) || 
+                title.includes(searchTerm) ||
+                cuisine.includes(searchTerm);
+            row.style.display = matchesSearch ? '' : 'none';
+        });
+
+        // Apply current sort to visible rows
+        if (currentSort.column) {
+            const visibleRows = rows.filter(row => row.style.display !== 'none');
+            visibleRows.sort((a, b) => {
+                const columnIndex = Array.from(headers).findIndex(h => h.dataset.sort === currentSort.column);
+                const aCell = a.querySelectorAll('td')[columnIndex];
+                const bCell = b.querySelectorAll('td')[columnIndex];
+                const aValue = aCell.dataset.value.toLowerCase();
+                const bValue = bCell.dataset.value.toLowerCase();
+                
+                if (currentSort.column === 'rating' || currentSort.column === 'visited') {
+                    return currentSort.direction === 'asc' 
+                        ? Number(aValue) - Number(bValue)
+                        : Number(bValue) - Number(aValue);
+                } else {
+                    return currentSort.direction === 'asc'
+                        ? aValue.localeCompare(bValue)
+                        : bValue.localeCompare(aValue);
+                }
+            });
+            
+            // Update the table
+            visibleRows.forEach(row => tbody.appendChild(row));
+        }
+    }
+
+    // Add search event listener
+    searchFilter.addEventListener('input', applyFilters);
+
+    // Update existing header click handlers
     headers.forEach((header, columnIndex) => {
         header.addEventListener('click', () => {
             const column = header.dataset.sort;
@@ -156,35 +212,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             header.querySelector('.sort-icon').textContent = direction === 'asc' ? '↑' : '↓';
             
-            // Sort the table
-            const tbody = table.querySelector('tbody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            
-            rows.sort((a, b) => {
-                // Get the cells for this specific column
-                const aCell = a.querySelectorAll('td')[columnIndex];
-                const bCell = b.querySelectorAll('td')[columnIndex];
-                const aValue = aCell.dataset.value.toLowerCase();
-                const bValue = bCell.dataset.value.toLowerCase();
-                
-                if (column === 'rating' || column === 'visited') {
-                    // Numeric comparison for rating and visited
-                    return direction === 'asc' 
-                        ? Number(aValue) - Number(bValue)
-                        : Number(bValue) - Number(aValue);
-                } else {
-                    // String comparison for other columns
-                    return direction === 'asc'
-                        ? aValue.localeCompare(bValue)
-                        : bValue.localeCompare(aValue);
-                }
-            });
-            
-            // Update the table
-            rows.forEach(row => tbody.appendChild(row));
-            
             // Update current sort
             currentSort = { column, direction };
+            
+            // Apply filters (which includes sorting)
+            applyFilters();
         });
     });
 

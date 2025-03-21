@@ -31,7 +31,7 @@ def create_app(config_name=None):
         app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SECRET_KEY'] = 'test-secret-key'
-        app.config['DEBUG'] = False
+        app.config['DEBUG'] = True
         app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
     else:
         app.config['SECRET_KEY'] = config.SECRET_KEY

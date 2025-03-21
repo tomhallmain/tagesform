@@ -57,6 +57,26 @@ class Entity(db.Model, JSONFieldMixin):
             'shared_with': self.shared_with or []
         }
 
+    def to_json_dict(self):
+        """Convert entity to JSON-serializable dictionary format"""
+        data = self.to_dict()
+        # Convert datetime objects to ISO format strings
+        if data['created_at']:
+            data['created_at'] = data['created_at'].isoformat()
+        if data['updated_at']:
+            data['updated_at'] = data['updated_at'].isoformat()
+        return data
+
+    @classmethod
+    def from_json_dict(cls, data):
+        """Create an Entity instance from a JSON-serialized dictionary"""
+        # Convert ISO format strings back to datetime objects
+        if data.get('created_at'):
+            data['created_at'] = datetime.fromisoformat(data['created_at'])
+        if data.get('updated_at'):
+            data['updated_at'] = datetime.fromisoformat(data['updated_at'])
+        return cls(**data)
+
     def can_view(self, user_id):
         """Check if a user can view this entity"""
         if self.is_public:

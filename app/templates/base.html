@@ -72,6 +72,7 @@
                                 <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
                                     <div class="py-1">
                                         <a href="{{ url_for('entities.list_places') }}" class="block w-full px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:text-white dark:bg-gray-800 dark:hover:bg-purple-900 transition-colors duration-100">View Places</a>
+                                        <a href="{{ url_for('entities.list_available') }}" class="block w-full px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:text-white dark:bg-gray-800 dark:hover:bg-purple-900 transition-colors duration-100">Open Now</a>
                                         <a href="{{ url_for('entities.add_place') }}" class="block w-full px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:text-white dark:bg-gray-800 dark:hover:bg-purple-900 transition-colors duration-100">Add Place</a>
                                         <a href="{{ url_for('entities.import_places') }}" class="block w-full px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:text-white dark:bg-gray-800 dark:hover:bg-purple-900 transition-colors duration-100">Import Places</a>
                                     </div>

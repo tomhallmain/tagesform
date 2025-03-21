@@ -202,57 +202,22 @@
     async function fetchAvailableEntities() {
         try {
             const response = await fetch('/api/entities/available');
-            const entities = await response.json();
+            const data = await response.json();
             const entitiesList = document.getElementById('entities-list');
             const emptyEntities = document.getElementById('empty-entities');
             
-            if (entities.length === 0) {
+            if (!data.owned.length && !data.shared.length && !data.public.length) {
                 emptyEntities.style.display = 'block';
                 return;
             }
 
-            // Store current user ID as JavaScript variable
-            const currentUserId = {{ current_user.id }};
-            
-            // Group entities by ownership/sharing status
-            const ownedEntities = entities.filter(e => e.user_id === currentUserId);
-            const sharedEntities = entities.filter(e => e.user_id !== currentUserId && !e.is_public);
-            const publicEntities = entities.filter(e => e.user_id !== currentUserId && e.is_public);
+            // Take top 5 items from the pre-sorted lists
+            const displayEntities = [
+                ...data.owned.slice(0, 3),  // Prefer owned places
+                ...data.shared.slice(0, 1),  // Then one shared
+                ...data.public.slice(0, 1)   // Then one public
+            ].slice(0, 5);  // Ensure we don't exceed 5 total
 
-            // Smart sorting algorithm
-            function sortAndLimitEntities() {
-                const MAX_TOTAL_ITEMS = 5;  // Maximum items to show in widget
-                const results = [];
-                
-                // Always try to include at least one owned place if available
-                if (ownedEntities.length > 0) {
-                    // Randomly select one owned place
-                    const randomOwnedIndex = Math.floor(Math.random() * ownedEntities.length);
-                    results.push({
-                        ...ownedEntities[randomOwnedIndex],
-                        type: 'owned'
-                    });
-                }
-
-                // Create a pool of remaining places with weighted randomization
-                const remainingPool = [
-                    ...ownedEntities.filter((_, i) => i !== (results[0]?.id)).map(e => ({ ...e, type: 'owned', weight: 0.5 })),
-                    ...sharedEntities.map(e => ({ ...e, type: 'shared', weight: 0.3 })),
-                    ...publicEntities.map(e => ({ ...e, type: 'public', weight: 0.2 }))
-                ];
-
-                // Shuffle remaining pool with weights
-                const shuffledPool = remainingPool.sort(() => Math.random() - 0.5)
-                    .sort((a, b) => (Math.random() * b.weight) - (Math.random() * a.weight));
-
-                // Fill remaining slots
-                const remainingSlots = MAX_TOTAL_ITEMS - results.length;
-                results.push(...shuffledPool.slice(0, remainingSlots));
-
-                return results;
-            }
-
-            const displayEntities = sortAndLimitEntities();
             emptyEntities.style.display = 'none';
 
             // Create a more engaging display
@@ -266,17 +231,17 @@
                                 <p class="text-xs text-gray-500">${entity.category}</p>
                             </div>
                             <div class="flex items-center">
-                                ${entity.type === 'owned' ? 
+                                ${entity.user_id === {{ current_user.id }} ? 
                                     '<span class="text-xs text-blue-600"><i class="fas fa-user-circle" title="Your place"></i></span>' :
-                                    entity.type === 'shared' ? 
-                                    '<span class="text-xs text-purple-600"><i class="fas fa-user-friends" title="Shared with you"></i></span>' :
-                                    '<span class="text-xs text-green-600"><i class="fas fa-globe" title="Public place"></i></span>'
+                                    entity.is_public ? 
+                                    '<span class="text-xs text-green-600"><i class="fas fa-globe" title="Public place"></i></span>' :
+                                    '<span class="text-xs text-purple-600"><i class="fas fa-user-friends" title="Shared with you"></i></span>'
                                 }
                             </div>
                         </div>
                     `).join('')}
                     <div class="pt-2 text-center">
-                        <a href="{{ url_for('entities.list_places') }}" class="text-xs text-blue-600 hover:text-blue-800 transition-colors duration-200">
+                        <a href="{{ url_for('entities.list_available') }}" class="text-xs text-blue-600 hover:text-blue-800 transition-colors duration-200">
                             View all available places →
                         </a>
                     </div>

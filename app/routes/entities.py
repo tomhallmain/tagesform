@@ -1,14 +1,15 @@
+import csv
+import io
+import json
+from functools import lru_cache
+import pytz
+import random
+import uuid
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session, current_app, abort
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-import csv
-import io
 from ..models import Entity, db
 from ..utils.utils import Utils
-import uuid
-import json
-from functools import lru_cache
-import random
 
 # Define valid categories and common cuisines
 VALID_CATEGORIES = {
@@ -608,14 +609,19 @@ def list_places():
     ).all()
     return render_template('places.html', places=places)
 
-@entity_api_bp.route('/entities/available')
-@login_required
-def api_available_entities():
-    """API endpoint for available entities with smart sorting"""
-    current_time = datetime.now(pytz.UTC)
-    current_day = current_time.strftime('%A').lower()
-    current_hour = current_time.hour
+def get_open_entities(current_time, current_day, current_hour, debug=False):
+    """
+    Get all entities that are currently open based on operating hours.
     
+    Args:
+        current_time: datetime object representing the current time
+        current_day: lowercase string of current day (e.g., 'monday')
+        current_hour: integer representing current hour (0-23)
+        debug: boolean to enable debug logging
+    
+    Returns:
+        list of Entity objects that are currently open
+    """
     # Query all entities that might be available
     available_entities = Entity.query.filter(
         db.or_(
@@ -624,6 +630,12 @@ def api_available_entities():
             Entity.shared_with.contains([current_user.id])
         )
     ).all()
+
+    # Debug print all operating hours
+    if debug:
+        current_app.logger.debug("Available entities:")
+        for entity in available_entities:
+            current_app.logger.debug(f"Entity: {entity.name} - Operating hours: {entity.operating_hours}")
     
     # Filter for entities that are currently open based on operating hours
     open_entities = []
@@ -640,21 +652,43 @@ def api_available_entities():
                         close_hour += 24
                     if open_hour <= current_hour < close_hour:
                         is_open = True
+                    elif debug:
+                        current_app.logger.debug(f"Not open: {entity.name} - {open_hour} <= {current_hour} < {close_hour}")
                 except (ValueError, IndexError):
                     # If hours are invalid, assume it's open
+                    if debug:
+                        current_app.logger.debug(f"Invalid hours for {entity.name}: {hours}")
                     is_open = True
             else:
                 # If hours are missing open/close times, assume it's open
+                if debug:
+                    current_app.logger.debug(f"Missing hours for {entity.name}")
                 is_open = True
         else:
             # If no operating hours specified, assume it's open
+            if debug:
+                current_app.logger.debug(f"No hours specified for {entity.name}")
             is_open = True
         
         if is_open:
             open_entities.append(entity)
+
+    if debug:
+        current_app.logger.debug("Open entities:")
+        for entity in open_entities:
+            current_app.logger.debug(f"Entity: {entity.name} - Operating hours: {entity.operating_hours}")
+
+    return open_entities
+
+@entity_api_bp.route('/entities/available')
+@login_required
+def api_available_entities():
+    """API endpoint for available entities with smart sorting"""
+    # Get hour key for caching
+    hour_key = get_hour_key(current_user.id)
     
-    # Get sorted entities
-    sorted_entities = get_sorted_available_entities(open_entities, current_user.id)
+    # Get sorted entities using hour-based caching
+    sorted_entities = get_sorted_available_entities(hour_key, current_user.id)
     
     # Get dashboard suggestions
     dashboard_suggestions = get_dashboard_suggestions(sorted_entities)
@@ -665,7 +699,7 @@ def api_available_entities():
         'shared': [e.to_dict() for e in sorted_entities['shared']],
         'public': [e.to_dict() for e in sorted_entities['public']],
         'dashboard_suggestions': [e.to_dict() for e in dashboard_suggestions],
-        'hour_key': get_hour_key(current_user.id)
+        'hour_key': hour_key
     }
     
     return jsonify(result)
@@ -674,71 +708,16 @@ def api_available_entities():
 @login_required
 def list_available():
     """Show expanded view of all available places"""
-    user_timezone = Utils.get_user_timezone()
-    current_time = datetime.now(user_timezone)
-    current_day = current_time.strftime('%A').lower()
-    current_hour = current_time.hour
+    # Get hour key for caching
+    hour_key = get_hour_key(current_user.id)
     
-    # Query all entities that might be available
-    available_entities = Entity.query.filter(
-        db.or_(
-            Entity.user_id == current_user.id,
-            Entity.is_public == True,
-            Entity.shared_with.contains([current_user.id])
-        )
-    ).all()
-
-    # Debug print all operating hours
-    if current_app.debug:
-        current_app.logger.debug("Available entities:")
-        for entity in available_entities:
-            current_app.logger.debug(f"Entity: {entity.name} - Operating hours: {entity.operating_hours}")
-    
-    # Filter for entities that are currently open based on operating hours
-    open_entities = []
-    for entity in available_entities:
-        if entity.operating_hours and current_day in entity.operating_hours:
-            hours = entity.operating_hours[current_day]
-            if hours and 'open' in hours and 'close' in hours:
-                try:
-                    open_hour = int(hours['open'].split(':')[0])
-                    close_hour = int(hours['close'].split(':')[0])
-                    # Handle cases where closing time is past midnight
-                    if close_hour < open_hour:
-                        close_hour += 24
-                    if open_hour <= current_hour < close_hour:
-                        open_entities.append(entity)
-                    else:
-                        current_app.logger.debug(f"Not open: {entity.name} - {open_hour} <= {current_hour} < {close_hour}")
-                except (ValueError, IndexError):
-                    # If hours are invalid, assume it's open
-                    current_app.logger.debug(f"Invalid hours for {entity.name}: {hours}")
-                    open_entities.append(entity)
-            else:
-                # If hours are missing open/close times, assume it's open
-                current_app.logger.debug(f"Missing hours for {entity.name}")
-                open_entities.append(entity)
-        else:
-            # If no operating hours specified, assume it's open
-            current_app.logger.debug(f"No hours specified for {entity.name}")
-            open_entities.append(entity)
-
-    if current_app.debug:
-        current_app.logger.debug("Open entities:")
-        for entity in open_entities:
-            current_app.logger.debug(f"Entity: {entity.name} - Operating hours: {entity.operating_hours}")
-
-    # Convert entities to a serializable format for caching
-    entities_data = [e.to_json_dict() for e in open_entities]
-    entities_key = json.dumps(entities_data)
-    
-    # Get sorted entities with different groupings
-    sorted_entities = get_sorted_available_entities(entities_key, current_user.id)
+    # Get sorted entities using hour-based caching
+    sorted_entities = get_sorted_available_entities(hour_key, current_user.id)
     
     return render_template(
         'entities/available.html',
         entities=sorted_entities,
-        hour_key=get_hour_key(current_user.id)  # For displaying last update time
+        hour_key=hour_key  # For displaying last update time
     )
 
 @entity_api_bp.route('/entities/remove-from-import/<int:index>', methods=['POST'])
@@ -1130,12 +1109,15 @@ def get_hour_key(user_id):
     return f"{now.strftime('%Y%m%d%H')}_{user_id}"
 
 @lru_cache(maxsize=128)
-def get_sorted_available_entities(entities_key, user_id):
-    """Smart sort available entities based on relevance, status, and ratings with randomization"""
-    # entities_key is a string representation of the entities list for caching
-    # We need to reconstruct the entities from the key
-    entities_data = json.loads(entities_key)
-    entities = [Entity.from_json_dict(data) for data in entities_data]
+def get_sorted_available_entities(hour_key, user_id):
+    """Get all available entities and sort them based on relevance, status, and ratings"""
+    # Get current time info for filtering
+    current_time = datetime.now(Utils.get_user_timezone())
+    current_day = current_time.strftime('%A').lower()
+    current_hour = current_time.hour
+    
+    # Get open entities
+    entities = get_open_entities(current_time, current_day, current_hour)
     
     # Filter out poorly rated places (ratings 0-1)
     entities = [e for e in entities if e.rating is None or e.rating > 1]

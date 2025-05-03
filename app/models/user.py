@@ -8,7 +8,7 @@ class User(UserMixin, JSONFieldMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
     activities = db.relationship('Activity', backref='owner', lazy=True)
-    schedules = db.relationship('Schedule', backref='owner', lazy=True)
+    schedules = db.relationship('ScheduleRecord', backref='owner', lazy=True)
     entities = db.relationship('Entity', backref='owner', lazy=True)
     preferences = db.Column(db.JSON)  # Store user preferences for importance inference
 

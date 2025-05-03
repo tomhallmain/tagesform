@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
-from ..models import db
+from ..models import Activity, ScheduleRecord, Entity, db
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 
@@ -76,11 +76,9 @@ def update_weather():
 @settings_bp.route('/export-data')
 @login_required
 def export_data():
-    from ..models import Activity, Schedule
-    
     # Get all user data
     activities = Activity.query.filter_by(user_id=current_user.id).all()
-    schedules = Schedule.query.filter_by(user_id=current_user.id).all()
+    schedules = ScheduleRecord.query.filter_by(user_id=current_user.id).all()
     
     data = {
         'user': {
@@ -105,12 +103,11 @@ def export_data():
 def delete_account():
     """Delete the user's account and all associated data"""
     from flask_login import logout_user
-    from ..models import Activity, Schedule, Entity
     
     try:
         # Delete all user's data
         Activity.query.filter_by(user_id=current_user.id).delete()
-        Schedule.query.filter_by(user_id=current_user.id).delete()
+        ScheduleRecord.query.filter_by(user_id=current_user.id).delete()
         Entity.query.filter_by(user_id=current_user.id).delete()
         
         # Delete the user
@@ -139,4 +136,21 @@ def delete_account():
             }), 500
         
         flash('Failed to delete account', 'error')
-        return redirect(url_for('settings.settings')) 
+        return redirect(url_for('settings.settings'))
+
+@settings_bp.route('/settings/clear-data', methods=['POST'])
+@login_required
+def clear_data():
+    """Clear all user data"""
+    # Delete all activities
+    Activity.query.filter_by(user_id=current_user.id).delete()
+    
+    # Delete all schedules
+    ScheduleRecord.query.filter_by(user_id=current_user.id).delete()
+    
+    # Delete all entities
+    Entity.query.filter_by(user_id=current_user.id).delete()
+    
+    db.session.commit()
+    flash('All data cleared successfully', 'success')
+    return redirect(url_for('settings.settings')) 

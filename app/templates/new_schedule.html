@@ -29,11 +29,79 @@
             <select name="recurrence" id="recurrence"
                 class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 <option value="daily">Daily</option>
-                <option value="weekdays">Weekdays</option>
-                <option value="weekly">Weekly</option>
+                <option value="weekdays">Weekdays (Mon-Fri)</option>
+                <option value="weekly">Custom Weekly Schedule</option>
                 <option value="monthly">Monthly</option>
+                <option value="annual">Annual Dates</option>
                 <option value="once">One-time</option>
             </select>
+        </div>
+
+        <div id="weekly-days-section" class="hidden">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Select Days of Week</label>
+            <div class="mt-2 space-y-2">
+                <div class="flex flex-wrap gap-2">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="weekday_options[]" value="0" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <span class="ml-2">Monday</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="weekday_options[]" value="1" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <span class="ml-2">Tuesday</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="weekday_options[]" value="2" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <span class="ml-2">Wednesday</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="weekday_options[]" value="3" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <span class="ml-2">Thursday</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="weekday_options[]" value="4" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <span class="ml-2">Friday</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="weekday_options[]" value="5" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <span class="ml-2">Saturday</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="weekday_options[]" value="6" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <span class="ml-2">Sunday</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="annual-dates-section" class="hidden">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Annual Dates</label>
+            <div class="mt-2 space-y-2">
+                <div class="flex items-center space-x-2">
+                    <select name="month[]" class="block w-1/2 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="1">January</option>
+                        <option value="2">February</option>
+                        <option value="3">March</option>
+                        <option value="4">April</option>
+                        <option value="5">May</option>
+                        <option value="6">June</option>
+                        <option value="7">July</option>
+                        <option value="8">August</option>
+                        <option value="9">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                    <select name="day[]" class="block w-1/2 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        {% for day in range(1, 32) %}
+                        <option value="{{ day }}">{{ day }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" onclick="addDateField()" 
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Add Date
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div>
@@ -72,4 +140,57 @@
         </div>
     </form>
 </div>
+
+{% block scripts %}
+<script>
+    document.getElementById('recurrence').addEventListener('change', function() {
+        const annualSection = document.getElementById('annual-dates-section');
+        const weeklySection = document.getElementById('weekly-days-section');
+        
+        // Hide all sections first
+        annualSection.classList.add('hidden');
+        weeklySection.classList.add('hidden');
+        
+        // Show relevant section
+        if (this.value === 'annual') {
+            annualSection.classList.remove('hidden');
+        } else if (this.value === 'weekly') {
+            weeklySection.classList.remove('hidden');
+        }
+    });
+
+    function addDateField() {
+        const container = document.querySelector('#annual-dates-section .space-y-2');
+        const newField = document.createElement('div');
+        newField.className = 'flex items-center space-x-2';
+        newField.innerHTML = `
+            <select name="month[]" class="block w-1/2 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+            <select name="day[]" class="block w-1/2 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                {% for day in range(1, 32) %}
+                <option value="{{ day }}">{{ day }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" onclick="this.parentElement.remove()" 
+                class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Remove
+            </button>
+        `;
+        container.appendChild(newField);
+    }
+</script>
+{% endblock %}
+
 {% endblock %} 

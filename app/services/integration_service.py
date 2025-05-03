@@ -1,8 +1,12 @@
 from datetime import datetime
+from flask_login import current_user
+import logging
 from .calendar_aggregator import CalendarAggregator
 from .open_weather import OpenWeatherAPI
 from .schedules_manager import SchedulesManager
 from ..utils.config import config
+
+logger = logging.getLogger(__name__)
 
 class IntegrationService:
     def __init__(self):
@@ -21,11 +25,16 @@ class IntegrationService:
             return {"error": str(e)}
 
     def get_current_schedule(self):
-        """Get the currently active schedule."""
+        """Get the currently active schedule"""
         try:
             current_time = datetime.now()
-            schedule = self.schedules_manager.get_active_schedule(current_time)
+            logger.debug(f"Getting active schedule for user {current_user.id} at {current_time}")
+            
+            schedule = self.schedules_manager.get_active_schedule(current_time, current_user.id)
+            logger.debug(f"Retrieved schedule: {schedule}")
+            
             if isinstance(schedule, dict) and "error" in schedule:
+                logger.error(f"Schedule error: {schedule['error']}")
                 return schedule
             
             if schedule:
@@ -33,10 +42,13 @@ class IntegrationService:
                 # Convert time values to readable format
                 schedule_dict['start_time'] = schedule.readable_time(schedule.start_time)
                 schedule_dict['end_time'] = schedule.readable_time(schedule.end_time)
-                schedule_dict['shutdown_time'] = schedule.readable_time(schedule.shutdown_time) if schedule.shutdown_time else None
+                logger.debug(f"Formatted schedule dict: {schedule_dict}")
                 return schedule_dict
+                
+            logger.warning(f"No active schedule found for user {current_user.id}")
             return None
         except Exception as e:
+            logger.error(f"Error getting current schedule: {str(e)}", exc_info=True)
             raise Exception(f"Error getting current schedule: {str(e)}")
 
     def get_calendar_events(self, start_date=None, end_date=None):

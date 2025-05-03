@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, current_user, login_required
 from ..models import User, db
-from ..models import Activity, Schedule, Entity
+from ..models import Activity, ScheduleRecord, Entity
 
 # Create two separate blueprints
 auth_bp = Blueprint('auth', __name__)  # For auth routes
@@ -48,7 +48,10 @@ def register():
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
-        
+        confirm_password = request.form.get('confirm_password')
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('register.html')
         if User.query.filter_by(username=username).first():
             flash('Username already exists')
             return redirect(url_for('auth.register'))
@@ -93,7 +96,7 @@ def profile():
     
     stats = {
         'total_activities': Activity.query.filter_by(user_id=current_user.id).count(),
-        'active_schedules': Schedule.query.filter_by(user_id=current_user.id).count(),
+        'active_schedules': ScheduleRecord.query.filter_by(user_id=current_user.id).count(),
         'places_tracked': owned_places + shared_places + public_places,
         'owned_places': owned_places,
         'shared_places': shared_places,

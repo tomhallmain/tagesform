@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, jsonify, redirect, url_for, request
 from flask_login import current_user, login_required
 from ..services.integration_service import integration_service
-from ..models import Activity, Schedule, Entity
-from datetime import datetime
+from ..models import Activity, ScheduleRecord, Entity
+from datetime import datetime, timedelta
 
 main_bp = Blueprint('main', __name__)
 
@@ -17,7 +17,6 @@ def index():
 @login_required
 def get_stats():
     """Get statistics for the dashboard"""
-    from datetime import datetime, timedelta
     now = datetime.utcnow()
     return jsonify({
         'weekly_count': Activity.query.filter(
@@ -25,7 +24,7 @@ def get_stats():
             Activity.scheduled_time >= now,
             Activity.scheduled_time <= now + timedelta(weeks=1)
         ).count(),
-        'schedule_count': Schedule.query.filter_by(user_id=current_user.id).count(),
+        'schedule_count': ScheduleRecord.query.filter_by(user_id=current_user.id).count(),
         'places_count': Entity.query.filter_by(user_id=current_user.id).count()
     })
 

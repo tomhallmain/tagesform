@@ -1,7 +1,7 @@
 import pytest
 from flask import url_for
 from datetime import datetime, timedelta
-from app.models import Activity, Schedule, Entity
+from app.models import Activity, ScheduleRecord, Entity
 
 def test_index_redirect_anonymous(client):
     """Test that anonymous users are redirected to login"""
@@ -42,11 +42,13 @@ def test_stats_endpoint(client, auth, test_user, db_session):
     )
     
     # Schedule - using full datetime objects
-    schedule = Schedule(
+    schedule = ScheduleRecord(
         title='Test Schedule',
         start_time=tomorrow.replace(hour=9, minute=0, second=0, microsecond=0),  # 9 AM tomorrow
         end_time=tomorrow.replace(hour=17, minute=0, second=0, microsecond=0),   # 5 PM tomorrow
-        user_id=test_user.id
+        user_id=test_user.id,
+        recurrence='daily',  # Required field for ScheduleRecord
+        enabled=True  # Required field for ScheduleRecord
     )
     
     # Place

@@ -5,6 +5,7 @@ from flask import Flask, session, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user, login_user
 from sqlalchemy.orm import scoped_session, sessionmaker
+import warnings
 
 # Add the project root directory to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -13,6 +14,14 @@ sys.path.insert(0, project_root)
 # Now we can import from app
 from app import create_app
 from app.models import User, db
+
+# Filter out specific deprecation warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning, 
+                       message="'werkzeug.urls.url_decode' is deprecated")
+warnings.filterwarnings('ignore', category=DeprecationWarning, 
+                       message="'werkzeug.urls.url_encode' is deprecated")
+warnings.filterwarnings('ignore', category=DeprecationWarning, 
+                       message="The Query.get() method is considered legacy")
 
 @pytest.fixture(scope='session')
 def app():

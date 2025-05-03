@@ -83,7 +83,7 @@ def test_import_places_duplicate_check(client, auth, test_user, db_session):
         import_id = sess.get('current_import_id')
     
     # Check the import data in the database
-    import_data = ImportData.query.get(import_id)
+    import_data = db_session.get(ImportData, import_id)
     assert import_data is not None
     assert import_data.user_id == test_user.id
     
@@ -97,7 +97,7 @@ def test_import_places_duplicate_check(client, auth, test_user, db_session):
     assert response.status_code == 200
     
     # After review, the data should be processed into duplicates and non_duplicates
-    import_data = ImportData.query.get(import_id)
+    import_data = db_session.get(ImportData, import_id)
     data = import_data.json_data
     print(data)
     assert isinstance(data, dict)
@@ -173,7 +173,7 @@ def test_handle_duplicate_actions(client, auth, test_user, db_session):
     assert data['success'] is True
     
     # Verify the duplicate was removed
-    import_data = ImportData.query.get(import_id)
+    import_data = db_session.get(ImportData, import_id)
     assert len(import_data.json_data['duplicates']) == 0
     
     # Test import action
@@ -207,7 +207,7 @@ def test_handle_duplicate_actions(client, auth, test_user, db_session):
     assert data['success'] is True
     
     # Verify the duplicate was moved to non_duplicates
-    import_data = ImportData.query.get(import_id)
+    import_data = db_session.get(ImportData, import_id)
     assert len(import_data.json_data['duplicates']) == 0
     assert len(import_data.json_data['non_duplicates']) == 1
 
@@ -281,7 +281,7 @@ def test_edit_place_rating_and_visited(client, auth, test_user, db_session):
     })
     assert response.status_code == 302
 
-    place = Entity.query.get(place.id)
+    place = db_session.get(Entity, place.id)
     assert place.rating == 4
     assert place.visited is True  # Should be True because a rating was provided
 
@@ -294,7 +294,7 @@ def test_edit_place_rating_and_visited(client, auth, test_user, db_session):
     })
     assert response.status_code == 302
 
-    place = Entity.query.get(place.id)
+    place = db_session.get(Entity, place.id)
     assert place.rating is None
     assert place.visited is True
 
@@ -307,7 +307,7 @@ def test_edit_place_rating_and_visited(client, auth, test_user, db_session):
     })
     assert response.status_code == 302
 
-    place = Entity.query.get(place.id)
+    place = db_session.get(Entity, place.id)
     assert place.rating == 2
     assert place.visited is True
 

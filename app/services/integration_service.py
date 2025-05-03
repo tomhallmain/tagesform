@@ -127,7 +127,12 @@ class IntegrationService:
         # Get schedules
         schedules = ScheduleRecord.query.filter_by(user_id=current_user.id, enabled=True).all()
         
-        result = [activity.to_dict() for activity in activities]
+        # Convert activities to dict and add is_schedule field
+        result = []
+        for activity in activities:
+            activity_dict = activity.to_dict()
+            activity_dict['is_schedule'] = False
+            result.append(activity_dict)
         
         # Add schedules that match the timeframe
         for schedule_record in schedules:

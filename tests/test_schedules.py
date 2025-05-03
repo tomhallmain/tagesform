@@ -1,7 +1,7 @@
 import pytest
 from flask import url_for
 from datetime import datetime, timedelta
-from app.models import Schedule
+from app.models import ScheduleRecord
 
 def test_new_schedule_page(client, auth):
     """Test new schedule page loads correctly"""
@@ -22,7 +22,8 @@ def test_create_schedule(client, auth, test_user, db_session):
         'recurrence': 'daily',
         'category': 'work',
         'location': 'Office',
-        'description': 'Test Description'
+        'description': 'Test Description',
+        'enabled': True
     }
     
     response = client.post('/new-schedule', data=schedule_data, follow_redirects=True)
@@ -30,7 +31,7 @@ def test_create_schedule(client, auth, test_user, db_session):
     assert b'Schedule created successfully!' in response.data
     
     # Verify schedule was created
-    schedule = Schedule.query.filter_by(title='Test Schedule').first()
+    schedule = ScheduleRecord.query.filter_by(title='Test Schedule').first()
     assert schedule is not None
     assert schedule.start_time == 9 * 60  # 9:00 = 540 minutes
     assert schedule.end_time == 17 * 60   # 17:00 = 1020 minutes
@@ -39,19 +40,21 @@ def test_create_schedule(client, auth, test_user, db_session):
     assert schedule.location == 'Office'
     assert schedule.description == 'Test Description'
     assert schedule.user_id == test_user.id
+    assert schedule.enabled == True
 
 def test_get_current_schedule(client, auth, test_user, db_session):
     """Test getting current schedule"""
     auth.login()
     
     # Create a test schedule - 9:00 to 17:00
-    schedule = Schedule(
+    schedule = ScheduleRecord(
         title='Current Schedule',
         start_time=9 * 60,    # 9:00 = 540 minutes
         end_time=17 * 60,     # 17:00 = 1020 minutes
         recurrence='daily',
         category='work',
-        user_id=test_user.id
+        user_id=test_user.id,
+        enabled=True
     )
     db_session.add(schedule)
     db_session.commit()
@@ -74,18 +77,21 @@ def test_schedule_validation(client, auth):
     response = client.post('/new-schedule', data={
         'title': '',  # Missing title
         'start_time': '',  # Missing start time
-        'end_time': ''  # Missing end time
+        'end_time': '',  # Missing end time
+        'recurrence': ''  # Missing recurrence
     })
     
     assert response.status_code == 400
     assert b'Title is required' in response.data
     assert b'Start time and end time are required' in response.data
+    assert b'Recurrence is required' in response.data
 
     # Test with invalid time format
     response = client.post('/new-schedule', data={
         'title': 'Test Schedule',
         'start_time': 'invalid',
-        'end_time': 'invalid'
+        'end_time': 'invalid',
+        'recurrence': 'daily'
     })
     
     assert response.status_code == 400
@@ -94,11 +100,13 @@ def test_schedule_validation(client, auth):
 def test_schedule_user_isolation(client, auth, test_user, db_session):
     """Test that users can only see their own schedules"""
     # Create a schedule for test_user - 9:00 to 17:00
-    schedule = Schedule(
+    schedule = ScheduleRecord(
         title='Test Schedule',
         start_time=9 * 60,    # 9:00 = 540 minutes
         end_time=17 * 60,     # 17:00 = 1020 minutes
-        user_id=test_user.id
+        recurrence='daily',
+        user_id=test_user.id,
+        enabled=True
     )
     db_session.add(schedule)
     db_session.commit()
@@ -130,7 +138,8 @@ def test_invalid_schedule_times(client, auth):
         'title': 'Invalid Schedule',
         'start_time': '17:00',  # 5 PM
         'end_time': '09:00',    # 9 AM (invalid as it's before start time)
-        'recurrence': 'daily'
+        'recurrence': 'daily',
+        'enabled': True
     }
     
     response = client.post('/new-schedule', data=schedule_data, follow_redirects=True)

@@ -10,3 +10,4 @@ Werkzeug==2.3.7
 SQLAlchemy==2.0.21 
 python-dateutil
 tzlocal
+freezegun==1.4.0

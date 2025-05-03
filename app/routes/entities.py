@@ -252,7 +252,7 @@ def review_import():
         return redirect(url_for('entities.import_places'))
     
     # Get the imported data from the database
-    import_data = ImportData.query.get(import_id)
+    import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
         flash('Import data not found or expired.', 'error')
         return redirect(url_for('entities.import_places'))
@@ -312,7 +312,7 @@ def confirm_import():
         return redirect(url_for('entities.import_places'))
     
     # Get the import data from database
-    import_data = ImportData.query.get(import_id)
+    import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
         flash('Import data not found or expired.', 'error')
         return redirect(url_for('entities.import_places'))
@@ -729,7 +729,7 @@ def remove_from_import(index):
         return jsonify({'success': False, 'error': 'No active import found'})
     
     # Get the import data from database
-    import_data = ImportData.query.get(import_id)
+    import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
         return jsonify({'success': False, 'error': 'Import data not found or expired'})
     
@@ -760,7 +760,7 @@ def handle_duplicate(index):
         return jsonify({'success': False, 'error': 'No active import found'})
     
     # Get the import data from database
-    import_data = ImportData.query.get(import_id)
+    import_data = db.session.get(ImportData, import_id)
     print(f"Debug - Found import data: {import_data is not None}")
     if not import_data or import_data.user_id != current_user.id:
         return jsonify({'success': False, 'error': 'Import data not found or expired'})
@@ -854,7 +854,7 @@ def review_non_duplicates():
         return redirect(url_for('entities.import_places'))
     
     # Get the import data from database
-    import_data = ImportData.query.get(import_id)
+    import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
         flash('Import data not found or expired.', 'error')
         return redirect(url_for('entities.import_places'))
@@ -883,7 +883,7 @@ def review_all():
         return redirect(url_for('entities.import_places'))
     
     # Get the import data from database
-    import_data = ImportData.query.get(import_id)
+    import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
         flash('Import data not found or expired.', 'error')
         return redirect(url_for('entities.import_places'))
@@ -1246,4 +1246,24 @@ def get_dashboard_suggestions(sorted_entities, max_items=5):
         random.shuffle(remaining_pool)
         suggestions.extend(remaining_pool[:remaining_slots])
     
-    return suggestions[:max_items] 
+    return suggestions[:max_items]
+
+@entity_api_bp.route('/import/<import_id>/check-duplicates', methods=['GET'])
+@login_required
+def check_duplicates(import_id):
+    """Check for duplicates in the import data"""
+    import_data = db.session.get(ImportData, import_id)
+    if not import_data or import_data.user_id != current_user.id:
+        return jsonify({'error': 'Import not found'}), 404
+
+    # ... rest of the function ...
+
+@entity_api_bp.route('/import/<import_id>/handle-duplicates', methods=['POST'])
+@login_required
+def handle_duplicates(import_id):
+    """Handle duplicate actions"""
+    import_data = db.session.get(ImportData, import_id)
+    if not import_data or import_data.user_id != current_user.id:
+        return jsonify({'error': 'Import not found'}), 404
+
+    # ... rest of the function ... 

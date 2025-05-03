@@ -46,6 +46,10 @@ def new_schedule():
             flash('Start time and end time are required', 'error')
             has_errors = True
 
+        if not recurrence:
+            flash('Recurrence is required', 'error')
+            has_errors = True
+
         if recurrence == 'annual' and not annual_dates:
             flash('At least one annual date is required for annual schedules', 'error')
             has_errors = True
@@ -172,6 +176,10 @@ def edit_schedule(schedule_id):
 
         if not start_time or not end_time:
             flash('Start time and end time are required', 'error')
+            has_errors = True
+
+        if not recurrence:
+            flash('Recurrence is required', 'error')
             has_errors = True
 
         if recurrence == 'annual' and not annual_dates:

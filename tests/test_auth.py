@@ -1,6 +1,6 @@
 import pytest
 from flask import url_for
-from app.models import User
+from app.models import User, db
 
 def test_login_page(client):
     """Test login page loads correctly"""
@@ -19,7 +19,8 @@ def test_successful_registration(client, db_session):
     response = client.post('/register', data={
         'username': 'testuser',
         'email': 'test@example.com',
-        'password': 'testpass123'
+        'password': 'testpass123',
+        'confirm_password': 'testpass123'
     }, follow_redirects=True)
     assert response.status_code == 200  # Should end up at login page
     assert b'Registration successful' in response.data
@@ -35,7 +36,8 @@ def test_duplicate_username_registration(client, test_user):
     response = client.post('/register', data={
         'username': test_user.username,
         'email': 'different@example.com',
-        'password': 'testpass123'
+        'password': 'testpass123',
+        'confirm_password': 'testpass123'
     }, follow_redirects=True)
     assert b'Username already exists' in response.data
 
@@ -44,9 +46,20 @@ def test_duplicate_email_registration(client, test_user):
     response = client.post('/register', data={
         'username': 'different_user',
         'email': test_user.email,
-        'password': 'testpass123'
+        'password': 'testpass123',
+        'confirm_password': 'testpass123'
     }, follow_redirects=True)
     assert b'Email already registered' in response.data
+
+def test_password_mismatch_registration(client):
+    """Test registration with mismatched passwords"""
+    response = client.post('/register', data={
+        'username': 'testuser',
+        'email': 'test@example.com',
+        'password': 'testpass123',
+        'confirm_password': 'differentpass'
+    }, follow_redirects=True)
+    assert b'Passwords do not match' in response.data
 
 def test_successful_login(client, test_user):
     """Test successful login"""
@@ -123,7 +136,7 @@ def test_profile_update(client, auth, test_user, db_session):
     assert b'Profile updated successfully' in response.data
     
     # Verify changes
-    updated_user = User.query.get(test_user.id)
+    updated_user = db.session.get(User, test_user.id)
     assert updated_user.username == 'updated_username'
     assert updated_user.email == 'updated@example.com'
     assert updated_user.check_password('newpass123') 

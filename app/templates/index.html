@@ -47,9 +47,6 @@
                         {% if dashboard_data.schedule.start_time %}
                         <p>Active: {{ dashboard_data.schedule.start_time }} - {{ dashboard_data.schedule.end_time }}</p>
                         {% endif %}
-                        {% if dashboard_data.schedule.shutdown_time %}
-                        <p>Shutdown at: {{ dashboard_data.schedule.shutdown_time }}</p>
-                        {% endif %}
                     </div>
                 </div>
                 {% else %}
@@ -62,14 +59,20 @@
     <!-- Time Horizon Tabs -->
     <div class="border-b border-gray-200 mb-6">
         <nav class="-mb-px flex space-x-8" aria-label="Time horizons">
-            <button class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-today">
+            <button class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-day">
                 Today
             </button>
             <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-week">
                 This Week
             </button>
+            <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-next-week">
+                Next Week
+            </button>
             <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-month">
                 This Month
+            </button>
+            <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-next-month">
+                Next Month
             </button>
             <button class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" id="tab-year">
                 This Year
@@ -85,12 +88,12 @@
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Coming Up</h2>
                 <div class="space-y-4" id="activities-list">
                     <!-- Empty state -->
-                    <div class="text-center py-12" id="empty-state">
+                    <div class="text-center py-12" id="empty-state" style="display: none;">
                         <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">No activities yet</h3>
-                        <p class="mt-1 text-sm text-gray-500">Get started by adding your first activity or schedule.</p>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">No activities for this period</h3>
+                        <p class="mt-1 text-sm text-gray-500">Add activities or schedules to see them here.</p>
                         <div class="mt-6 space-x-4">
                             <a href="{{ url_for('activities.add_activity') }}" class="bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                                 Add Activity
@@ -100,6 +103,8 @@
                             </a>
                         </div>
                     </div>
+                    <!-- Activities container -->
+                    <div id="activities-container"></div>
                 </div>
             </div>
 
@@ -155,59 +160,97 @@
 <script defer>
     console.log('Index page script loading...');
 
-    // Fetch and display activities
-    async function fetchActivities(timeframe = 'day') {
-        try {
-            const response = await fetch(`/api/activities?timeframe=${timeframe}`);
-            const activities = await response.json();
-            const activitiesList = document.getElementById('activities-list');
-            const emptyState = document.getElementById('empty-state');
-            
-            if (activities.length === 0) {
-                emptyState.style.display = 'block';
-                return;
-            }
+    // Initialize dashboard data
+    const dashboard_data = {{ dashboard_data|tojson|safe }};
 
-            emptyState.style.display = 'none';
-            activitiesList.innerHTML = activities.map(activity => `
-                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div class="flex items-center">
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-900">${activity.title}</p>
-                            <p class="text-sm text-gray-500">
-                                ${new Date(activity.scheduled_time).toLocaleString()}
-                                ${activity.category ? `• ${activity.category}` : ''}
-                            </p>
-                            ${activity.is_schedule ? `
-                                <div class="mt-1 text-xs text-gray-500">
-                                    ${activity.schedule_details.start_time ? `Start: ${activity.schedule_details.start_time}` : ''}
-                                    ${activity.schedule_details.end_time ? ` • End: ${activity.schedule_details.end_time}` : ''}
-                                    ${activity.schedule_details.shutdown_time ? ` • Shutdown: ${activity.schedule_details.shutdown_time}` : ''}
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        ${activity.importance ? `
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                activity.importance >= 0.7 ? 'bg-red-100 text-red-800' :
-                                activity.importance >= 0.4 ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-green-100 text-green-800'
-                            }">
-                                Priority: ${Math.round(activity.importance * 100)}%
-                            </span>
-                        ` : ''}
+    // Tab switching logic
+    document.querySelectorAll('[id^="tab-"]').forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Remove active state from all tabs
+            document.querySelectorAll('[id^="tab-"]').forEach(t => {
+                t.classList.remove('border-blue-500', 'text-blue-600');
+                t.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // Add active state to clicked tab
+            tab.classList.remove('border-transparent', 'text-gray-500');
+            tab.classList.add('border-blue-500', 'text-blue-600');
+            
+            // Get timeframe from tab id
+            const timeframe = tab.id.replace('tab-', '');
+            console.log('Switching to timeframe:', timeframe);
+            displayActivities(timeframe);
+            fetchCalendarEvents(timeframe);
+        });
+    });
+
+    // Fetch and display activities
+    function displayActivities(timeframe = 'day') {
+        // Map tab IDs to API timeframes
+        const timeframeMap = {
+            'day': 'day',
+            'week': 'week',
+            'next-week': 'next_week',
+            'month': 'month',
+            'next-month': 'next_month',
+            'year': 'year'
+        };
+        
+        const apiTimeframe = timeframeMap[timeframe];
+        const activities = dashboard_data.activities[apiTimeframe];
+        
+        const activitiesList = document.getElementById('activities-list');
+        const emptyState = document.getElementById('empty-state');
+        const activitiesContainer = document.getElementById('activities-container');
+        
+        if (!activitiesList || !emptyState || !activitiesContainer) {
+            console.error('Required elements not found');
+            return;
+        }
+        
+        if (!activities || activities.length === 0) {
+            emptyState.style.display = 'block';
+            activitiesContainer.style.display = 'none';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        activitiesContainer.style.display = 'block';
+        activitiesContainer.innerHTML = activities.map(activity => `
+            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg mb-2">
+                <div class="flex items-center">
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-900">${activity.title}</p>
+                        <p class="text-sm text-gray-500">
+                            ${new Date(activity.scheduled_time).toLocaleString()}
+                            ${activity.category ? `• ${activity.category}` : ''}
+                        </p>
                         ${activity.is_schedule ? `
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                Schedule
-                            </span>
+                            <div class="mt-1 text-xs text-gray-500">
+                                ${activity.schedule_details.start_time ? `Start: ${activity.schedule_details.start_time}` : ''}
+                                ${activity.schedule_details.end_time ? ` • End: ${activity.schedule_details.end_time}` : ''}
+                            </div>
                         ` : ''}
                     </div>
                 </div>
-            `).join('');
-        } catch (error) {
-            console.error('Error fetching activities:', error);
-        }
+                <div class="flex items-center space-x-2">
+                    ${activity.importance ? `
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            activity.importance >= 0.7 ? 'bg-red-100 text-red-800' :
+                            activity.importance >= 0.4 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                        }">
+                            Priority: ${Math.round(activity.importance * 100)}%
+                        </span>
+                    ` : ''}
+                    ${activity.is_schedule ? `
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Schedule
+                        </span>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('');
     }
 
     // Fetch and display available entities
@@ -310,28 +353,6 @@
         }
     }
 
-    // Tab handling
-    document.querySelectorAll('[id^="tab-"]').forEach(tab => {
-        tab.addEventListener('click', (e) => {
-            // Remove active state from all tabs
-            document.querySelectorAll('[id^="tab-"]').forEach(t => {
-                t.classList.remove('border-blue-500', 'text-blue-600');
-                t.classList.add('border-transparent', 'text-gray-500');
-            });
-            
-            // Add active state to clicked tab
-            tab.classList.remove('border-transparent', 'text-gray-500');
-            tab.classList.add('border-blue-500', 'text-blue-600');
-            
-            // Get timeframe from tab ID
-            const timeframe = tab.id.replace('tab-', '');
-            
-            // Fetch data for the selected timeframe
-            fetchActivities(timeframe);
-            fetchCalendarEvents(timeframe);
-        });
-    });
-
     // Fetch weather data
     async function fetchWeather() {
         try {
@@ -415,10 +436,10 @@
         }
     }
 
-    // Initial data load
+    // Initial display
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOM loaded in index page - fetching initial data');
-        fetchActivities('day');
+        console.log('DOM loaded in index page - displaying initial data');
+        displayActivities('day');
         fetchCalendarEvents('day');
         fetchAvailableEntities();
         fetchStats();
@@ -431,19 +452,10 @@
         setInterval(fetchWeather, 1200000); // 20 minutes
     }, 1200000);
 
-    // Other updates - every 5 minutes
+    // Updates - every 5 minutes
     setTimeout(() => {
-        fetchActivities(document.querySelector('.border-blue-500').id.replace('tab-', ''));
-        fetchCurrentSchedule();
-        fetchCalendarEvents(document.querySelector('.border-blue-500').id.replace('tab-', ''));
-        fetchStats();
-        // Set up recurring updates for other data
-        setInterval(() => {
-            fetchActivities(document.querySelector('.border-blue-500').id.replace('tab-', ''));
-            fetchCurrentSchedule();
-            fetchCalendarEvents(document.querySelector('.border-blue-500').id.replace('tab-', ''));
-            fetchStats();
-        }, 300000);
+        // Refresh the page to get new dashboard data
+        window.location.reload();
     }, 300000);
 
     // Entity updates - every 5 minutes

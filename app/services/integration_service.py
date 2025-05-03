@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_login import current_user
 import logging
 from .calendar_aggregator import CalendarAggregator
@@ -92,12 +92,102 @@ class IntegrationService:
             current_weather = self.get_current_weather(city)
             current_schedule = self.get_current_schedule()
             
+            # Get activities and schedules for different timeframes
+            now = datetime.utcnow()
+            activities_data = {
+                'day': self._get_activities_for_timeframe(now, now + timedelta(days=1)),
+                'week': self._get_activities_for_timeframe(now, now + timedelta(weeks=1)),
+                'next_week': self._get_activities_for_timeframe(now + timedelta(weeks=1), now + timedelta(weeks=2)),
+                'month': self._get_activities_for_timeframe(now, now + timedelta(days=30)),
+                'next_month': self._get_activities_for_timeframe(now + timedelta(days=30), now + timedelta(days=60)),
+                'year': self._get_activities_for_timeframe(now, now + timedelta(days=365))
+            }
+            
             return {
                 "weather": current_weather,
-                "schedule": current_schedule
+                "schedule": current_schedule,
+                "activities": activities_data
             }
         except Exception as e:
             raise Exception(f"Error getting dashboard data: {str(e)}")
+
+    def _get_activities_for_timeframe(self, start_time, end_time):
+        """Helper method to get activities and schedules for a specific timeframe."""
+        from ..models import Activity, ScheduleRecord
+        from flask_login import current_user
+        
+        # Get activities
+        activities = Activity.query.filter(
+            Activity.user_id == current_user.id,
+            Activity.status == 'upcoming',
+            Activity.scheduled_time >= start_time,
+            Activity.scheduled_time <= end_time
+        ).order_by(Activity.scheduled_time, Activity.importance.desc()).all()
+        
+        # Get schedules
+        schedules = ScheduleRecord.query.filter_by(user_id=current_user.id, enabled=True).all()
+        
+        result = [activity.to_dict() for activity in activities]
+        
+        # Add schedules that match the timeframe
+        for schedule_record in schedules:
+            # For annual schedules, check if any dates fall within the timeframe
+            if schedule_record.recurrence == 'annual' and schedule_record.annual_dates:
+                for date in schedule_record.annual_dates:
+                    # Create a datetime for this year's occurrence
+                    schedule_date = datetime(start_time.year, date['month'], date['day'])
+                    # If the date has already passed this year, check next year
+                    if schedule_date < start_time:
+                        schedule_date = datetime(start_time.year + 1, date['month'], date['day'])
+                    if start_time <= schedule_date <= end_time:
+                        result.append({
+                            'id': f"schedule_{schedule_record.id}",
+                            'title': schedule_record.title,
+                            'description': f"Annual schedule for {date['month']}/{date['day']}",
+                            'scheduled_time': schedule_date.isoformat(),
+                            'importance': 0.5,  # Default importance for schedules
+                            'status': 'upcoming',
+                            'category': 'schedule',
+                            'duration': None,
+                            'location': None,
+                            'participants': None,
+                            'notes': None,
+                            'is_schedule': True,
+                            'schedule_details': {
+                                'start_time': schedule_record.readable_time(schedule_record.start_time),
+                                'end_time': schedule_record.readable_time(schedule_record.end_time)
+                            }
+                        })
+            # For regular schedules, check if any weekdays fall within the timeframe
+            else:
+                current_date = start_time
+                while current_date <= end_time:
+                    if schedule_record.recurrence == 'daily' or \
+                       (schedule_record.recurrence == 'weekdays' and current_date.weekday() < 5) or \
+                       (schedule_record.recurrence == 'weekly' and schedule_record.weekday_options and current_date.weekday() in schedule_record.weekday_options):
+                        result.append({
+                            'id': f"schedule_{schedule_record.id}_{current_date.strftime('%Y%m%d')}",
+                            'title': schedule_record.title,
+                            'description': f"Regular schedule for {current_date.strftime('%A')}",
+                            'scheduled_time': current_date.isoformat(),
+                            'importance': 0.5,  # Default importance for schedules
+                            'status': 'upcoming',
+                            'category': 'schedule',
+                            'duration': None,
+                            'location': None,
+                            'participants': None,
+                            'notes': None,
+                            'is_schedule': True,
+                            'schedule_details': {
+                                'start_time': schedule_record.readable_time(schedule_record.start_time),
+                                'end_time': schedule_record.readable_time(schedule_record.end_time)
+                            }
+                        })
+                    current_date += timedelta(days=1)
+        
+        # Sort all items by scheduled_time
+        result.sort(key=lambda x: x['scheduled_time'])
+        return result
 
 # Create a singleton instance
 integration_service = IntegrationService() 

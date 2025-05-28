@@ -101,6 +101,9 @@ class ImportData(db.Model):
 @login_required
 def add_place():
     if request.method == 'POST':
+        # Check if this is an AJAX request for duplicate checking
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
         name = request.form.get('name')
         category = request.form.get('category')
         location = request.form.get('location')
@@ -116,9 +119,13 @@ def add_place():
             try:
                 rating = int(rating_str)
                 if rating < 0 or rating > 4:
+                    if is_ajax:
+                        return jsonify({'error': 'Invalid rating value. Must be between 0 and 4.'}), 400
                     flash('Invalid rating value. Must be between 0 and 4.')
                     return render_template('add_place.html'), 400
             except ValueError:
+                if is_ajax:
+                    return jsonify({'error': 'Invalid rating value. Must be a number.'}), 400
                 flash('Invalid rating value. Must be a number.')
                 return render_template('add_place.html'), 400
 
@@ -128,6 +135,8 @@ def add_place():
 
         # Rest of validation and entity creation
         if not name:
+            if is_ajax:
+                return jsonify({'error': 'Name is required.'}), 400
             flash('Name is required.')
             return render_template('add_place.html'), 400
 
@@ -151,6 +160,7 @@ def add_place():
                 }
 
         # Check for duplicates before creating the entity
+        entity_id = request.form.get('id')  # Get entity ID if this is an update
         potential_duplicates = Entity.find_duplicates(
             name=name,
             category=category,
@@ -160,7 +170,7 @@ def add_place():
 
         if potential_duplicates:
             # If this is an AJAX request (checking for duplicates), return the duplicates
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if is_ajax:
                 return jsonify({
                     'has_duplicates': True,
                     'duplicates': potential_duplicates
@@ -176,9 +186,13 @@ def add_place():
                                 description=description,
                                 tags=','.join(tags),
                                 visited=visited,
-                                rating=rating,  # Add rating to template context
+                                rating=rating,
                                 cuisine=properties.get('cuisine'),
                                 operating_hours=operating_hours)
+
+        # If this is just an AJAX duplicate check, return success
+        if is_ajax:
+            return jsonify({'has_duplicates': False})
 
         try:
             # Create new entity
@@ -191,7 +205,7 @@ def add_place():
                 description=description,
                 tags=tags,
                 visited=visited,
-                rating=rating,  # Add rating to entity creation
+                rating=rating,
                 properties=properties,
                 user_id=current_user.id
             )
@@ -199,10 +213,8 @@ def add_place():
             db.session.add(entity)
             db.session.commit()
 
-            # Only show success message if this is not an AJAX request
-            if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                flash('Place added successfully!', 'success')
-            return redirect(url_for('entities.list_places'))
+            flash('Place added successfully!', 'success')
+            return redirect(url_for('entities.list_places', _anchor=f'entity-{entity.id}'))
 
         except Exception as e:
             db.session.rollback()
@@ -219,7 +231,7 @@ def add_place():
                                 description=description,
                                 tags=','.join(tags),
                                 visited=visited,
-                                rating=rating,  # Add rating to template context
+                                rating=rating,
                                 cuisine=properties.get('cuisine'),
                                 operating_hours=operating_hours)
 

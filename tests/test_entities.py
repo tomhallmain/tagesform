@@ -331,4 +331,32 @@ def test_rating_validation(client, auth):
         'rating': 'invalid'
     })
     assert response.status_code == 400
-    assert b'Invalid rating value' in response.data 
+    assert b'Invalid rating value' in response.data
+
+def test_add_place_visibility(client, auth, db_session):
+    """Test adding a place with different visibility settings"""
+    auth.login()
+
+    # Test case 1: Add place as public
+    response = client.post('/add-place', data={
+        'name': 'Public Restaurant',
+        'category': 'restaurant',
+        'is_public': 'on'  # Checkbox checked
+    })
+    assert response.status_code == 302  # Successful redirect
+    
+    place1 = Entity.query.filter_by(name='Public Restaurant').first()
+    assert place1 is not None
+    assert place1.is_public is True
+
+    # Test case 2: Add place as private (default)
+    response = client.post('/add-place', data={
+        'name': 'Private Restaurant',
+        'category': 'restaurant'
+        # is_public not included in form data
+    })
+    assert response.status_code == 302
+
+    place2 = Entity.query.filter_by(name='Private Restaurant').first()
+    assert place2 is not None
+    assert place2.is_public is False 

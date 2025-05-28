@@ -159,6 +159,9 @@ def add_place():
                     'close': request.form.get(f'{day}_close')
                 }
 
+        # Process visibility setting
+        is_public = 'is_public' in request.form
+
         # Check for duplicates before creating the entity
         entity_id = request.form.get('id')  # Get entity ID if this is an update
         potential_duplicates = Entity.find_duplicates(
@@ -207,6 +210,7 @@ def add_place():
                 visited=visited,
                 rating=rating,
                 properties=properties,
+                is_public=is_public,
                 user_id=current_user.id
             )
 

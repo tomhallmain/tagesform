@@ -54,7 +54,7 @@ class SoupUtils:
         else:
             raise Exception("Unhandled type: " + _type)
 
-        # Utils.log(f"Found {len(elements)} elements of {_type}={value}")
+        # print(f"Found {len(elements)} elements of {_type}={value}")
         
         if lowest_class:
             all_elements = elements
@@ -71,7 +71,7 @@ class SoupUtils:
             for element in SoupUtils.get_elements(class_path, start_element):
                 out.append(element.text)
         except Exception as e:
-            Utils.log_yellow(f"Failed to find elements of class {class_path} - {e}")
+            print(f"Failed to find elements of class {class_path} - {e}")
         return out
 
     @staticmethod

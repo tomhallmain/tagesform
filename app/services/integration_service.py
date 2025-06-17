@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 from flask_login import current_user
-import logging
 from .calendar_aggregator import CalendarAggregator
 from .open_weather import OpenWeatherAPI
 from .schedules_manager import SchedulesManager
 from ..utils.config import config
+from ..utils.logging_setup import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger('integration_service')
 
 class IntegrationService:
     def __init__(self):
@@ -22,6 +22,7 @@ class IntegrationService:
             weather = self.weather_api.get_weather_for_city(city)
             return weather.to_dict() if weather else {"error": "Could not fetch weather data"}
         except Exception as e:
+            logger.error(f"Error fetching weather data: {e}")
             return {"error": str(e)}
 
     def get_current_schedule(self):

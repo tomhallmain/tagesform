@@ -1,9 +1,8 @@
 import asyncio
 import base64
-import logging
 import math
-import re
 import os
+import re
 import shutil
 import sys
 import threading
@@ -11,18 +10,9 @@ import time
 import unicodedata
 from tzlocal import get_localzone
 
-from ..utils.custom_formatter import CustomFormatter
+from .logging_setup import get_logger
 
-# create logger
-logger = logging.getLogger("muse")
-logger.setLevel(logging.DEBUG)
-logger.propagate = False
-
-# create console handler with a higher log level
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-ch.setFormatter(CustomFormatter())
-logger.addHandler(ch)
+logger = get_logger(__name__)
 
 
 class Utils:
@@ -37,24 +27,8 @@ class Utils:
             message = f"Sleeping for {seconds} seconds"
         if extra_message is not None:
             message += f" - {extra_message}"
-        Utils.log(message)
+        logger.info(message)
         time.sleep(seconds)
-
-    @staticmethod
-    def log(message, level=logging.INFO):
-        logger.log(level, message)
-    
-    @staticmethod
-    def log_debug(message):
-        Utils.log(message, logging.DEBUG)
-
-    @staticmethod
-    def log_red(message):
-        Utils.log(message, logging.ERROR)
-    
-    @staticmethod
-    def log_yellow(message):
-        Utils.log(message, logging.WARNING)
 
     @staticmethod
     def extract_substring(text, pattern):
@@ -96,7 +70,7 @@ class Utils:
                     period = int(run_obj) if isinstance(run_obj, int) else getattr(run_obj, sleep_attr)
                     await asyncio.sleep(period)
                     if run_obj and run_attr and not getattr(run_obj, run_attr):
-                        Utils.log(f"Ending periodic task: {run_obj.__name__}.{run_attr} = False")
+                        logger.info(f"Ending periodic task: {run_obj.__name__}.{run_attr} = False")
                         break
             return wrapper
         return scheduler
@@ -177,11 +151,11 @@ class Utils:
         if end_index >= len(string) or start_index >= len(string):
             raise Exception("Start or end index were too high for string: " + string)
         if start_index == 0:
-            Utils.log("Removed: " + string[:end_index+1])
+            logger.info("Removed: " + string[:end_index+1])
             return string[end_index+1:]
         left_part = string[:start_index]
         right_part = string[end_index+1:]
-        Utils.log("Removed: " + string[start_index:end_index+1])
+        logger.info("Removed: " + string[start_index:end_index+1])
         return left_part + right_part
 
     @staticmethod

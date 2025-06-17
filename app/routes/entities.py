@@ -2,7 +2,6 @@ import csv
 import io
 import json
 from functools import lru_cache
-import pytz
 import random
 import uuid
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session, current_app, abort
@@ -10,6 +9,9 @@ from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from ..models import Entity, db
 from ..utils.utils import Utils
+from ..utils.logging_setup import get_logger
+
+logger = get_logger('entities')
 
 # Define valid categories and common cuisines
 VALID_CATEGORIES = {
@@ -375,15 +377,18 @@ def confirm_import():
 def import_places():
     if request.method == 'POST':
         if 'file' not in request.files:
+            logger.warning("No file uploaded in import_places")
             flash('No file uploaded', 'error')
             return redirect(request.url)
         
         file = request.files['file']
         if file.filename == '':
+            logger.warning("No file selected in import_places")
             flash('No file selected', 'error')
             return redirect(request.url)
         
         if not file.filename.endswith('.csv'):
+            logger.warning(f"Invalid file type uploaded: {file.filename}")
             flash('Only CSV files are allowed', 'error')
             return redirect(request.url)
         
@@ -405,40 +410,40 @@ def import_places():
             
             # Read and normalize headers
             raw_headers = next(reader)
-            print(f"Number of raw headers: {len(raw_headers)}")  # Debug log
+            logger.debug(f"Number of raw headers: {len(raw_headers)}")
             headers = [h.strip().lower() for h in raw_headers]
-            print(f"Raw headers: {raw_headers}")  # Debug log
-            print(f"Normalized headers: {headers}")  # Debug log
+            logger.debug(f"Raw headers: {raw_headers}")
+            logger.debug(f"Normalized headers: {headers}")
             
             # Create a mapping of normalized headers to their original indices using fuzzy matching
             header_map = {}
             for idx, header in enumerate(headers):
                 matched = False
-                print(f"Processing header: {header} at index {idx}")  # Debug log
+                logger.debug(f"Processing header: {header} at index {idx}")
 
                 # First try exact matches
                 for expected_col, alternatives in EXPECTED_COLUMNS.items():
                     if header == expected_col or header in alternatives:
                         header_map[expected_col] = idx
                         matched = True
-                        print(f"Found exact match: {header} -> {expected_col} at index {idx}")  # Debug log
+                        logger.debug(f"Found exact match: {header} -> {expected_col} at index {idx}")
                         break
                 
                 # Only try fuzzy matching if no exact match was found
                 if not matched:
                     for expected_col, alternatives in EXPECTED_COLUMNS.items():
-                        if expected_col not in header_map and any(Utils.is_similar_strings(header, alt, do_print=True) for alt in alternatives):
+                        if expected_col not in header_map and any(Utils.is_similar_strings(header, alt) for alt in alternatives):
                             header_map[expected_col] = idx
-                            print(f"Found fuzzy match: {header} -> {expected_col} at index {idx}")  # Debug log
+                            logger.debug(f"Found fuzzy match: {header} -> {expected_col} at index {idx}")
                             break
             
-            print(f"Final header mapping: {header_map}")  # Debug log
+            logger.debug(f"Final header mapping: {header_map}")
             
             # Validate required columns
             if 'name' not in header_map:
                 similar_columns = [h for h in headers if any(Utils.is_similar_strings(h, alt) for alt in EXPECTED_COLUMNS['name'])]
-                print(f"Headers checked for name: {headers}")  # Debug log
-                print(f"Similar columns found: {similar_columns}")  # Debug log
+                logger.warning(f"Headers checked for name: {headers}")
+                logger.warning(f"Similar columns found: {similar_columns}")
                 if similar_columns:
                     raise ValueError(f'Could not find "name" column. Did you mean: {", ".join(similar_columns)}?')
                 else:
@@ -449,29 +454,29 @@ def import_places():
             invalid_categories = set()
             
             for row_num, row in enumerate(reader, start=2):
-                print(f"\nProcessing row {row_num}: {row}")  # Debug log
-                print(f"Row length: {len(row)}")  # Debug log
+                logger.debug(f"\nProcessing row {row_num}: {row}")
+                logger.debug(f"Row length: {len(row)}")
                 
                 # Skip empty rows
                 if not row or all(cell.strip() == '' for cell in row):
-                    print(f"Skipping empty row {row_num}")  # Debug log
+                    logger.debug(f"Skipping empty row {row_num}")
                     continue
                 
                 # Validate row length matches headers
                 if len(row) != len(headers):
-                    print(f"Warning: Row {row_num} has {len(row)} columns but headers has {len(headers)} columns")  # Debug log
+                    logger.warning(f"Warning: Row {row_num} has {len(row)} columns but headers has {len(headers)} columns")
                 
                 # Helper function to safely get column value
                 def get_col(name, default=''):
                     if name not in header_map:
-                        print(f"Column {name} not found in header_map")  # Debug log
+                        logger.debug(f"Column {name} not found in header_map")
                         return default
                     idx = header_map[name]
                     if idx >= len(row):
-                        print(f"Warning: Index {idx} for column {name} is out of range for row length {len(row)}")  # Debug log
+                        logger.warning(f"Warning: Index {idx} for column {name} is out of range for row length {len(row)}")
                         return default
                     val = row[idx].strip()
-                    print(f"Getting column {name} at index {idx}: {val}")  # Debug log
+                    logger.debug(f"Getting column {name} at index {idx}: {val}")
                     # Keep everything lowercase for storage
                     return val.lower() if name in ['category', 'cuisine', 'location'] else val
                 
@@ -649,9 +654,9 @@ def get_open_entities(current_time, current_day, current_hour, debug=False):
 
     # Debug print all operating hours
     if debug:
-        current_app.logger.debug("Available entities:")
+        logger.debug("Available entities:")
         for entity in available_entities:
-            current_app.logger.debug(f"Entity: {entity.name} - Operating hours: {entity.operating_hours}")
+            logger.debug(f"Entity: {entity.name} - Operating hours: {entity.operating_hours}")
     
     # Filter for entities that are currently open based on operating hours
     open_entities = []
@@ -669,30 +674,30 @@ def get_open_entities(current_time, current_day, current_hour, debug=False):
                     if open_hour <= current_hour < close_hour:
                         is_open = True
                     elif debug:
-                        current_app.logger.debug(f"Not open: {entity.name} - {open_hour} <= {current_hour} < {close_hour}")
+                        logger.debug(f"Not open: {entity.name} - {open_hour} <= {current_hour} < {close_hour}")
                 except (ValueError, IndexError):
                     # If hours are invalid, assume it's open
                     if debug:
-                        current_app.logger.debug(f"Invalid hours for {entity.name}: {hours}")
+                        logger.debug(f"Invalid hours for {entity.name}: {hours}")
                     is_open = True
             else:
                 # If hours are missing open/close times, assume it's open
                 if debug:
-                    current_app.logger.debug(f"Missing hours for {entity.name}")
+                    logger.debug(f"Missing hours for {entity.name}")
                 is_open = True
         else:
             # If no operating hours specified, assume it's open
             if debug:
-                current_app.logger.debug(f"No hours specified for {entity.name}")
+                logger.debug(f"No hours specified for {entity.name}")
             is_open = True
         
         if is_open:
             open_entities.append(entity)
 
     if debug:
-        current_app.logger.debug("Open entities:")
+        logger.debug("Open entities:")
         for entity in open_entities:
-            current_app.logger.debug(f"Entity: {entity.name} - Operating hours: {entity.operating_hours}")
+            logger.debug(f"Entity: {entity.name} - Operating hours: {entity.operating_hours}")
 
     return open_entities
 
@@ -1012,38 +1017,38 @@ def edit_place(entity_id):
 @entities_bp.route('/<int:entity_id>/share', methods=['POST'])
 @login_required
 def share_place(entity_id):
-    current_app.logger.debug(f"Share place route called for entity_id: {entity_id}")
-    current_app.logger.debug(f"Request form data: {request.form}")
+    logger.debug(f"Share place route called for entity_id: {entity_id}")
+    logger.debug(f"Request form data: {request.form}")
     
     entity = Entity.query.get_or_404(entity_id)
-    current_app.logger.debug(f"Found entity: {entity.name} (owned by user_id: {entity.user_id})")
-    current_app.logger.debug(f"Current user_id: {current_user.id}")
+    logger.debug(f"Found entity: {entity.name} (owned by user_id: {entity.user_id})")
+    logger.debug(f"Current user_id: {current_user.id}")
     
     if entity.user_id != current_user.id:
-        current_app.logger.warning(f"User {current_user.id} attempted to modify sharing settings for entity {entity_id} owned by user {entity.user_id}")
+        logger.warning(f"User {current_user.id} attempted to modify sharing settings for entity {entity_id} owned by user {entity.user_id}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'error': 'You do not have permission to share this place.'}), 403
         abort(403)
     
     action = request.form.get('share_action')
-    current_app.logger.debug(f"Action requested: {action}")
+    logger.debug(f"Action requested: {action}")
     
     if action == 'make_public':
         entity.is_public = True
         message = 'Place is now public and can be viewed by all users.'
-        current_app.logger.debug("Making entity public")
+        logger.info(f"Entity {entity_id} ({entity.name}) made public by user {current_user.id}")
     elif action == 'make_private':
         entity.is_public = False
         message = 'Place is now private.'
-        current_app.logger.debug("Making entity private")
+        logger.info(f"Entity {entity_id} ({entity.name}) made private by user {current_user.id}")
     else:
-        current_app.logger.error(f"Invalid action received: {action}")
+        logger.error(f"Invalid action received: {action}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'error': 'Invalid action.'}), 400
         abort(400)
     
     db.session.commit()
-    current_app.logger.debug("Changes committed to database")
+    logger.debug("Changes committed to database")
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({

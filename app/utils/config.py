@@ -1,9 +1,11 @@
 import os
 from dotenv import load_dotenv
-from ..utils.utils import Utils
+from ..utils.logging_setup import get_logger
 
 # Load environment variables at module level
 load_dotenv()
+
+logger = get_logger(__name__)
 
 class Config:
     def __init__(self):
@@ -52,13 +54,13 @@ class Config:
     def _validate_settings(self):
         """Validate critical configuration settings."""
         if not self.SECRET_KEY or self.SECRET_KEY == 'default-secret-key-please-change':
-            Utils.log_yellow("WARNING: Using default SECRET_KEY. Please set a secure SECRET_KEY in production.")
+            logger.warning("WARNING: Using default SECRET_KEY. Please set a secure SECRET_KEY in production.")
 
         if not self.open_weather_api_key:
-            Utils.log_yellow("OpenWeather API key not set. Weather functionality will be disabled.")
+            logger.warning("OpenWeather API key not set. Weather functionality will be disabled.")
         
         if not self.news_api_key:
-            Utils.log_yellow("News API key not set. News functionality will be disabled.")
+            logger.warning("News API key not set. News functionality will be disabled.")
 
     def is_main_werkzeug_process(self):
         """Check if we're running in the main Werkzeug process"""

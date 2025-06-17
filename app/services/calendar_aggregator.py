@@ -2,8 +2,9 @@ import datetime
 import requests
 import time
 
-from ..utils.config import config
-from ..utils.utils import Utils
+from ..utils.logging_setup import get_logger
+
+logger = get_logger(__name__)
 
 
 class EventGroup:
@@ -210,7 +211,7 @@ class HolidayAPI:
             for event in events_json:
                 events.append(Event.from_holiday_api(event))
         except Exception as e:
-            Utils.log_red("Error getting events from Holiday API: " + str(e))
+            logger.error("Error getting events from Holiday API: " + str(e))
             raise e
         return events
 
@@ -238,7 +239,7 @@ class NagerPublicHolidaysAPI:
             for event in events_json:
                 events.append(Event.from_nager_public_holidays_api(event))
         except Exception as e:
-            Utils.log_red("Error getting events from Nager Public Holidays API: " + str(e))
+            logger.error("Error getting events from Nager Public Holidays API: " + str(e))
             raise e
         return events
 
@@ -266,7 +267,7 @@ class InadiutoriumAPI:
                 events.append(Event.from_inadiutorium_api(event))
             time.sleep(0.5)
         except Exception as e:
-            Utils.log_red("Error getting events from Inadiutorium API: " + str(e))
+            logger.error("Error getting events from Inadiutorium API: " + str(e))
             raise e
         return events
 
@@ -297,7 +298,7 @@ class HijriCalendarAPI:
                 if len(date["hijri"]["holidays"]) > 0:
                     events.append(Event.from_hijri_api(date))
         except Exception as e:
-            Utils.log_red("Error getting events from Hijri Calendar API: " + str(e))
+            logger.error("Error getting events from Hijri Calendar API: " + str(e))
             raise e
         return events
 

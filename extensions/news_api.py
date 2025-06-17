@@ -5,8 +5,9 @@ import requests
 
 from library_data.blacklist import blacklist
 from ..utils.config import config
-from ..utils.utils import Utils
+from ..utils.logging_setup import get_logger
 
+logger = get_logger(__name__)
 
 class NewsResponse:
     def __init__(self, resp_json, country="us"):
@@ -19,7 +20,7 @@ class NewsResponse:
     def get_source_trustworthiness(self, source_name):
         if source_name in config.news_api_source_trustworthiness:
             return config.news_api_source_trustworthiness[source_name]
-        Utils.log(f"No trustworthiness score found for News API propaganda source {source_name}")
+        logger.info(f"No trustworthiness score found for News API propaganda source {source_name}")
         return 0.25
 
     def get_trustworthy_and_nonblacklisted_stories(self):
@@ -31,7 +32,7 @@ class NewsResponse:
                 blacklist_items = blacklist.test_all(article['title'])
                 if len(blacklist_items) > 0:
                     title = article['title']
-                    Utils.log(f"Article blacklisted: {title} ({blacklist_items})")
+                    logger.info(f"Article blacklisted: {title} ({blacklist_items})")
                 else:
                     headlines.append(article)
         return headlines
@@ -62,5 +63,5 @@ class NewsAPI:
 
 if __name__ == "__main__":
     news = NewsAPI()
-    Utils.log(news.get_news())
+    logger.info(news.get_news())
 

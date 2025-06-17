@@ -5,8 +5,9 @@ import pandas as pd
 import time
 
 from extensions.soup_utils import SoupUtils
-from ..utils.utils import Utils
+from ..utils.logging_setup import get_logger
 
+logger = get_logger(__name__)
 
 def clean_wiki_text(text):
     if text is None or type(text) != str:
@@ -105,12 +106,12 @@ class ImslpSection():
         cleanliness_types = set()
         for table in self._tables:
             if table.is_invalid_table():
-                # Utils.log(self._header + " - Table is invalid")
+                # logger.debug(self._header + " - Table is invalid")
                 cleanliness_types.add(2)
                 continue
             rows = table.get_rows()
             if len(rows) < 4:
-                # Utils.log(self._header + " - Table is too small: \n" + str(rows))
+                # logger.debug(self._header + " - Table is too small: \n" + str(rows))
                 cleanliness_types.add(1)
                 continue
             cleanliness_types.add(0)
@@ -279,7 +280,7 @@ class ImslpSouper():
                 wiki_compilation_data._sections.append(section)
 
         for section in wiki_compilation_data._sections:
-            Utils.log(section)
+            logger.info(section)
 
         return wiki_compilation_data
 
@@ -294,24 +295,24 @@ class ImslpSouper():
                 if not wiki_compilation_data.has_data():
                     invalid_data_urls.append(wiki_url)
             except Exception as e:
-                Utils.log("Error gathering data from Wiki url: " + wiki_url)
-                Utils.log_red(e)
+                logger.info("Error gathering data from Wiki url: " + wiki_url)
+                logger.error(e)
                 failed_urls[wiki_url] = str(e)
                 # raise e
-            Utils.log("\n-----------------------------------------------------------\n")
+            logger.info("\n-----------------------------------------------------------\n")
             time.sleep(2)
         
         if len(invalid_data_urls) > 0:
-            Utils.log_yellow("Invalid data urls:")
+            logger.warning("Invalid data urls:")
             for url in invalid_data_urls:
-                Utils.log_yellow(url)
+                logger.warning(url)
 
-            Utils.log("\n-----------------------------------------------------------\n")
+            logger.info("\n-----------------------------------------------------------\n")
 
         if len(failed_urls) > 0:
-            Utils.log_red("Failed urls: ")
+            logger.error("Failed urls: ")
             for url, e in failed_urls:
-                Utils.log_red(f"{url} - {e}")
+                logger.error(f"{url} - {e}")
 
 
 

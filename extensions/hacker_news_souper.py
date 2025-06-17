@@ -2,18 +2,19 @@ import datetime
 
 from extensions.soup_utils import SoupUtils
 from library_data.blacklist import blacklist
-from ..utils.utils import Utils
+from ..utils.logging_setup import get_logger
 
+logger = get_logger(__name__)
 
 class HackerNewsItem:
     def __init__(self, id, titleline_el):
         titleline_links = SoupUtils.get_elements(class_path=[["tag", "a"]], parent=titleline_el)
         if len(titleline_links) > 2:
-            Utils.log_yellow("Unexpected number of title line links found: " + str(len(titleline_links)))
+            logger.warning("Unexpected number of title line links found: " + str(len(titleline_links)))
         elif len(titleline_links) == 1:
             return # No source == no item
         elif len(titleline_links) == 0:
-            Utils.log_yellow(titleline_el)
+            logger.warning(titleline_el)
             raise Exception("No title line links found: " + str(len(titleline_links)))
         self.id = id
         self.title = titleline_links[0].text
@@ -71,12 +72,12 @@ class HackerNewsSouper():
                 if id != "pagespace":
                     titleline_el = el.find(class_="titleline")
                     if titleline_el is None:
-                        Utils.log_yellow("Failed to get titleline_el for Hacker New items")
+                        logger.warning("Failed to get titleline_el for Hacker New items")
                     else:
                         try:
                             hacker_news_item = HackerNewsItem(id, titleline_el)
                         except Exception as e:
-                            Utils.log_yellow(f"Failed to create Hacker News Item: {e}")
+                            logger.warning(f"Failed to create Hacker News Item: {e}")
             else:
                 subline_el = el.find(class_="subline")
                 if subline_el is not None:
@@ -87,8 +88,8 @@ class HackerNewsSouper():
                         if hasattr(hacker_news_item, "id") and hacker_news_item.id is not None:
                             items.append(hacker_news_item)
                     except Exception as e:
-                        Utils.log_red(el)
-                        Utils.log_red("Failed to extract data for Hacker New items: " + str(e))
+                        logger.error(el)
+                        logger.error("Failed to extract data for Hacker New items: " + str(e))
                 hacker_news_item = None
 
         return items
@@ -99,7 +100,7 @@ class HackerNewsSouper():
         for item in items:
             blacklist_items = blacklist.test_all(item.title)
             if len(blacklist_items) > 0:
-                Utils.log(f"item blacklisted: {item.title} ({blacklist_items})")
+                logger.info(f"item blacklisted: {item.title} ({blacklist_items})")
             else:
                 headlines.append(item)
         return headlines

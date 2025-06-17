@@ -2,16 +2,9 @@ from flask import Flask
 from flask_login import LoginManager
 from flask_migrate import Migrate
 import os
-import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from .utils.config import config
-
-# Set up logging based on debug mode
-logging.basicConfig(
-    level=logging.DEBUG if config.debug else logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+from .utils.logging_setup import setup_logging, root_logger
 
 # Initialize extensions
 login_manager = LoginManager()
@@ -39,6 +32,9 @@ def create_app(config_name=None):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = config.SQLALCHEMY_TRACK_MODIFICATIONS
         app.config['DEBUG'] = config.debug
         app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 if config.debug else None
+
+        # Set up logging
+        setup_logging(app)
 
     # Initialize extensions with app
     from .models import db, User
@@ -81,9 +77,9 @@ def create_app(config_name=None):
 
     # Debug logging
     if config.debug:
-        logger.debug(f"Template folder: {app.template_folder}")
-        logger.debug(f"Static folder: {app.static_folder}")
-        logger.debug(f"Templates available: {os.listdir(app.template_folder)}")
-        logger.debug(f"Static files available: {os.listdir(app.static_folder)}")
+        root_logger.debug(f"Template folder: {app.template_folder}")
+        root_logger.debug(f"Static folder: {app.static_folder}")
+        root_logger.debug(f"Templates available: {os.listdir(app.template_folder)}")
+        root_logger.debug(f"Static files available: {os.listdir(app.static_folder)}")
 
     return app 

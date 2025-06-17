@@ -1,9 +1,9 @@
 import requests
-import logging
 from flask import current_app
 from ..utils.config import config
+from ..utils.logging_setup import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger('ollama_service')
 
 class OllamaService:
     def __init__(self):
@@ -32,7 +32,8 @@ class OllamaService:
         try:
             response = requests.get(f"{self.base_url}/api/tags")
             return response.status_code == 200
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error checking Ollama connection: {e}")
             return False
 
 # Create a singleton instance

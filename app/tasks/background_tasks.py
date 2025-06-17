@@ -1,10 +1,10 @@
-import logging
 from datetime import datetime
 from ..models import Activity, EventCache, db
 from ..services.activity_service import infer_activity_importance
 from ..services.integration_service import integration_service
+from ..utils.logging_setup import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger('background_tasks')
 
 def update_activity_importance(app):
     """Background job to update activity importance using LLM inference"""

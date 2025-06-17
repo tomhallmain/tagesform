@@ -1,10 +1,10 @@
 import datetime
-import logging
 from ..models import ScheduleRecord
 from ..utils.app_info_cache import app_info_cache
 from ..utils.utils import Utils
+from ..utils.logging_setup import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger('schedules_manager')
 
 class ScheduledShutdownException(Exception):
     """Exception raised when a scheduled shutdown is requested."""
@@ -31,6 +31,7 @@ class SchedulesManager:
         """Get a schedule by its title for a specific user"""
         schedule = ScheduleRecord.query.filter_by(title=name, user_id=user_id).first()
         if not schedule:
+            logger.error(f"No schedule found with name: {name}")
             raise Exception(f"No schedule found with name: {name}. Set it on the Schedules Window.")
         return schedule
 

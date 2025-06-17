@@ -5,8 +5,9 @@ import pandas as pd
 import time
 
 from extensions.soup_utils import SoupUtils
-from ..utils.utils import Utils
+from ..utils.logging_setup import get_logger
 
+logger = get_logger(__name__)
 
 BASE_URL = "https://en.wikipedia.org"
 WIKI = "/wiki/"
@@ -111,12 +112,12 @@ class WikiSection():
         cleanliness_types = set()
         for table in self._tables:
             if table.is_invalid_table():
-                # Utils.log(self._header + " - Table is invalid")
+                # logger.debug(self._header + " - Table is invalid")
                 cleanliness_types.add(2)
                 continue
             rows = table.get_rows()
             if len(rows) < 4:
-                # Utils.log(self._header + " - Table is too small: \n" + str(rows))
+                # logger.debug(self._header + " - Table is too small: \n" + str(rows))
                 cleanliness_types.add(1)
                 continue
             cleanliness_types.add(0)
@@ -319,7 +320,7 @@ class WikiSouper():
                 WikiSouper.extract_table_data(el, section, wiki_compilation_data)
 
         for section in wiki_compilation_data._sections:
-            Utils.log(section)
+            logger.info(section)
 
         return wiki_compilation_data
 
@@ -334,31 +335,31 @@ class WikiSouper():
                 if not wiki_compilation_data.has_data():
                     invalid_data_urls.append(wiki_url)
             except Exception as e:
-                Utils.log("Error gathering data from Wiki url: " + wiki_url)
-                Utils.log_red(e)
+                logger.error("Error gathering data from Wiki url: " + wiki_url)
+                logger.error(e)
                 failed_urls[wiki_url] = str(e)
                 raise e
-            Utils.log("\n-----------------------------------------------------------\n")
+            logger.info("\n-----------------------------------------------------------\n")
             time.sleep(2)
         
         if len(invalid_data_urls) > 0:
-            Utils.log_yellow("Invalid data urls:")
+            logger.warning("Invalid data urls:")
             for url in invalid_data_urls:
-                Utils.log_yellow(url)
+                logger.warning(url)
 
-            Utils.log("\n-----------------------------------------------------------\n")
+            logger.info("\n-----------------------------------------------------------\n")
 
         if len(failed_urls) > 0:
-            Utils.log_red("Failed urls: ")
+            logger.error("Failed urls: ")
             for url, e in failed_urls:
-                Utils.log_red(f"{url} - {e}")
+                logger.error(f"{url} - {e}")
 
     @staticmethod
     def get_category_tree_item_links(category_item_link, container_obj):
         item_title = get_wiki_link_title(category_item_link)
         if container_obj is not None and item_title in container_obj:
             return None, None
-        Utils.log("Container category item: " + item_title)
+        logger.info("Container category item: " + item_title)
         item_links = []
         item_soup = SoupUtils.get_soup(category_item_link)
         links = SoupUtils.get_links(item_soup)
@@ -371,8 +372,8 @@ class WikiSouper():
                         break
                 if not link_disallowed:
                     item_links.append(BASE_URL + link2)
-                    Utils.log(link2)
-        Utils.log("Total links: " + str(len(item_links)))
+                    logger.info(link2)
+        logger.info("Total links: " + str(len(item_links)))
         return item_title, item_links
 
     @staticmethod
@@ -388,11 +389,11 @@ class WikiSouper():
                 title, links = WikiSouper.get_category_tree_item_links(link, container_obj)
                 if links is not None:
                     container_obj[title] = links
-                    Utils.log(f"Added links: {title}")
+                    logger.info(f"Added links: {title}")
                 else:
-                    Utils.log(f"Empty link: {link}")
+                    logger.info(f"Empty link: {link}")
             except Exception as e:
-                Utils.log_yellow(f"Failed to download from url: {link}")
+                logger.warning(f"Failed to download from url: {link}")
 
 
     @staticmethod
@@ -402,7 +403,7 @@ class WikiSouper():
         for modifier in modifiers:
             link = link_template.replace("{0}", modifier)
             title = get_wiki_link_title(link)
-            Utils.log("Container category: " + title)
+            logger.info("Container category: " + title)
             container = {}
             out_obj[title] = container
             soup = SoupUtils.get_soup(link)

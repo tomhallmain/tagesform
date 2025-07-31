@@ -16,6 +16,51 @@ logger = get_logger(__name__)
 
 
 class Utils:
+    # Regular expression to match emoji characters
+    EMOJI_PATTERN = re.compile("["
+        u"\U0001F600-\U0001F64F"  # emoticons
+        # u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+        # u"\U0001F680-\U0001F6FF"  # transport & map symbols
+        # u"\U0001F700-\U0001F77F"  # alchemical symbols
+        # u"\U0001F780-\U0001F7FF"  # Geometric Shapes
+        # u"\U0001F800-\U0001F8FF"  # Supplemental Arrows-C
+        # u"\U0001F900-\U0001F9FF"  # Supplemental Symbols and Pictographs
+        # u"\U0001FA00-\U0001FA6F"  # Chess Symbols
+        # u"\U0001FA70-\U0001FAFF"  # Symbols and Pictographs Extended-A
+        u"\U00002702-\U000027B0"  # Dingbats
+        # u"\U000024C2-\U0001F251"  # Enclosed characters
+        "]+", flags=re.UNICODE)
+
+    # List of valid non-emoji characters that are commonly used in filenames
+    VALID_FILENAME_CHARS = {
+        u"\uFF1A",  # Chinese colon (ï¼)
+        u"\uFF0C",  # Chinese comma (ï¼)
+        u"\u3001",  # Japanese comma (ã)
+        u"\u3002",  # Japanese period (ã)
+        u"\uFF01",  # Full-width exclamation mark (ï¼)
+        u"\uFF1F",  # Full-width question mark (ï¼)
+        u"\uFF08",  # Full-width left parenthesis (ï¼)
+        u"\uFF09",  # Full-width right parenthesis (ï¼)
+        u"\u3014",  # Left tortoise shell bracket (ã)
+        u"\u3015",  # Right tortoise shell bracket (ã)
+        u"\u3010",  # Left black lenticular bracket (ã)
+        u"\u3011",  # Right black lenticular bracket (ã)
+        u"\u300A",  # Left double angle bracket (ã)
+        u"\u300B",  # Right double angle bracket (ã)
+        u"\u3008",  # Left angle bracket (ã)
+        u"\u3009",  # Right angle bracket (ã)
+        u"\u300C",  # Left corner bracket (ã)
+        u"\u300D",  # Right corner bracket (ã)
+        u"\u300E",  # Left white corner bracket (ã)
+        u"\u300F",  # Right white corner bracket (ã)
+        u"\u3016",  # Left white lenticular bracket (ã)
+        u"\u3017",  # Right white lenticular bracket (ã)
+        u"\u3018",  # Left white tortoise shell bracket (ã)
+        u"\u3019",  # Right white tortoise shell bracket (ã)
+        u"\u301A",  # Left white square bracket (ã)
+        u"\u301B",  # Right white square bracket (ã)
+    }
+
     @staticmethod
     def long_sleep(seconds=0, extra_message=None):
         if seconds <= 0:
@@ -418,22 +463,112 @@ class Utils:
             import pytz
             return pytz.UTC
 
+    @staticmethod
+    def contains_emoji(text):
+        """Check if text contains any emoji characters."""
+        if not text:
+            return False
+            
+        # First check if any character is in our whitelist
+        for char in text:
+            if char in Utils.VALID_FILENAME_CHARS:
+                continue
+            # If not in whitelist, check if it's an emoji
+            if Utils.EMOJI_PATTERN.search(char):
+                logger.info(f"Found emoji in text: {text}")
+                return True
+        return False
 
-if __name__ == "__main__":
-    import pickle
-    from muse.playback_config import PlaybackConfig
-    if os.path.exists("test.pkl"):
-        with open("test.pkl", "rb") as f:
-            data = pickle.load(f)
-    else:
-        data = {}
-        cache = PlaybackConfig.DIRECTORIES_CACHE
-        for artist_dir, sound_files in cache.items():
-            artist_data = {}
-            file_basenames = []
-            for _file in sound_files:
-                file_basenames.append(os.path.basename(_file))
-            artist_data["file_basenames"] = file_basenames
-            data[os.path.basename(artist_dir)] = artist_data
-    pickle.dump(data, open("test.pkl", "wb"))
-    
+    @staticmethod
+    def clean_emoji(text):
+        """Remove emoji characters from text and replace with [emoji] placeholder."""
+        if Utils.contains_emoji(text):
+            cleaned = Utils.EMOJI_PATTERN.sub("[emoji]", text)
+            logger.info(f"Cleaned emoji from text: {text} -> {cleaned}")
+            return cleaned
+        return text
+
+    @staticmethod
+    def count_cjk_characters(text):
+        """
+        Count the number of CJK characters in the given text.
+        
+        Args:
+            text: The text to analyze
+            
+        Returns:
+            tuple: (total_cjk_chars, dict) where dict contains counts for each script:
+                  {
+                      'chinese': count,
+                      'japanese': count,
+                      'korean': count
+                  }
+                  
+        Note:
+            CJK characters include:
+            - Chinese (Han): \u4e00-\u9fff
+            - Japanese (Hiragana): \u3040-\u309f
+            - Japanese (Katakana): \u30a0-\u30ff
+            - Korean (Hangul): \uac00-\ud7af
+        """
+        if not text:
+            return 0, {'chinese': 0, 'japanese': 0, 'korean': 0}
+            
+        script_counts = {
+            'chinese': 0,
+            'japanese': 0,
+            'korean': 0
+        }
+        
+        for c in text:
+            if '\u4e00' <= c <= '\u9fff':  # Chinese
+                script_counts['chinese'] += 1
+            elif '\u3040' <= c <= '\u309f' or '\u30a0' <= c <= '\u30ff':  # Japanese
+                script_counts['japanese'] += 1
+            elif '\uac00' <= c <= '\ud7af':  # Korean
+                script_counts['korean'] += 1
+                
+        total_cjk = sum(script_counts.values())
+        return total_cjk, script_counts
+
+    @staticmethod
+    def get_cjk_character_ratio(text, threshold_percentage=None):
+        """
+        Calculate the ratio of CJK characters in the given text.
+        
+        Args:
+            text: The text to analyze
+            threshold_percentage: Optional percentage threshold (0-100). If provided,
+                                returns True if the ratio exceeds this threshold.
+        
+        Returns:
+            If threshold_percentage is None:
+                float: Ratio of CJK characters (0.0 to 1.0)
+            If threshold_percentage is provided:
+                bool: True if ratio exceeds threshold, False otherwise
+                
+        Note:
+            CJK characters include:
+            - Chinese (Han): \u4e00-\u9fff
+            - Japanese (Hiragana): \u3040-\u309f
+            - Japanese (Katakana): \u30a0-\u30ff
+            - Korean (Hangul): \uac00-\ud7af
+        """
+        if not text:
+            return 0.0 if threshold_percentage is None else False
+            
+        cjk_char_count, _ = Utils.count_cjk_characters(text)
+        ratio = cjk_char_count / len(text)
+        
+        if threshold_percentage is not None:
+            return ratio > (threshold_percentage / 100.0)
+            
+        return ratio
+
+    @staticmethod
+    def is_valid_filename(filename):
+        # Implement the logic to check if a filename is valid
+        # This is a placeholder and should be replaced with the actual implementation
+        return True
+
+

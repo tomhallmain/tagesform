@@ -3,6 +3,7 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 import os
 from apscheduler.schedulers.background import BackgroundScheduler
+from .utils.backup_config import backup_config
 from .utils.config import config
 from .utils.logging_setup import setup_logging, root_logger
 
@@ -35,6 +36,10 @@ def create_app(config_name=None):
 
         # Set up logging
         setup_logging(app)
+        
+        # Create sample backup config if it doesn't exist
+        if not backup_config.config_file.exists():
+            backup_config.create_sample_config()
 
     # Initialize extensions with app
     from .models import db, User

@@ -9,3 +9,4 @@ temp_*
 !utils/temp_dir.py
 instance/*
 .env
+backup_config.json

@@ -51,6 +51,15 @@ def create_app(config_name=None):
     from .utils.filters import title_case, format_rating
     app.jinja_env.filters['title_case'] = title_case
     app.jinja_env.filters['format_rating'] = format_rating
+    
+    # Register translation function for templates
+    from .utils.translations import I18N
+    app.jinja_env.globals['_'] = I18N._
+    
+    # Add context processor for locale information
+    @app.context_processor
+    def inject_locale():
+        return dict(current_locale=I18N.get_current_locale())
 
     # User loader for Flask-Login
     @login_manager.user_loader

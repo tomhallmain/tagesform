@@ -25,26 +25,26 @@
     {% endwith %}
 
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Import Places from CSV</h2>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">{{ _('Import Places from CSV') }}</h2>
         
         <!-- Instructions -->
         <div class="mb-8 text-gray-600 dark:text-gray-300">
-            <h3 class="text-lg font-medium mb-2">CSV Format Requirements:</h3>
+            <h3 class="text-lg font-medium mb-2">{{ _('CSV Format Requirements:') }}</h3>
             <ul class="list-disc list-inside space-y-1">
-                <li>Required column: <code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">name</code></li>
-                <li>Optional columns:
+                <li>{{ _('Required column:') }} <code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">name</code></li>
+                <li>{{ _('Optional columns:') }}
                     <ul class="list-disc list-inside ml-4 space-y-1">
-                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">category</code> - Type of place</li>
-                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">cuisine</code> - Type of cuisine (for restaurants)</li>
-                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">location</code> - Place location</li>
-                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">visited</code> - true/false/t/f/y/n</li>
-                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">rating</code> - See rating options below</li>
-                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">notes</code> - Additional information</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{{ _('category') }}</code>{{ _(' - Type of place') }}</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{{ _('cuisine') }}</code>{{ _(' - Type of cuisine (for restaurants)') }}</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{{ _('location') }}</code>{{ _(' - Place location') }}</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{{ _('visited') }}</code>{{ _(' - true/false/t/f/y/n') }}</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{{ _('rating') }}</code>{{ _(' - See rating options below') }}</li>
+                        <li><code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{{ _('notes') }}</code>{{ _(' - Additional information') }}</li>
                     </ul>
                 </li>
             </ul>
 
-            <h3 class="text-lg font-medium mt-6 mb-2">Valid Categories:</h3>
+            <h3 class="text-lg font-medium mt-6 mb-2">{{ _('Valid Categories:') }}</h3>
             <div class="flex flex-wrap gap-2">
                 {% for category in ['restaurant', 'cafe', 'bar', 'park', 'store', 'service', 'gym', 'theater', 'museum', 'library', 'school', 'hospital', 'pharmacy', 'bank', 'other'] %}
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
@@ -53,10 +53,10 @@
                 {% endfor %}
             </div>
 
-            <h3 class="text-lg font-medium mt-6 mb-2">Valid Ratings:</h3>
+            <h3 class="text-lg font-medium mt-6 mb-2">{{ _('Valid Ratings:') }}</h3>
             <div class="space-y-4">
                 <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Great:</h4>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ _('Great:') }}</h4>
                     <div class="flex flex-wrap gap-2">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                             great
@@ -77,7 +77,7 @@
                 </div>
 
                 <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Good:</h4>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ _('Good:') }}</h4>
                     <div class="flex flex-wrap gap-2">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                             good
@@ -95,7 +95,7 @@
                 </div>
 
                 <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">OK:</h4>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ _('OK:') }}</h4>
                     <div class="flex flex-wrap gap-2">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
                             ok/okay
@@ -113,7 +113,7 @@
                 </div>
 
                 <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bad:</h4>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ _('Bad:') }}</h4>
                     <div class="flex flex-wrap gap-2">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
                             bad
@@ -131,7 +131,7 @@
                 </div>
 
                 <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Terrible:</h4>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ _('Terrible:') }}</h4>
                     <div class="flex flex-wrap gap-2">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
                             terrible
@@ -148,17 +148,17 @@
                     </div>
                 </div>
             </div>
-            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Note: true/t/yes/y/1 will be converted to "good", false/f/no/n/0 will be converted to "bad"</p>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ _('Note: true/t/yes/y/1 will be converted to "good", false/f/no/n/0 will be converted to "bad"') }}</p>
 
-            <h3 class="text-lg font-medium mt-6 mb-2">Data Quality Rules:</h3>
+            <h3 class="text-lg font-medium mt-6 mb-2">{{ _('Data Quality Rules:') }}</h3>
             <ul class="list-disc list-inside space-y-1">
-                <li>All text values will be trimmed of extra spaces</li>
-                <li>Category, cuisine, and location will be converted to lowercase</li>
-                <li>Invalid categories will be set to "other" (with a warning)</li>
-                <li>Similar cuisines will be matched to common cuisine types</li>
-                <li>Similar ratings will be matched to valid rating values</li>
-                <li>Boolean values in rating field will be converted to "good" (true) or "bad" (false)</li>
-                <li>Similar words will be matched to appropriate rating levels (e.g., "amazing" → "great", "awful" → "terrible")</li>
+                <li>{{ _('All text values will be trimmed of extra spaces') }}</li>
+                <li>{{ _('Category, cuisine, and location will be converted to lowercase') }}</li>
+                <li>{{ _('Invalid categories will be set to "other" (with a warning)') }}</li>
+                <li>{{ _('Similar cuisines will be matched to common cuisine types') }}</li>
+                <li>{{ _('Similar ratings will be matched to valid rating values') }}</li>
+                <li>{{ _('Boolean values in rating field will be converted to "good" (true) or "bad" (false)') }}</li>
+                <li>{{ _('Similar words will be matched to appropriate rating levels (e.g., "amazing" → "great", "awful" → "terrible")') }}</li>
             </ul>
         </div>
 
@@ -172,12 +172,12 @@
                     </svg>
                     <div class="text-sm text-gray-600 dark:text-gray-400">
                         <label for="file-upload" class="relative cursor-pointer rounded-md font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 focus-within:outline-none">
-                            <span>Upload a CSV file</span>
+                            <span>{{ _('Upload a CSV file') }}</span>
                             <input id="file-upload" name="file" type="file" class="sr-only" accept=".csv">
                         </label>
-                        <p>or drag and drop</p>
+                        <p>{{ _('or drag and drop') }}</p>
                     </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">CSV files only</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ _('CSV files only') }}</p>
                 </div>
             </div>
 
@@ -191,9 +191,9 @@
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <h3 class="text-sm font-medium text-green-800 dark:text-green-200">File ready for import</h3>
-                            <p class="mt-2 text-sm text-green-700 dark:text-green-300">Selected file: <span id="file-name" class="font-medium"></span></p>
-                            <p class="mt-2 text-sm text-green-700 dark:text-green-300">Click "Confirm Import" below to review and import your places.</p>
+                            <h3 class="text-sm font-medium text-green-800 dark:text-green-200">{{ _('File ready for import') }}</h3>
+                            <p class="mt-2 text-sm text-green-700 dark:text-green-300">{{ _('Selected file:') }} <span id="file-name" class="font-medium"></span></p>
+                            <p class="mt-2 text-sm text-green-700 dark:text-green-300">{{ _('Click "Confirm Import" below to review and import your places.') }}</p>
                         </div>
                     </div>
                 </div>
@@ -202,7 +202,7 @@
             <!-- Submit Button -->
             <div>
                 <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600">
-                    Confirm Import
+                    {{ _('Confirm Import') }}
                 </button>
             </div>
         </form>
@@ -265,7 +265,7 @@
                 fileUpload.files = files;
                 showFileInfo(file.name);
             } else {
-                alert('Please upload a CSV file');
+                alert('{{ _("Please upload a CSV file") }}');
             }
         }
     }

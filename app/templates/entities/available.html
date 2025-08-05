@@ -95,7 +95,7 @@
                 </div>
                 <span class="text-xs {% if place.user_id == current_user.id %}text-blue-600{% elif not place.is_public %}text-purple-600{% else %}text-green-600{% endif %}">
                     <i class="fas {% if place.user_id == current_user.id %}fa-user-circle{% elif not place.is_public %}fa-user-friends{% else %}fa-globe{% endif %}" 
-                       title="{% if place.user_id == current_user.id %}Your place{% elif not place.is_public %}Shared with you{% else %}Public place{% endif %}"></i>
+                       title="{% if place.user_id == current_user.id %}{{ _('Your place') }}{% elif not place.is_public %}{{ _('Shared with you') }}{% else %}{{ _('Public place') }}{% endif %}"></i>
                 </span>
             </div>
         </div>

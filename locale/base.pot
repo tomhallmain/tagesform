@@ -1,0 +1,1057 @@
+# Translations template for APPLICATION.
+# Copyright (C) 2025 THOMAS HALL <tomhall.main@gmail.com>
+# This file is distributed under the same license as the APPLICATION project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: APPLICATION 1.0\n"
+"Report-Msgid-Bugs-To: Thomas Hall <tomhall.main@gmail.com>\n"
+"POT-Creation-Date: 2025-08-05 10:42-0400\n"
+"PO-Revision-Date: 2025-08-05 10:42-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: app/models/schedule.py:133
+msgid "{0} - Annual Dates: {1} - Times: {2}-{3}"
+msgstr ""
+
+#: app/models/schedule.py:138
+msgid "Every day"
+msgstr ""
+
+#: app/models/schedule.py:141
+msgid "{0} - Days: {1} - Times: {2}-{3}"
+msgstr ""
+
+#: app/templates/add_activity.html:5
+msgid "Add New Activity"
+msgstr ""
+
+#: app/templates/add_activity.html:9 app/templates/edit_schedule.html:11
+msgid "Title"
+msgstr ""
+
+#: app/templates/add_activity.html:15 app/templates/add_place.html:126 app/templates/edit_schedule.html:107
+#: app/templates/new_schedule.html:126
+msgid "Description"
+msgstr ""
+
+#: app/templates/add_activity.html:22
+msgid "Date"
+msgstr ""
+
+#: app/templates/add_activity.html:27
+msgid "Time"
+msgstr ""
+
+#: app/templates/add_activity.html:34 app/templates/add_place.html:38 app/templates/edit_place.html:15
+#: app/templates/edit_schedule.html:88 app/templates/new_schedule.html:108 app/templates/places.html:39
+#: app/templates/review_import.html:31
+msgid "Category"
+msgstr ""
+
+#: app/templates/add_activity.html:37 app/templates/edit_schedule.html:92 app/templates/new_schedule.html:111
+msgid "Work"
+msgstr ""
+
+#: app/templates/add_activity.html:38 app/templates/new_schedule.html:112
+msgid "Social"
+msgstr ""
+
+#: app/templates/add_activity.html:39 app/templates/new_schedule.html:113
+msgid "Health"
+msgstr ""
+
+#: app/templates/add_activity.html:40 app/templates/new_schedule.html:114
+msgid "Leisure"
+msgstr ""
+
+#: app/templates/add_activity.html:41 app/templates/add_place.html:46 app/templates/edit_place.html:23
+#: app/templates/edit_schedule.html:94 app/templates/new_schedule.html:115
+msgid "Other"
+msgstr ""
+
+#: app/templates/add_activity.html:46
+msgid "Duration (minutes)"
+msgstr ""
+
+#: app/templates/add_activity.html:52 app/templates/add_place.html:114 app/templates/edit_schedule.html:100
+#: app/templates/new_schedule.html:120 app/templates/places.html:43 app/templates/review_import.html:32
+msgid "Location"
+msgstr ""
+
+#: app/templates/add_activity.html:58
+msgid "Participants (comma-separated)"
+msgstr ""
+
+#: app/templates/add_activity.html:64 app/templates/review_import.html:36
+msgid "Notes"
+msgstr ""
+
+#: app/templates/add_activity.html:72 app/templates/add_place.html:23 app/templates/add_place.html:149
+#: app/templates/edit_place.html:161 app/templates/edit_schedule.html:123 app/templates/new_schedule.html:134
+#: app/templates/profile.html:55
+msgid "Cancel"
+msgstr ""
+
+#: app/templates/add_activity.html:76 app/templates/base.html:60 app/templates/index.html:99
+msgid "Add Activity"
+msgstr ""
+
+#: app/templates/add_place.html:5
+msgid "Add New Place"
+msgstr ""
+
+#: app/templates/add_place.html:11
+msgid "Potential Duplicate Found"
+msgstr ""
+
+#: app/templates/add_place.html:13
+msgid "Similar places found in your list. Please review before proceeding:"
+msgstr ""
+
+#: app/templates/add_place.html:20
+msgid "Save as New Entry"
+msgstr ""
+
+#: app/templates/add_place.html:32 app/templates/edit_place.html:9
+msgid "Place Name"
+msgstr ""
+
+#: app/templates/add_place.html:41 app/templates/edit_place.html:18
+msgid "Restaurant"
+msgstr ""
+
+#: app/templates/add_place.html:42 app/templates/edit_place.html:19
+msgid "Store"
+msgstr ""
+
+#: app/templates/add_place.html:43 app/templates/edit_place.html:20
+msgid "Service"
+msgstr ""
+
+#: app/templates/add_place.html:44 app/templates/edit_place.html:21
+msgid "Gym"
+msgstr ""
+
+#: app/templates/add_place.html:45 app/templates/edit_place.html:22
+msgid "Entertainment"
+msgstr ""
+
+#: app/templates/add_place.html:52 app/templates/edit_place.html:29
+msgid "Cuisine Type"
+msgstr ""
+
+#: app/templates/add_place.html:61 app/templates/edit_place.html:38
+msgid "I have visited this place"
+msgstr ""
+
+#: app/templates/add_place.html:66 app/templates/edit_place.html:43 app/templates/places.html:55
+#: app/templates/review_import.html:35
+msgid "Rating"
+msgstr ""
+
+#: app/templates/add_place.html:71 app/templates/edit_place.html:49
+msgid "Not Rated"
+msgstr ""
+
+#: app/templates/add_place.html:74 app/templates/edit_place.html:52 app/utils/filters.py:21
+msgid "Terrible"
+msgstr ""
+
+#: app/templates/add_place.html:75 app/templates/edit_place.html:53 app/utils/filters.py:20
+msgid "Bad"
+msgstr ""
+
+#: app/templates/add_place.html:76 app/templates/edit_place.html:54
+msgid "OK"
+msgstr ""
+
+#: app/templates/add_place.html:77 app/templates/edit_place.html:55 app/utils/filters.py:18
+msgid "Good"
+msgstr ""
+
+#: app/templates/add_place.html:78 app/templates/edit_place.html:56 app/utils/filters.py:17
+msgid "Great"
+msgstr ""
+
+#: app/templates/add_place.html:90 app/templates/edit_place.html:69
+msgid "Operating Hours"
+msgstr ""
+
+#: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:46
+#: app/utils/translations.py:38
+msgid "Monday"
+msgstr ""
+
+#: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:50
+#: app/utils/translations.py:40
+msgid "Tuesday"
+msgstr ""
+
+#: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:54
+#: app/utils/translations.py:42
+msgid "Wednesday"
+msgstr ""
+
+#: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:58
+#: app/utils/translations.py:44
+msgid "Thursday"
+msgstr ""
+
+#: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:62
+#: app/utils/translations.py:46
+msgid "Friday"
+msgstr ""
+
+#: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:66
+#: app/utils/translations.py:48
+msgid "Saturday"
+msgstr ""
+
+#: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:70
+#: app/utils/translations.py:50
+msgid "Sunday"
+msgstr ""
+
+#: app/templates/add_place.html:110
+msgid "Note: If no times are specified, default daytime hours will be assumed"
+msgstr ""
+
+#: app/templates/add_place.html:120
+msgid "Contact Information"
+msgstr ""
+
+#: app/templates/add_place.html:132
+msgid "Tags (comma-separated)"
+msgstr ""
+
+#: app/templates/add_place.html:142
+msgid "Make this place public (visible to all users)"
+msgstr ""
+
+#: app/templates/add_place.html:153 app/templates/base.html:87 app/templates/index.html:130 app/templates/places.html:12
+#: app/templates/places.html:136
+msgid "Add Place"
+msgstr ""
+
+#: app/templates/add_place.html:254
+msgid "No location"
+msgstr ""
+
+#: app/templates/base.html:6
+msgid "Tagesform - Your Day, Your Way"
+msgstr ""
+
+#: app/templates/base.html:54 app/templates/login.html:9 app/templates/register.html:13
+msgid "Tagesform"
+msgstr ""
+
+#: app/templates/base.html:64
+msgid "Schedules"
+msgstr ""
+
+#: app/templates/base.html:71
+msgid "View Schedules"
+msgstr ""
+
+#: app/templates/base.html:72
+msgid "New Schedule"
+msgstr ""
+
+#: app/templates/base.html:78
+msgid "Places"
+msgstr ""
+
+#: app/templates/base.html:85
+msgid "View Places"
+msgstr ""
+
+#: app/templates/base.html:86 app/templates/index.html:124
+msgid "Open Now"
+msgstr ""
+
+#: app/templates/base.html:88 app/templates/places.html:15
+msgid "Import Places"
+msgstr ""
+
+#: app/templates/base.html:92 app/templates/profile.html:10
+msgid "Profile"
+msgstr ""
+
+#: app/templates/base.html:93 app/templates/settings.html:5
+msgid "Settings"
+msgstr ""
+
+#: app/templates/base.html:94
+msgid "Logout"
+msgstr ""
+
+#: app/templates/base.html:97
+msgid "Sign In"
+msgstr ""
+
+#: app/templates/base.html:100
+msgid "Register"
+msgstr ""
+
+#: app/templates/edit_place.html:5
+msgid "Edit Place"
+msgstr ""
+
+#: app/templates/edit_place.html:142
+msgid "Shared with"
+msgstr ""
+
+#: app/templates/edit_place.html:149 app/templates/new_schedule.html:188 app/templates/review_import.html:68
+msgid "Remove"
+msgstr ""
+
+#: app/templates/edit_place.html:165 app/templates/edit_schedule.html:127 app/templates/profile.html:59
+msgid "Save Changes"
+msgstr ""
+
+#: app/templates/edit_schedule.html:6
+msgid "Edit Schedule"
+msgstr ""
+
+#: app/templates/edit_schedule.html:19 app/templates/new_schedule.html:16
+msgid "Start Time"
+msgstr ""
+
+#: app/templates/edit_schedule.html:24 app/templates/new_schedule.html:21
+msgid "End Time"
+msgstr ""
+
+#: app/templates/edit_schedule.html:32 app/templates/new_schedule.html:28
+msgid "Recurrence"
+msgstr ""
+
+#: app/templates/edit_schedule.html:35 app/templates/new_schedule.html:31 app/templates/schedules.html:26
+msgid "Daily"
+msgstr ""
+
+#: app/templates/edit_schedule.html:36 app/templates/new_schedule.html:32 app/templates/schedules.html:28
+msgid "Weekdays (Mon-Fri)"
+msgstr ""
+
+#: app/templates/edit_schedule.html:37 app/templates/new_schedule.html:33
+msgid "Custom Weekly Schedule"
+msgstr ""
+
+#: app/templates/edit_schedule.html:38 app/templates/edit_schedule.html:59 app/templates/new_schedule.html:35
+#: app/templates/new_schedule.html:77
+msgid "Annual Dates"
+msgstr ""
+
+#: app/templates/edit_schedule.html:44
+msgid "Select Days"
+msgstr ""
+
+#: app/templates/edit_schedule.html:82 app/templates/new_schedule.html:101
+msgid "Add Date"
+msgstr ""
+
+#: app/templates/edit_schedule.html:91
+msgid "Select a category"
+msgstr ""
+
+#: app/templates/edit_schedule.html:93
+msgid "Personal"
+msgstr ""
+
+#: app/templates/edit_schedule.html:116 app/templates/schedules.html:63
+msgid "Enabled"
+msgstr ""
+
+#: app/templates/import_places.html:28
+msgid "Import Places from CSV"
+msgstr ""
+
+#: app/templates/import_places.html:32
+msgid "CSV Format Requirements:"
+msgstr ""
+
+#: app/templates/import_places.html:34
+msgid "Required column:"
+msgstr ""
+
+#: app/templates/import_places.html:35
+msgid "Optional columns:"
+msgstr ""
+
+#: app/templates/import_places.html:37
+msgid "category"
+msgstr ""
+
+#: app/templates/import_places.html:37
+msgid " - Type of place"
+msgstr ""
+
+#: app/templates/import_places.html:38
+msgid "cuisine"
+msgstr ""
+
+#: app/templates/import_places.html:38
+msgid " - Type of cuisine (for restaurants)"
+msgstr ""
+
+#: app/templates/import_places.html:39
+msgid "location"
+msgstr ""
+
+#: app/templates/import_places.html:39
+msgid " - Place location"
+msgstr ""
+
+#: app/templates/import_places.html:40
+msgid "visited"
+msgstr ""
+
+#: app/templates/import_places.html:40
+msgid " - true/false/t/f/y/n"
+msgstr ""
+
+#: app/templates/import_places.html:41
+msgid "rating"
+msgstr ""
+
+#: app/templates/import_places.html:41
+msgid " - See rating options below"
+msgstr ""
+
+#: app/templates/import_places.html:42
+msgid "notes"
+msgstr ""
+
+#: app/templates/import_places.html:42
+msgid " - Additional information"
+msgstr ""
+
+#: app/templates/import_places.html:47
+msgid "Valid Categories:"
+msgstr ""
+
+#: app/templates/import_places.html:56
+msgid "Valid Ratings:"
+msgstr ""
+
+#: app/templates/import_places.html:59
+msgid "Great:"
+msgstr ""
+
+#: app/templates/import_places.html:80
+msgid "Good:"
+msgstr ""
+
+#: app/templates/import_places.html:98
+msgid "OK:"
+msgstr ""
+
+#: app/templates/import_places.html:116
+msgid "Bad:"
+msgstr ""
+
+#: app/templates/import_places.html:134
+msgid "Terrible:"
+msgstr ""
+
+#: app/templates/import_places.html:151
+msgid "Note: true/t/yes/y/1 will be converted to \"good\", false/f/no/n/0 will be converted to \"bad\""
+msgstr ""
+
+#: app/templates/import_places.html:153
+msgid "Data Quality Rules:"
+msgstr ""
+
+#: app/templates/import_places.html:155
+msgid "All text values will be trimmed of extra spaces"
+msgstr ""
+
+#: app/templates/import_places.html:156
+msgid "Category, cuisine, and location will be converted to lowercase"
+msgstr ""
+
+#: app/templates/import_places.html:157
+msgid "Invalid categories will be set to \"other\" (with a warning)"
+msgstr ""
+
+#: app/templates/import_places.html:158
+msgid "Similar cuisines will be matched to common cuisine types"
+msgstr ""
+
+#: app/templates/import_places.html:159
+msgid "Similar ratings will be matched to valid rating values"
+msgstr ""
+
+#: app/templates/import_places.html:160
+msgid "Boolean values in rating field will be converted to \"good\" (true) or \"bad\" (false)"
+msgstr ""
+
+#: app/templates/import_places.html:161
+msgid "Similar words will be matched to appropriate rating levels (e.g., \"amazing\" → \"great\", \"awful\" → \"terrible\")"
+msgstr ""
+
+#: app/templates/import_places.html:175
+msgid "Upload a CSV file"
+msgstr ""
+
+#: app/templates/import_places.html:178
+msgid "or drag and drop"
+msgstr ""
+
+#: app/templates/import_places.html:180
+msgid "CSV files only"
+msgstr ""
+
+#: app/templates/import_places.html:194
+msgid "File ready for import"
+msgstr ""
+
+#: app/templates/import_places.html:195
+msgid "Selected file:"
+msgstr ""
+
+#: app/templates/import_places.html:196
+msgid "Click \"Confirm Import\" below to review and import your places."
+msgstr ""
+
+#: app/templates/import_places.html:205
+msgid "Confirm Import"
+msgstr ""
+
+#: app/templates/import_places.html:268
+msgid "Please upload a CSV file"
+msgstr ""
+
+#: app/templates/index.html:10
+msgid "Current Weather"
+msgstr ""
+
+#: app/templates/index.html:20
+msgid "Humidity"
+msgstr ""
+
+#: app/templates/index.html:25
+msgid "Rain Expected"
+msgstr ""
+
+#: app/templates/index.html:34
+msgid "Loading weather data..."
+msgstr ""
+
+#: app/templates/index.html:41
+msgid "Active Schedule"
+msgstr ""
+
+#: app/templates/index.html:48
+msgid "Active"
+msgstr ""
+
+#: app/templates/index.html:53
+msgid "No active schedule"
+msgstr ""
+
+#: app/templates/index.html:63
+msgid "Today"
+msgstr ""
+
+#: app/templates/index.html:66
+msgid "This Week"
+msgstr ""
+
+#: app/templates/index.html:69
+msgid "Next Week"
+msgstr ""
+
+#: app/templates/index.html:72
+msgid "This Month"
+msgstr ""
+
+#: app/templates/index.html:75
+msgid "Next Month"
+msgstr ""
+
+#: app/templates/index.html:78
+msgid "This Year"
+msgstr ""
+
+#: app/templates/index.html:88
+msgid "Coming Up"
+msgstr ""
+
+#: app/templates/index.html:95
+msgid "No activities for this period"
+msgstr ""
+
+#: app/templates/index.html:96
+msgid "Add activities or schedules to see them here."
+msgstr ""
+
+#: app/templates/index.html:102 app/templates/new_schedule.html:138
+msgid "Create Schedule"
+msgstr ""
+
+#: app/templates/index.html:113
+msgid "Calendar Events"
+msgstr ""
+
+#: app/templates/index.html:115
+msgid "Loading events..."
+msgstr ""
+
+#: app/templates/index.html:128
+msgid "Add your favorite places to see their current availability."
+msgstr ""
+
+#: app/templates/index.html:138
+msgid "At a Glance"
+msgstr ""
+
+#: app/templates/index.html:141
+msgid "Upcoming this week"
+msgstr ""
+
+#: app/templates/index.html:145
+msgid "Regular schedules"
+msgstr ""
+
+#: app/templates/index.html:149
+msgid "Places tracked"
+msgstr ""
+
+#: app/templates/entities/available.html:98 app/templates/index.html:290
+msgid "Your place"
+msgstr ""
+
+#: app/templates/entities/available.html:98 app/templates/index.html:292
+msgid "Public place"
+msgstr ""
+
+#: app/templates/entities/available.html:98 app/templates/index.html:293 app/templates/places.html:106
+msgid "Shared with you"
+msgstr ""
+
+#: app/templates/index.html:300
+msgid "View all available places"
+msgstr ""
+
+#: app/templates/index.html:352
+msgid "Error loading events"
+msgstr ""
+
+#: app/templates/login.html:10
+msgid "Sign in to your account"
+msgstr ""
+
+#: app/templates/login.html:12 app/templates/register.html:16
+msgid "Or"
+msgstr ""
+
+#: app/templates/login.html:14
+msgid "create a new account"
+msgstr ""
+
+#: app/templates/login.html:30 app/templates/login.html:31 app/templates/profile.html:13 app/templates/profile.html:33
+#: app/templates/register.html:36 app/templates/register.html:37
+msgid "Username"
+msgstr ""
+
+#: app/templates/login.html:34 app/templates/login.html:35 app/templates/register.html:44 app/templates/register.html:45
+msgid "Password"
+msgstr ""
+
+#: app/templates/login.html:41
+msgid "Sign in"
+msgstr ""
+
+#: app/templates/new_schedule.html:5
+msgid "Create New Schedule"
+msgstr ""
+
+#: app/templates/new_schedule.html:9
+msgid "Schedule Title"
+msgstr ""
+
+#: app/templates/new_schedule.html:34
+msgid "Monthly"
+msgstr ""
+
+#: app/templates/new_schedule.html:36
+msgid "One-time"
+msgstr ""
+
+#: app/templates/new_schedule.html:41
+msgid "Select Days of Week"
+msgstr ""
+
+#: app/templates/new_schedule.html:81 app/templates/new_schedule.html:168
+msgid "January"
+msgstr ""
+
+#: app/templates/new_schedule.html:82 app/templates/new_schedule.html:169
+msgid "February"
+msgstr ""
+
+#: app/templates/new_schedule.html:83 app/templates/new_schedule.html:170
+msgid "March"
+msgstr ""
+
+#: app/templates/new_schedule.html:84 app/templates/new_schedule.html:171
+msgid "April"
+msgstr ""
+
+#: app/templates/new_schedule.html:85 app/templates/new_schedule.html:172
+msgid "May"
+msgstr ""
+
+#: app/templates/new_schedule.html:86 app/templates/new_schedule.html:173
+msgid "June"
+msgstr ""
+
+#: app/templates/new_schedule.html:87 app/templates/new_schedule.html:174
+msgid "July"
+msgstr ""
+
+#: app/templates/new_schedule.html:88 app/templates/new_schedule.html:175
+msgid "August"
+msgstr ""
+
+#: app/templates/new_schedule.html:89 app/templates/new_schedule.html:176
+msgid "September"
+msgstr ""
+
+#: app/templates/new_schedule.html:90 app/templates/new_schedule.html:177
+msgid "October"
+msgstr ""
+
+#: app/templates/new_schedule.html:91 app/templates/new_schedule.html:178
+msgid "November"
+msgstr ""
+
+#: app/templates/new_schedule.html:92 app/templates/new_schedule.html:179
+msgid "December"
+msgstr ""
+
+#: app/templates/places.html:3
+msgid "My Places - Tagesform"
+msgstr ""
+
+#: app/templates/places.html:9
+msgid "My Places"
+msgstr ""
+
+#: app/templates/places.html:24
+msgid "Search"
+msgstr ""
+
+#: app/templates/places.html:25
+msgid "Search places..."
+msgstr ""
+
+#: app/templates/places.html:35 app/templates/review_import.html:30
+msgid "Name"
+msgstr ""
+
+#: app/templates/places.html:47 app/templates/review_import.html:33
+msgid "Cuisine"
+msgstr ""
+
+#: app/templates/places.html:51 app/templates/review_import.html:34
+msgid "Visited"
+msgstr ""
+
+#: app/templates/places.html:58
+msgid "Share"
+msgstr ""
+
+#: app/templates/places.html:83 app/templates/review_import.html:56
+msgid "Yes"
+msgstr ""
+
+#: app/templates/places.html:83 app/templates/review_import.html:56
+msgid "No"
+msgstr ""
+
+#: app/templates/places.html:93 app/templates/places.html:257
+msgid "Public - Click to make private"
+msgstr ""
+
+#: app/templates/places.html:97 app/templates/places.html:261
+msgid "Private - Click to make public"
+msgstr ""
+
+#: app/templates/places.html:104
+msgid "Public"
+msgstr ""
+
+#: app/templates/places.html:112
+msgid "Are you sure you want to delete this place?"
+msgstr ""
+
+#: app/templates/places.html:114
+msgid "Delete place"
+msgstr ""
+
+#: app/templates/places.html:132
+msgid "No places yet"
+msgstr ""
+
+#: app/templates/places.html:133
+msgid "Get started by adding your first place."
+msgstr ""
+
+#: app/templates/places.html:265
+msgid "An error occurred"
+msgstr ""
+
+#: app/templates/places.html:268
+msgid "An error occurred while updating sharing status"
+msgstr ""
+
+#: app/templates/profile.html:17 app/templates/profile.html:38 app/templates/register.html:40
+#: app/templates/register.html:41
+msgid "Email"
+msgstr ""
+
+#: app/templates/profile.html:23
+msgid "Edit Settings"
+msgstr ""
+
+#: app/templates/profile.html:30
+msgid "Edit Profile"
+msgstr ""
+
+#: app/templates/profile.html:43
+msgid "New Password (leave blank to keep current)"
+msgstr ""
+
+#: app/templates/profile.html:48
+msgid "Confirm New Password"
+msgstr ""
+
+#: app/templates/profile.html:67
+msgid "Activity Statistics"
+msgstr ""
+
+#: app/templates/profile.html:70
+msgid "Total Activities"
+msgstr ""
+
+#: app/templates/profile.html:74
+msgid "Active Schedules"
+msgstr ""
+
+#: app/templates/profile.html:78
+msgid "Places Tracked"
+msgstr ""
+
+#: app/templates/profile.html:81
+msgid "owned"
+msgstr ""
+
+#: app/templates/profile.html:83
+msgid "shared with you"
+msgstr ""
+
+#: app/templates/profile.html:86
+msgid "public"
+msgstr ""
+
+#: app/templates/register.html:14
+msgid "Create your account"
+msgstr ""
+
+#: app/templates/register.html:18
+msgid "sign in to your existing account"
+msgstr ""
+
+#: app/templates/register.html:51
+msgid "Create Account"
+msgstr ""
+
+#: app/templates/review_import.html:37
+msgid "Actions"
+msgstr ""
+
+#: app/templates/review_import.html:86
+msgid "No entries to review."
+msgstr ""
+
+#: app/templates/review_import.html:95
+msgid "Are you sure you want to remove this place from the import?"
+msgstr ""
+
+#: app/templates/review_import.html:107 app/templates/review_import.html:112
+msgid "Error removing place from import"
+msgstr ""
+
+#: app/templates/schedules.html:6
+msgid "Your Schedules"
+msgstr ""
+
+#: app/templates/schedules.html:8
+msgid "Add New Schedule"
+msgstr ""
+
+#: app/templates/schedules.html:24
+msgid "Repeats"
+msgstr ""
+
+#: app/templates/schedules.html:30
+msgid "Weekly on"
+msgstr ""
+
+#: app/templates/schedules.html:36
+msgid "Annually on"
+msgstr ""
+
+#: app/templates/schedules.html:63
+msgid "Disabled"
+msgstr ""
+
+#: app/templates/schedules.html:89
+msgid "You don't have any schedules yet."
+msgstr ""
+
+#: app/templates/schedules.html:91
+msgid "Create your first schedule"
+msgstr ""
+
+#: app/templates/settings.html:10
+msgid "Notification Preferences"
+msgstr ""
+
+#: app/templates/settings.html:15
+msgid "Email Notifications"
+msgstr ""
+
+#: app/templates/settings.html:16
+msgid "Receive activity and schedule reminders via email"
+msgstr ""
+
+#: app/templates/settings.html:26
+msgid "Browser Notifications"
+msgstr ""
+
+#: app/templates/settings.html:27
+msgid "Show desktop notifications for upcoming activities"
+msgstr ""
+
+#: app/templates/settings.html:39
+msgid "Save Notification Settings"
+msgstr ""
+
+#: app/templates/settings.html:47
+msgid "Display Preferences"
+msgstr ""
+
+#: app/templates/settings.html:51
+msgid "Default Calendar View"
+msgstr ""
+
+#: app/templates/settings.html:54
+msgid "Day"
+msgstr ""
+
+#: app/templates/settings.html:55
+msgid "Week"
+msgstr ""
+
+#: app/templates/settings.html:56
+msgid "Month"
+msgstr ""
+
+#: app/templates/settings.html:60
+msgid "Time Format"
+msgstr ""
+
+#: app/templates/settings.html:63
+msgid "12-hour"
+msgstr ""
+
+#: app/templates/settings.html:64
+msgid "24-hour"
+msgstr ""
+
+#: app/templates/settings.html:69
+msgid "Dark Mode"
+msgstr ""
+
+#: app/templates/settings.html:70
+msgid "Enable dark theme for better viewing in low light"
+msgstr ""
+
+#: app/templates/settings.html:82
+msgid "Save Display Settings"
+msgstr ""
+
+#: app/templates/settings.html:90
+msgid "Weather Settings"
+msgstr ""
+
+#: app/templates/settings.html:93
+msgid "Default City"
+msgstr ""
+
+#: app/templates/settings.html:98
+msgid "Temperature Unit"
+msgstr ""
+
+#: app/templates/settings.html:101
+msgid "Fahrenheit"
+msgstr ""
+
+#: app/templates/settings.html:102
+msgid "Celsius"
+msgstr ""
+
+#: app/templates/settings.html:108
+msgid "Save Weather Settings"
+msgstr ""
+
+#: app/templates/settings.html:116
+msgid "Data Management"
+msgstr ""
+
+#: app/templates/settings.html:121
+msgid "Export Data"
+msgstr ""
+
+#: app/templates/settings.html:123
+msgid "Download all your data in JSON format"
+msgstr ""
+
+#: app/templates/settings.html:128
+msgid "Delete Account"
+msgstr ""
+
+#: app/templates/settings.html:130
+msgid "Permanently delete your account and all associated data"
+msgstr ""
+
+#: app/templates/settings.html:188
+msgid "An error occurred while saving settings"
+msgstr ""
+
+#: app/templates/settings.html:194
+msgid "Are you sure you want to delete your account? This action cannot be undone."
+msgstr ""
+
+#: app/templates/settings.html:222
+msgid "An error occurred while deleting your account"
+msgstr ""
+
+#: app/utils/filters.py:19
+msgid "Okay"
+msgstr ""
+
+#: app/utils/job_queue.py:36
+msgid " (Pending runs: {0})"
+msgstr ""
+

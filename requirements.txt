@@ -11,3 +11,4 @@ SQLAlchemy==2.0.21
 python-dateutil
 tzlocal
 freezegun==1.4.0
+Babel==2.17.0

@@ -7,56 +7,56 @@
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
         <!-- User Info Section -->
         <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Profile</h2>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">{{ _('Profile') }}</h2>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Username') }}</label>
                     <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ user.username }}</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Email') }}</label>
                     <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ user.email }}</p>
                 </div>
             </div>
             <div class="mt-8 flex space-x-4">
                 <a href="{{ url_for('settings.settings') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Edit Settings
+                    {{ _('Edit Settings') }}
                 </a>
             </div>
         </div>
 
         <!-- Edit Form (Hidden by default) -->
         <div id="edit-form" class="hidden p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Edit Profile</h2>
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ _('Edit Profile') }}</h2>
             <form method="POST" action="{{ url_for('profile.update_profile') }}" class="space-y-4">
                 <div>
-                    <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                    <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Username') }}</label>
                     <input type="text" name="username" id="username" value="{{ user.username }}"
                         class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Email') }}</label>
                     <input type="email" name="email" id="email" value="{{ user.email }}"
                         class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label for="new_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">New Password (leave blank to keep current)</label>
+                    <label for="new_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('New Password (leave blank to keep current)') }}</label>
                     <input type="password" name="new_password" id="new_password"
                         class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label for="confirm_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm New Password</label>
+                    <label for="confirm_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Confirm New Password') }}</label>
                     <input type="password" name="confirm_password" id="confirm_password"
                         class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
                 <div class="flex justify-end space-x-4">
                     <button type="button" onclick="toggleEditForm()"
                         class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                        Cancel
+                        {{ _('Cancel') }}
                     </button>
                     <button type="submit"
                         class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
-                        Save Changes
+                        {{ _('Save Changes') }}
                     </button>
                 </div>
             </form>
@@ -64,26 +64,26 @@
 
         <!-- Activity Stats -->
         <div class="p-6">
-            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Activity Statistics</h2>
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ _('Activity Statistics') }}</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Total Activities</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ _('Total Activities') }}</p>
                     <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.total_activities }}</p>
                 </div>
                 <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Active Schedules</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ _('Active Schedules') }}</p>
                     <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.active_schedules }}</p>
                 </div>
                 <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Places Tracked</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ _('Places Tracked') }}</p>
                     <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.places_tracked }}</p>
                     <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        <p>{{ stats.owned_places }} owned</p>
+                        <p>{{ stats.owned_places }} {{ _('owned') }}</p>
                         {% if stats.shared_places > 0 %}
-                        <p>{{ stats.shared_places }} shared with you</p>
+                        <p>{{ stats.shared_places }} {{ _('shared with you') }}</p>
                         {% endif %}
                         {% if stats.public_places > 0 %}
-                        <p>{{ stats.public_places }} public</p>
+                        <p>{{ stats.public_places }} {{ _('public') }}</p>
                         {% endif %}
                     </div>
                 </div>

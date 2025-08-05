@@ -3,12 +3,12 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-2xl mx-auto">
-        <h1 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Edit Schedule</h1>
+        <h1 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">{{ _('Edit Schedule') }}</h1>
         
         <form method="POST" class="space-y-6">
             <!-- Title -->
             <div>
-                <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Title</label>
+                <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Title') }}</label>
                 <input type="text" name="title" id="title" value="{{ schedule.title }}" required
                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             </div>
@@ -16,12 +16,12 @@
             <!-- Times -->
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label for="start_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Time</label>
+                    <label for="start_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Start Time') }}</label>
                     <input type="time" name="start_time" id="start_time" value="{{ schedule.minutes_to_time(schedule.start_time) }}" required
                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 </div>
                 <div>
-                    <label for="end_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300">End Time</label>
+                    <label for="end_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('End Time') }}</label>
                     <input type="time" name="end_time" id="end_time" value="{{ schedule.minutes_to_time(schedule.end_time) }}" required
                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 </div>
@@ -29,19 +29,19 @@
 
             <!-- Recurrence -->
             <div>
-                <label for="recurrence" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Recurrence</label>
+                <label for="recurrence" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Recurrence') }}</label>
                 <select name="recurrence" id="recurrence" required
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    <option value="daily" {% if schedule.recurrence == 'daily' %}selected{% endif %}>Daily</option>
-                    <option value="weekdays" {% if schedule.recurrence == 'weekdays' %}selected{% endif %}>Weekdays (Mon-Fri)</option>
-                    <option value="weekly" {% if schedule.recurrence == 'weekly' %}selected{% endif %}>Custom Weekly Schedule</option>
-                    <option value="annual" {% if schedule.recurrence == 'annual' %}selected{% endif %}>Annual Dates</option>
+                    <option value="daily" {% if schedule.recurrence == 'daily' %}selected{% endif %}>{{ _('Daily') }}</option>
+                    <option value="weekdays" {% if schedule.recurrence == 'weekdays' %}selected{% endif %}>{{ _('Weekdays (Mon-Fri)') }}</option>
+                    <option value="weekly" {% if schedule.recurrence == 'weekly' %}selected{% endif %}>{{ _('Custom Weekly Schedule') }}</option>
+                    <option value="annual" {% if schedule.recurrence == 'annual' %}selected{% endif %}>{{ _('Annual Dates') }}</option>
                 </select>
             </div>
 
             <!-- Weekly Options -->
             <div id="weekly-days-section" class="{% if schedule.recurrence != 'weekly' %}hidden{% endif %}">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Days</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ _('Select Days') }}</label>
                 <div class="grid grid-cols-7 gap-2">
                     {% for day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
                     <div class="flex items-center">
@@ -56,7 +56,7 @@
 
             <!-- Annual Dates -->
             <div id="annual-dates-section" class="{% if schedule.recurrence != 'annual' %}hidden{% endif %}">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Annual Dates</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ _('Annual Dates') }}</label>
                 <div id="annual-dates-container">
                     {% if schedule.annual_dates %}
                         {% for date in schedule.annual_dates %}
@@ -79,32 +79,32 @@
                     {% endif %}
                 </div>
                 <button type="button" onclick="addAnnualDate()" class="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-                    <i class="fas fa-plus"></i> Add Date
+                    <i class="fas fa-plus"></i> {{ _('Add Date') }}
                 </button>
             </div>
 
             <!-- Category -->
             <div>
-                <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
+                <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Category') }}</label>
                 <select name="category" id="category"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    <option value="">Select a category</option>
-                    <option value="work" {% if schedule.category == 'work' %}selected{% endif %}>Work</option>
-                    <option value="personal" {% if schedule.category == 'personal' %}selected{% endif %}>Personal</option>
-                    <option value="other" {% if schedule.category == 'other' %}selected{% endif %}>Other</option>
+                    <option value="">{{ _('Select a category') }}</option>
+                    <option value="work" {% if schedule.category == 'work' %}selected{% endif %}>{{ _('Work') }}</option>
+                    <option value="personal" {% if schedule.category == 'personal' %}selected{% endif %}>{{ _('Personal') }}</option>
+                    <option value="other" {% if schedule.category == 'other' %}selected{% endif %}>{{ _('Other') }}</option>
                 </select>
             </div>
 
             <!-- Location -->
             <div>
-                <label for="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
+                <label for="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Location') }}</label>
                 <input type="text" name="location" id="location" value="{{ schedule.location }}"
                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             </div>
 
             <!-- Description -->
             <div>
-                <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Description') }}</label>
                 <textarea name="description" id="description" rows="3"
                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">{{ schedule.description }}</textarea>
             </div>
@@ -113,18 +113,18 @@
             <div class="flex items-center">
                 <input type="checkbox" name="enabled" id="enabled" {% if schedule.enabled %}checked{% endif %}
                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600">
-                <label for="enabled" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Enabled</label>
+                <label for="enabled" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">{{ _('Enabled') }}</label>
             </div>
 
             <!-- Submit Button -->
             <div class="flex justify-end space-x-4">
                 <a href="{{ url_for('schedules.list_schedules') }}" 
                    class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
-                    Cancel
+                    {{ _('Cancel') }}
                 </a>
                 <button type="submit"
                         class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600">
-                    Save Changes
+                    {{ _('Save Changes') }}
                 </button>
             </div>
         </form>

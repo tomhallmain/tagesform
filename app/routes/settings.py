@@ -1,13 +1,15 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from ..models import Activity, ScheduleRecord, Entity, db
+from ..utils.translations import I18N
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 
 @settings_bp.route('/')
 @login_required
 def settings():
-    return render_template('settings.html', preferences=current_user.preferences or {})
+    available_languages = I18N.get_available_languages()
+    return render_template('settings.html', preferences=current_user.preferences or {}, available_languages=available_languages)
 
 @settings_bp.route('/update-notifications', methods=['POST'])
 @login_required
@@ -71,6 +73,25 @@ def update_weather():
         })
     
     flash('Weather settings updated!', 'success')
+    return redirect(url_for('settings.settings'))
+
+@settings_bp.route('/update-language', methods=['POST'])
+@login_required
+def update_language():
+    updates = {
+        'language': request.form.get('language')
+    }
+    
+    # Update preferences using the new method
+    preferences = current_user.update_preferences(updates)
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'message': 'Language settings updated!',
+            'type': 'success'
+        })
+    
+    flash('Language settings updated!', 'success')
     return redirect(url_for('settings.settings'))
 
 @settings_bp.route('/export-data')

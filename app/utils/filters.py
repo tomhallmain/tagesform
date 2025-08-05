@@ -1,3 +1,7 @@
+from app.utils.translations import I18N
+
+_ = I18N._
+
 def title_case(text):
     """Convert text to title case, handling None values"""
     if text is None:
@@ -10,10 +14,10 @@ def format_rating(rating):
         return None
     
     rating_map = {
-        4: 'Great',
-        3: 'Good',
-        2: 'Okay',
-        1: 'Bad',
-        0: 'Terrible'
+        4: _('Great'),
+        3: _('Good'),
+        2: _('Okay'),
+        1: _('Bad'),
+        0: _('Terrible')
     }
     return rating_map.get(rating, '-') 

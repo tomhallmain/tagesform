@@ -3,9 +3,9 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Your Schedules</h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ _('Your Schedules') }}</h1>
         <a href="{{ url_for('schedules.new_schedule') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            Add New Schedule
+            {{ _('Add New Schedule') }}
         </a>
     </div>
 
@@ -21,19 +21,19 @@
                     </p>
                     {% if schedule.recurrence %}
                     <p class="text-sm text-gray-500 dark:text-gray-400">
-                        Repeats: 
+                        {{ _('Repeats') }}: 
                         {% if schedule.recurrence == 'daily' %}
-                            Daily
+                            {{ _('Daily') }}
                         {% elif schedule.recurrence == 'weekdays' %}
-                            Weekdays (Mon-Fri)
+                            {{ _('Weekdays (Mon-Fri)') }}
                         {% elif schedule.recurrence == 'weekly' %}
-                            Weekly on 
+                            {{ _('Weekly on') }} 
                             {% set days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
                             {% for day in schedule.weekday_options %}
                                 {{ days[day] }}{% if not loop.last %}, {% endif %}
                             {% endfor %}
                         {% elif schedule.recurrence == 'annual' %}
-                            Annually on 
+                            {{ _('Annually on') }} 
                             {% for date in schedule.annual_dates %}
                                 {{ date.month }}/{{ date.day }}{% if not loop.last %}, {% endif %}
                             {% endfor %}
@@ -60,7 +60,7 @@
                                 <div class="w-5 h-5 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out {% if schedule.enabled %}translate-x-5{% endif %}"></div>
                             </div>
                             <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                                {% if schedule.enabled %}Enabled{% else %}Disabled{% endif %}
+                                {% if schedule.enabled %}{{ _('Enabled') }}{% else %}{{ _('Disabled') }}{% endif %}
                             </span>
                         </label>
                     </div>
@@ -86,9 +86,9 @@
     </div>
     {% else %}
     <div class="text-center py-12">
-        <p class="text-gray-600 dark:text-gray-300">You don't have any schedules yet.</p>
+        <p class="text-gray-600 dark:text-gray-300">{{ _('You don\'t have any schedules yet.') }}</p>
         <a href="{{ url_for('schedules.new_schedule') }}" class="mt-4 inline-block text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-            Create your first schedule
+            {{ _('Create your first schedule') }}
         </a>
     </div>
     {% endif %}

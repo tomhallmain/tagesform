@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: APPLICATION 1.0\n"
 "Report-Msgid-Bugs-To: Thomas Hall <tomhall.main@gmail.com>\n"
-"POT-Creation-Date: 2025-08-05 10:42-0400\n"
-"PO-Revision-Date: 2025-08-05 10:42-0400\n"
+"POT-Creation-Date: 2025-08-07 10:31-0400\n"
+"PO-Revision-Date: 2025-08-07 10:31-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
@@ -36,8 +36,8 @@ msgstr ""
 msgid "Title"
 msgstr ""
 
-#: app/templates/add_activity.html:15 app/templates/add_place.html:126 app/templates/edit_schedule.html:107
-#: app/templates/new_schedule.html:126
+#: app/templates/add_activity.html:15 app/templates/add_place.html:126 app/templates/edit_place.html:108
+#: app/templates/edit_schedule.html:107 app/templates/new_schedule.html:126
 msgid "Description"
 msgstr ""
 
@@ -50,8 +50,8 @@ msgid "Time"
 msgstr ""
 
 #: app/templates/add_activity.html:34 app/templates/add_place.html:38 app/templates/edit_place.html:15
-#: app/templates/edit_schedule.html:88 app/templates/new_schedule.html:108 app/templates/places.html:39
-#: app/templates/review_import.html:31
+#: app/templates/edit_schedule.html:88 app/templates/entities/available.html:18 app/templates/new_schedule.html:108
+#: app/templates/places.html:39 app/templates/review_import.html:31
 msgid "Category"
 msgstr ""
 
@@ -80,8 +80,9 @@ msgstr ""
 msgid "Duration (minutes)"
 msgstr ""
 
-#: app/templates/add_activity.html:52 app/templates/add_place.html:114 app/templates/edit_schedule.html:100
-#: app/templates/new_schedule.html:120 app/templates/places.html:43 app/templates/review_import.html:32
+#: app/templates/add_activity.html:52 app/templates/add_place.html:114 app/templates/edit_place.html:96
+#: app/templates/edit_schedule.html:100 app/templates/new_schedule.html:120 app/templates/places.html:43
+#: app/templates/review_import.html:32
 msgid "Location"
 msgstr ""
 
@@ -185,53 +186,61 @@ msgid "Operating Hours"
 msgstr ""
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:46
-#: app/utils/translations.py:38
+#: app/utils/translations.py:66
 msgid "Monday"
 msgstr ""
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:50
-#: app/utils/translations.py:40
+#: app/utils/translations.py:68
 msgid "Tuesday"
 msgstr ""
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:54
-#: app/utils/translations.py:42
+#: app/utils/translations.py:70
 msgid "Wednesday"
 msgstr ""
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:58
-#: app/utils/translations.py:44
+#: app/utils/translations.py:72
 msgid "Thursday"
 msgstr ""
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:62
-#: app/utils/translations.py:46
+#: app/utils/translations.py:74
 msgid "Friday"
 msgstr ""
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:66
-#: app/utils/translations.py:48
+#: app/utils/translations.py:76
 msgid "Saturday"
 msgstr ""
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76 app/templates/new_schedule.html:70
-#: app/utils/translations.py:50
+#: app/utils/translations.py:78
 msgid "Sunday"
+msgstr ""
+
+#: app/templates/add_place.html:101 app/templates/edit_place.html:82
+msgid "Open time (optional)"
+msgstr ""
+
+#: app/templates/add_place.html:106 app/templates/edit_place.html:88
+msgid "Close time (optional)"
 msgstr ""
 
 #: app/templates/add_place.html:110
 msgid "Note: If no times are specified, default daytime hours will be assumed"
 msgstr ""
 
-#: app/templates/add_place.html:120
+#: app/templates/add_place.html:120 app/templates/edit_place.html:102
 msgid "Contact Information"
 msgstr ""
 
-#: app/templates/add_place.html:132
+#: app/templates/add_place.html:132 app/templates/edit_place.html:114
 msgid "Tags (comma-separated)"
 msgstr ""
 
-#: app/templates/add_place.html:142
+#: app/templates/add_place.html:142 app/templates/edit_place.html:124
 msgid "Make this place public (visible to all users)"
 msgstr ""
 
@@ -284,7 +293,8 @@ msgstr ""
 msgid "Profile"
 msgstr ""
 
-#: app/templates/base.html:93 app/templates/settings.html:5
+#: app/templates/base.html:93 app/templates/settings.html:5 tests/test_translations.py:109 tests/test_translations.py:122
+#: tests/test_translations.py:127 tests/test_translations.py:348 tests/test_translations.py:355
 msgid "Settings"
 msgstr ""
 
@@ -302,6 +312,18 @@ msgstr ""
 
 #: app/templates/edit_place.html:5
 msgid "Edit Place"
+msgstr ""
+
+#: app/templates/edit_place.html:128
+msgid "Share with specific user"
+msgstr ""
+
+#: app/templates/edit_place.html:132
+msgid "Enter username"
+msgstr ""
+
+#: app/templates/edit_place.html:135 app/templates/places.html:58
+msgid "Share"
 msgstr ""
 
 #: app/templates/edit_place.html:142
@@ -742,15 +764,15 @@ msgstr ""
 msgid "My Places - Tagesform"
 msgstr ""
 
-#: app/templates/places.html:9
+#: app/templates/entities/available.html:30 app/templates/places.html:9
 msgid "My Places"
 msgstr ""
 
-#: app/templates/places.html:24
+#: app/templates/entities/available.html:14 app/templates/places.html:24
 msgid "Search"
 msgstr ""
 
-#: app/templates/places.html:25
+#: app/templates/entities/available.html:15 app/templates/places.html:25
 msgid "Search places..."
 msgstr ""
 
@@ -764,10 +786,6 @@ msgstr ""
 
 #: app/templates/places.html:51 app/templates/review_import.html:34
 msgid "Visited"
-msgstr ""
-
-#: app/templates/places.html:58
-msgid "Share"
 msgstr ""
 
 #: app/templates/places.html:83 app/templates/review_import.html:56
@@ -1016,35 +1034,171 @@ msgid "Save Weather Settings"
 msgstr ""
 
 #: app/templates/settings.html:116
-msgid "Data Management"
+msgid "Language Settings"
 msgstr ""
 
-#: app/templates/settings.html:121
-msgid "Export Data"
+#: app/templates/settings.html:119
+msgid "Interface Language"
 msgstr ""
 
-#: app/templates/settings.html:123
-msgid "Download all your data in JSON format"
+#: app/templates/settings.html:124
+msgid "English"
+msgstr ""
+
+#: app/templates/settings.html:125
+msgid "German"
+msgstr ""
+
+#: app/templates/settings.html:126
+msgid "Spanish"
+msgstr ""
+
+#: app/templates/settings.html:127
+msgid "French"
 msgstr ""
 
 #: app/templates/settings.html:128
+msgid "Italian"
+msgstr ""
+
+#: app/templates/settings.html:133
+msgid "Choose your preferred language for the interface"
+msgstr ""
+
+#: app/templates/settings.html:138
+msgid "Save Language Settings"
+msgstr ""
+
+#: app/templates/settings.html:146
+msgid "Data Management"
+msgstr ""
+
+#: app/templates/settings.html:151
+msgid "Export Data"
+msgstr ""
+
+#: app/templates/settings.html:153
+msgid "Download all your data in JSON format"
+msgstr ""
+
+#: app/templates/settings.html:158
 msgid "Delete Account"
 msgstr ""
 
-#: app/templates/settings.html:130
+#: app/templates/settings.html:160
 msgid "Permanently delete your account and all associated data"
 msgstr ""
 
-#: app/templates/settings.html:188
+#: app/templates/settings.html:218
 msgid "An error occurred while saving settings"
 msgstr ""
 
-#: app/templates/settings.html:194
+#: app/templates/settings.html:260
+msgid "An error occurred while saving language settings"
+msgstr ""
+
+#: app/templates/settings.html:266
 msgid "Are you sure you want to delete your account? This action cannot be undone."
 msgstr ""
 
-#: app/templates/settings.html:222
+#: app/templates/settings.html:294
 msgid "An error occurred while deleting your account"
+msgstr ""
+
+#: app/templates/entities/available.html:6
+msgid "Places Open Now"
+msgstr ""
+
+#: app/templates/entities/available.html:7
+msgid "Last updated:"
+msgstr ""
+
+#: app/templates/entities/available.html:20
+msgid "All Categories"
+msgstr ""
+
+#: app/templates/entities/available.html:27
+msgid "Show"
+msgstr ""
+
+#: app/templates/entities/available.html:29
+msgid "All Places"
+msgstr ""
+
+#: app/templates/entities/available.html:31
+msgid "Shared With Me"
+msgstr ""
+
+#: app/templates/entities/available.html:32
+msgid "Public Places"
+msgstr ""
+
+#: app/templates/entities/available.html:36
+msgid "Sort By"
+msgstr ""
+
+#: app/templates/entities/available.html:38
+msgid "Recommended Order"
+msgstr ""
+
+#: app/templates/entities/available.html:39
+msgid "Rating (High to Low)"
+msgstr ""
+
+#: app/templates/entities/available.html:40
+msgid "Name (A-Z)"
+msgstr ""
+
+#: app/templates/entities/available.html:54
+msgid "Description:"
+msgstr ""
+
+#: app/templates/entities/available.html:55
+msgid "Location:"
+msgstr ""
+
+#: app/templates/entities/available.html:56
+msgid "Contact:"
+msgstr ""
+
+#: app/templates/entities/available.html:57
+msgid "Tags:"
+msgstr ""
+
+#: app/templates/entities/available.html:58
+msgid "Cuisine:"
+msgstr ""
+
+#: app/templates/entities/available.html:64
+msgid "Rating: Excellent"
+msgstr ""
+
+#: app/templates/entities/available.html:66
+msgid "Rating: Good"
+msgstr ""
+
+#: app/templates/entities/available.html:68
+msgid "Rating: OK"
+msgstr ""
+
+#: app/templates/entities/available.html:70
+msgid "Rating: Poor"
+msgstr ""
+
+#: app/templates/entities/available.html:72
+msgid "Rating: Terrible"
+msgstr ""
+
+#: app/templates/entities/available.html:74
+msgid "Not rated"
+msgstr ""
+
+#: app/templates/entities/available.html:86
+msgid "Open:"
+msgstr ""
+
+#: app/templates/entities/available.html:91
+msgid "Hours vary"
 msgstr ""
 
 #: app/utils/filters.py:19
@@ -1053,5 +1207,13 @@ msgstr ""
 
 #: app/utils/job_queue.py:36
 msgid " (Pending runs: {0})"
+msgstr ""
+
+#: tests/test_translations.py:113 tests/test_translations.py:170
+msgid "Untranslated String"
+msgstr ""
+
+#: tests/test_translations.py:159
+msgid "Test String"
 msgstr ""
 

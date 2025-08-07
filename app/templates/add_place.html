@@ -98,12 +98,12 @@
                 <div>
                     <input type="time" name="{{ day }}_open" id="{{ day }}_open"
                         class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Open time (optional)">
+                        placeholder="{{ _('Open time (optional)') }}">
                 </div>
                 <div>
                     <input type="time" name="{{ day }}_close" id="{{ day }}_close"
                         class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Close time (optional)">
+                        placeholder="{{ _('Close time (optional)') }}">
                 </div>
             </div>
             {% endfor %}

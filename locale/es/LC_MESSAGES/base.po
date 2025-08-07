@@ -2,8 +2,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
-"POT-Creation-Date: 2025-08-05 10:51-0400\n"
-"PO-Revision-Date: 2025-08-05 10:51-0400\n"
+"POT-Creation-Date: 2025-08-07 10:34-0400\n"
+"PO-Revision-Date: 2025-08-07 10:34-0400\n"
 "Last-Translator: Thomas Hall <tomhall.main@gmail.com>\n"
 "Language-Team: es Team <<EMAIL>>\n"
 "Language: es\n"
@@ -33,7 +33,8 @@ msgid "Title"
 msgstr "Título"
 
 #: app/templates/add_activity.html:15 app/templates/add_place.html:126
-#: app/templates/edit_schedule.html:107 app/templates/new_schedule.html:126
+#: app/templates/edit_place.html:108 app/templates/edit_schedule.html:107
+#: app/templates/new_schedule.html:126
 msgid "Description"
 msgstr "Descripción"
 
@@ -47,6 +48,7 @@ msgstr "Hora"
 
 #: app/templates/add_activity.html:34 app/templates/add_place.html:38
 #: app/templates/edit_place.html:15 app/templates/edit_schedule.html:88
+#: app/templates/entities/available.html:18
 #: app/templates/new_schedule.html:108 app/templates/places.html:39
 #: app/templates/review_import.html:31
 msgid "Category"
@@ -80,8 +82,9 @@ msgid "Duration (minutes)"
 msgstr "Duración (minutos)"
 
 #: app/templates/add_activity.html:52 app/templates/add_place.html:114
-#: app/templates/edit_schedule.html:100 app/templates/new_schedule.html:120
-#: app/templates/places.html:43 app/templates/review_import.html:32
+#: app/templates/edit_place.html:96 app/templates/edit_schedule.html:100
+#: app/templates/new_schedule.html:120 app/templates/places.html:43
+#: app/templates/review_import.html:32
 msgid "Location"
 msgstr "Ubicación"
 
@@ -193,37 +196,37 @@ msgid "Operating Hours"
 msgstr "Horario de atención"
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76
-#: app/templates/new_schedule.html:46 app/utils/translations.py:38
+#: app/templates/new_schedule.html:46 app/utils/translations.py:66
 msgid "Monday"
 msgstr "Lunes"
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76
-#: app/templates/new_schedule.html:50 app/utils/translations.py:40
+#: app/templates/new_schedule.html:50 app/utils/translations.py:68
 msgid "Tuesday"
 msgstr "Martes"
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76
-#: app/templates/new_schedule.html:54 app/utils/translations.py:42
+#: app/templates/new_schedule.html:54 app/utils/translations.py:70
 msgid "Wednesday"
 msgstr "Miércoles"
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76
-#: app/templates/new_schedule.html:58 app/utils/translations.py:44
+#: app/templates/new_schedule.html:58 app/utils/translations.py:72
 msgid "Thursday"
 msgstr "Jueves"
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76
-#: app/templates/new_schedule.html:62 app/utils/translations.py:46
+#: app/templates/new_schedule.html:62 app/utils/translations.py:74
 msgid "Friday"
 msgstr "Viernes"
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76
-#: app/templates/new_schedule.html:66 app/utils/translations.py:48
+#: app/templates/new_schedule.html:66 app/utils/translations.py:76
 msgid "Saturday"
 msgstr "Sábado"
 
 #: app/templates/add_place.html:96 app/templates/edit_place.html:76
-#: app/templates/new_schedule.html:70 app/utils/translations.py:50
+#: app/templates/new_schedule.html:70 app/utils/translations.py:78
 msgid "Sunday"
 msgstr "Domingo"
 
@@ -233,15 +236,15 @@ msgstr ""
 "Nota: Si no se especifican horarios, se asumirán los horarios diurnos "
 "predeterminados."
 
-#: app/templates/add_place.html:120
+#: app/templates/add_place.html:120 app/templates/edit_place.html:102
 msgid "Contact Information"
 msgstr "Información de contacto"
 
-#: app/templates/add_place.html:132
+#: app/templates/add_place.html:132 app/templates/edit_place.html:114
 msgid "Tags (comma-separated)"
 msgstr "Etiquetas (separadas por comas)"
 
-#: app/templates/add_place.html:142
+#: app/templates/add_place.html:142 app/templates/edit_place.html:124
 msgid "Make this place public (visible to all users)"
 msgstr "Hacer este lugar público (visible para todos los usuarios)"
 
@@ -268,6 +271,18 @@ msgstr "Forma del día"
 msgid "Schedules"
 msgstr "Horarios"
 
+#: app/templates/base.html:71
+msgid "View Schedules"
+msgstr "Ver horarios"
+
+#: app/templates/base.html:72
+msgid "New Schedule"
+msgstr "Nuevo horario"
+
+#: app/templates/base.html:78
+msgid "Places"
+msgstr "Lugares"
+
 #: app/templates/base.html:85
 msgid "View Places"
 msgstr "Ver lugares"
@@ -279,6 +294,21 @@ msgstr "Abierto ahora"
 #: app/templates/base.html:88 app/templates/places.html:15
 msgid "Import Places"
 msgstr "Importar lugares"
+
+#: app/templates/base.html:92 app/templates/profile.html:10
+msgid "Profile"
+msgstr "Perfil"
+
+#: app/templates/base.html:93 app/templates/settings.html:5
+#: tests/test_translations.py:109 tests/test_translations.py:122
+#: tests/test_translations.py:127 tests/test_translations.py:348
+#: tests/test_translations.py:355
+msgid "Settings"
+msgstr "Configuración"
+
+#: app/templates/base.html:94
+msgid "Logout"
+msgstr "Cerrar sesión"
 
 #: app/templates/base.html:97
 msgid "Sign In"
@@ -756,15 +786,15 @@ msgstr "Diciembre"
 msgid "My Places - Tagesform"
 msgstr "Mis lugares - Tagesform"
 
-#: app/templates/places.html:9
+#: app/templates/entities/available.html:30 app/templates/places.html:9
 msgid "My Places"
 msgstr "Mis lugares"
 
-#: app/templates/places.html:24
+#: app/templates/entities/available.html:14 app/templates/places.html:24
 msgid "Search"
 msgstr "Buscar"
 
-#: app/templates/places.html:25
+#: app/templates/entities/available.html:15 app/templates/places.html:25
 msgid "Search places..."
 msgstr "Buscar lugares..."
 
@@ -780,7 +810,7 @@ msgstr "Gastronomía"
 msgid "Visited"
 msgstr "Visitó"
 
-#: app/templates/places.html:58
+#: app/templates/edit_place.html:135 app/templates/places.html:58
 msgid "Share"
 msgstr "Compartir"
 
@@ -827,10 +857,6 @@ msgstr "Se ha producido un error"
 #: app/templates/places.html:268
 msgid "An error occurred while updating sharing status"
 msgstr "Se ha producido un error al actualizar el estado de uso compartido."
-
-#: app/templates/base.html:92 app/templates/profile.html:10
-msgid "Profile"
-msgstr "Perfil"
 
 #: app/templates/profile.html:17 app/templates/profile.html:38
 #: app/templates/register.html:40 app/templates/register.html:41
@@ -941,17 +967,21 @@ msgstr "Aún no tienes horarios."
 msgid "Create your first schedule"
 msgstr "Cree su primer horario"
 
-#: app/templates/base.html:93 app/templates/settings.html:5
-msgid "Settings"
-msgstr "Configuración"
-
 #: app/templates/settings.html:10
 msgid "Notification Preferences"
 msgstr "Preferencias de notificación"
 
+#: app/templates/settings.html:15
+msgid "Email Notifications"
+msgstr "Notificaciones por correo electrónico"
+
 #: app/templates/settings.html:16
 msgid "Receive activity and schedule reminders via email"
 msgstr "Reciba recordatorios de actividades y horarios por correo electrónico"
+
+#: app/templates/settings.html:26
+msgid "Browser Notifications"
+msgstr "Notificaciones del navegador"
 
 #: app/templates/settings.html:27
 msgid "Show desktop notifications for upcoming activities"
@@ -964,91 +994,6 @@ msgstr "Guardar configuración de notificaciones"
 #: app/templates/settings.html:47
 msgid "Display Preferences"
 msgstr "Preferencias de visualización"
-
-#: app/templates/settings.html:70
-msgid "Enable dark theme for better viewing in low light"
-msgstr ""
-"Activa el tema oscuro para una mejor visualización en condiciones de poca "
-"luz"
-
-#: app/templates/settings.html:82
-msgid "Save Display Settings"
-msgstr "Guardar configuración de visualización"
-
-#: app/templates/settings.html:90
-msgid "Weather Settings"
-msgstr "Configuración del clima"
-
-#: app/templates/settings.html:108
-msgid "Save Weather Settings"
-msgstr "Guardar configuración del clima"
-
-#: app/templates/settings.html:116
-msgid "Data Management"
-msgstr "Gestión de datos"
-
-#: app/templates/settings.html:121
-msgid "Export Data"
-msgstr "Exportar datos"
-
-#: app/templates/settings.html:123
-msgid "Download all your data in JSON format"
-msgstr "Descarga todos tus datos en formato JSON"
-
-#: app/templates/settings.html:128
-msgid "Delete Account"
-msgstr "Eliminar cuenta"
-
-#: app/templates/settings.html:130
-msgid "Permanently delete your account and all associated data"
-msgstr "Elimine de forma permanente su cuenta y todos los datos asociados"
-
-#: app/templates/settings.html:188
-msgid "An error occurred while saving settings"
-msgstr "Se ha producido un error al guardar la configuración"
-
-#: app/templates/settings.html:194
-msgid ""
-"Are you sure you want to delete your account? This action cannot be undone."
-msgstr ""
-"¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede "
-"deshacer."
-
-#: app/templates/settings.html:222
-msgid "An error occurred while deleting your account"
-msgstr "Se ha producido un error al eliminar tu cuenta"
-
-#: app/utils/filters.py:19
-msgid "Okay"
-msgstr "De acuerdo"
-
-#: app/utils/job_queue.py:36
-msgid " (Pending runs: {0})"
-msgstr " (Ejecuciones pendientes: {0})"
-
-#: app/templates/base.html:71
-msgid "View Schedules"
-msgstr "Ver horarios"
-
-#: app/templates/base.html:72
-msgid "New Schedule"
-msgstr "Nuevo horario"
-
-#: app/templates/base.html:78
-msgid "Places"
-msgstr "Lugares"
-
-#: app/templates/base.html:94
-msgid "Logout"
-msgstr "Cerrar sesión"
-
-#: app/templates/settings.html:15
-msgid "Email Notifications"
-msgstr "Notificaciones por correo electrónico"
-
-#: app/templates/settings.html:26
-msgid "Browser Notifications"
-msgstr "Notificaciones del navegador"
 
 #: app/templates/settings.html:51
 msgid "Default Calendar View"
@@ -1082,6 +1027,20 @@ msgstr "24 horas"
 msgid "Dark Mode"
 msgstr "Modo oscuro"
 
+#: app/templates/settings.html:70
+msgid "Enable dark theme for better viewing in low light"
+msgstr ""
+"Activa el tema oscuro para una mejor visualización en condiciones de poca "
+"luz"
+
+#: app/templates/settings.html:82
+msgid "Save Display Settings"
+msgstr "Guardar configuración de visualización"
+
+#: app/templates/settings.html:90
+msgid "Weather Settings"
+msgstr "Configuración del clima"
+
 #: app/templates/settings.html:93
 msgid "Default City"
 msgstr "Ciudad predeterminada"
@@ -1097,3 +1056,210 @@ msgstr "Fahrenheit"
 #: app/templates/settings.html:102
 msgid "Celsius"
 msgstr "Celsius"
+
+#: app/templates/settings.html:108
+msgid "Save Weather Settings"
+msgstr "Guardar configuración del clima"
+
+#: app/templates/settings.html:116
+msgid "Language Settings"
+msgstr "Ajustes del idioma"
+
+#: app/templates/settings.html:119
+msgid "Interface Language"
+msgstr "Idioma de la interfaz"
+
+#: app/templates/settings.html:124
+msgid "English"
+msgstr "Inglés"
+
+#: app/templates/settings.html:125
+msgid "German"
+msgstr "Alemán"
+
+#: app/templates/settings.html:126
+msgid "Spanish"
+msgstr "Español"
+
+#: app/templates/settings.html:127
+msgid "French"
+msgstr "Francés"
+
+#: app/templates/settings.html:128
+msgid "Italian"
+msgstr "Italiano"
+
+#: app/templates/settings.html:133
+msgid "Choose your preferred language for the interface"
+msgstr "Elija su idioma preferido para la interfaz"
+
+#: app/templates/settings.html:138
+msgid "Save Language Settings"
+msgstr "Guardar configuración de lenguaje"
+
+#: app/templates/settings.html:146
+msgid "Data Management"
+msgstr "Gestión de datos"
+
+#: app/templates/settings.html:151
+msgid "Export Data"
+msgstr "Exportar datos"
+
+#: app/templates/settings.html:153
+msgid "Download all your data in JSON format"
+msgstr "Descarga todos tus datos en formato JSON"
+
+#: app/templates/settings.html:158
+msgid "Delete Account"
+msgstr "Eliminar cuenta"
+
+#: app/templates/settings.html:160
+msgid "Permanently delete your account and all associated data"
+msgstr "Elimine de forma permanente su cuenta y todos los datos asociados"
+
+#: app/templates/settings.html:218
+msgid "An error occurred while saving settings"
+msgstr "Se ha producido un error al guardar la configuración"
+
+#: app/templates/settings.html:260
+msgid "An error occurred while saving language settings"
+msgstr "Se ha producido un error al guardar la configuración de idioma"
+
+#: app/templates/settings.html:266
+msgid ""
+"Are you sure you want to delete your account? This action cannot be undone."
+msgstr ""
+"¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede "
+"deshacer."
+
+#: app/templates/settings.html:294
+msgid "An error occurred while deleting your account"
+msgstr "Se ha producido un error al eliminar tu cuenta"
+
+#: app/templates/entities/available.html:6
+msgid "Places Open Now"
+msgstr "Lugares abiertos ahora"
+
+#: app/templates/entities/available.html:7
+msgid "Last updated:"
+msgstr "Última actualización:"
+
+#: app/templates/entities/available.html:20
+msgid "All Categories"
+msgstr "Todas las Categorías"
+
+#: app/templates/entities/available.html:27
+msgid "Show"
+msgstr "Mostrar"
+
+#: app/templates/entities/available.html:29
+msgid "All Places"
+msgstr "Todos los lugares"
+
+#: app/templates/entities/available.html:31
+msgid "Shared With Me"
+msgstr "Compartido conmigo"
+
+#: app/templates/entities/available.html:32
+msgid "Public Places"
+msgstr "Lugares públicos"
+
+#: app/templates/entities/available.html:36
+msgid "Sort By"
+msgstr "Ordenar por"
+
+#: app/templates/entities/available.html:38
+msgid "Recommended Order"
+msgstr "Orden recomendado"
+
+#: app/templates/entities/available.html:39
+msgid "Rating (High to Low)"
+msgstr "Calificación (de mayor a menor)"
+
+#: app/templates/entities/available.html:40
+msgid "Name (A-Z)"
+msgstr "Nombre (A-Z)"
+
+#: app/templates/entities/available.html:54
+msgid "Description:"
+msgstr "Descripción:"
+
+#: app/templates/entities/available.html:55
+msgid "Location:"
+msgstr "Ubicación:"
+
+#: app/templates/entities/available.html:56
+msgid "Contact:"
+msgstr "Contacto:"
+
+#: app/templates/entities/available.html:57
+msgid "Tags:"
+msgstr "Etiquetas:"
+
+#: app/templates/entities/available.html:58
+msgid "Cuisine:"
+msgstr "Cocina:"
+
+#: app/templates/entities/available.html:64
+msgid "Rating: Excellent"
+msgstr "Valoración: Excelente"
+
+#: app/templates/entities/available.html:66
+msgid "Rating: Good"
+msgstr "Valoración: bien"
+
+#: app/templates/entities/available.html:68
+msgid "Rating: OK"
+msgstr "Valoración: OK"
+
+#: app/templates/entities/available.html:70
+msgid "Rating: Poor"
+msgstr "Valoración: pobres"
+
+#: app/templates/entities/available.html:72
+msgid "Rating: Terrible"
+msgstr "Valoración: Terrible"
+
+#: app/templates/entities/available.html:74
+msgid "Not rated"
+msgstr "No calificado"
+
+#: app/templates/entities/available.html:86
+msgid "Open:"
+msgstr "Abierto:"
+
+#: app/templates/entities/available.html:91
+msgid "Hours vary"
+msgstr "Las horas varían"
+
+#: app/utils/filters.py:19
+msgid "Okay"
+msgstr "De acuerdo"
+
+#: app/utils/job_queue.py:36
+msgid " (Pending runs: {0})"
+msgstr " (Ejecuciones pendientes: {0})"
+
+#: tests/test_translations.py:113 tests/test_translations.py:170
+msgid "Untranslated String"
+msgstr ""
+
+#: tests/test_translations.py:159
+msgid "Test String"
+msgstr ""
+
+#: app/templates/add_place.html:101 app/templates/edit_place.html:82
+msgid "Open time (optional)"
+msgstr "Tiempo abierto (opcional)"
+
+#: app/templates/add_place.html:106 app/templates/edit_place.html:88
+msgid "Close time (optional)"
+msgstr "Hora de cierre (opcional)"
+
+#: app/templates/edit_place.html:128
+msgid "Share with specific user"
+msgstr "Compartir con un usuario específico"
+
+#: app/templates/edit_place.html:132
+msgid "Enter username"
+msgstr "Introduzca el nombre de usuario"

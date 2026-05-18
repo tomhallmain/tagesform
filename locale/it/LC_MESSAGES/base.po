@@ -2,8 +2,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
-"POT-Creation-Date: 2025-08-07 10:34-0400\n"
-"PO-Revision-Date: 2025-08-07 10:34-0400\n"
+"POT-Creation-Date: 2026-05-18 11:49-0400\n"
+"PO-Revision-Date: 2026-05-18 11:49-0400\n"
 "Last-Translator: Thomas Hall <tomhall.main@gmail.com>\n"
 "Language-Team: it Team <<EMAIL>>\n"
 "Language: it\n"
@@ -230,6 +230,14 @@ msgstr "Sabato"
 msgid "Sunday"
 msgstr "Domenica"
 
+#: app/templates/add_place.html:101 app/templates/edit_place.html:82
+msgid "Open time (optional)"
+msgstr "Tempo di apertura (facoltativo)"
+
+#: app/templates/add_place.html:106 app/templates/edit_place.html:88
+msgid "Close time (optional)"
+msgstr "Ora di chiusura (facoltativo)"
+
 #: app/templates/add_place.html:110
 msgid "Note: If no times are specified, default daytime hours will be assumed"
 msgstr ""
@@ -321,6 +329,18 @@ msgstr "Registrati"
 #: app/templates/edit_place.html:5
 msgid "Edit Place"
 msgstr "Modifica luogo"
+
+#: app/templates/edit_place.html:128
+msgid "Share with specific user"
+msgstr "Condividi con un utente specifico"
+
+#: app/templates/edit_place.html:132
+msgid "Enter username"
+msgstr "Inserisci nome utente"
+
+#: app/templates/edit_place.html:135 app/templates/places.html:58
+msgid "Share"
+msgstr "Compartir"
 
 #: app/templates/edit_place.html:142
 msgid "Shared with"
@@ -520,8 +540,8 @@ msgid ""
 "Boolean values in rating field will be converted to \"good\" (true) or "
 "\"bad\" (false)"
 msgstr ""
-"Boolean values in rating field will be converted to \"good\" (true) or "
-"\"bad\" (false)"
+"I valori booleani nel campo di valutazione saranno convertiti in \"buono\" "
+"(vero) o \"cattivo\" (falso)"
 
 #: app/templates/import_places.html:161
 msgid ""
@@ -805,10 +825,6 @@ msgstr "Cucina"
 #: app/templates/places.html:51 app/templates/review_import.html:34
 msgid "Visited"
 msgstr "Visitato"
-
-#: app/templates/edit_place.html:135 app/templates/places.html:58
-msgid "Share"
-msgstr "Compartir"
 
 #: app/templates/places.html:83 app/templates/review_import.html:56
 msgid "Yes"
@@ -1101,7 +1117,7 @@ msgstr "Gestione dei dati"
 
 #: app/templates/settings.html:151
 msgid "Export Data"
-msgstr "Daten exportieren"
+msgstr "Esporta i dati"
 
 #: app/templates/settings.html:153
 msgid "Download all your data in JSON format"
@@ -1247,19 +1263,3 @@ msgstr ""
 #: tests/test_translations.py:159
 msgid "Test String"
 msgstr ""
-
-#: app/templates/add_place.html:101 app/templates/edit_place.html:82
-msgid "Open time (optional)"
-msgstr "Tempo di apertura (facoltativo)"
-
-#: app/templates/add_place.html:106 app/templates/edit_place.html:88
-msgid "Close time (optional)"
-msgstr "Ora di chiusura (facoltativo)"
-
-#: app/templates/edit_place.html:128
-msgid "Share with specific user"
-msgstr "Condividi con un utente specifico"
-
-#: app/templates/edit_place.html:132
-msgid "Enter username"
-msgstr "Inserisci nome utente"

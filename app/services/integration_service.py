@@ -53,7 +53,36 @@ class IntegrationService:
             raise Exception(f"Error getting current schedule: {str(e)}")
 
     def get_calendar_events(self, start_date=None, end_date=None):
-        """Get calendar events for the specified date range."""
+        """Get calendar events for the specified date range from the cache.
+
+        Reads from EventCache rather than the live holiday/religious-calendar
+        APIs -- those (Nager, Inadiutorium, Hijri) are refreshed periodically
+        by the update_event_cache background job instead. Calling them
+        synchronously here used to mean every dashboard load and every
+        time-horizon tab click triggered minutes of live API calls (Inadiutorium
+        alone issues one request per month, each taking upwards of 20 seconds).
+        """
+        from ..models import EventCache
+        try:
+            if not start_date:
+                start_date = datetime.now()
+
+            query = EventCache.query.filter(EventCache.date >= start_date)
+            if end_date:
+                query = query.filter(EventCache.date <= end_date)
+
+            return [event.to_dict() for event in query.order_by(EventCache.date).all()]
+        except Exception as e:
+            return []  # Return empty list on error instead of raising
+
+    def fetch_live_calendar_events(self, start_date=None, end_date=None):
+        """Fetch calendar events directly from the live upstream APIs (Nager,
+        Inadiutorium, Hijri) via CalendarAggregator, bypassing the cache.
+
+        Used only by the update_event_cache background job to refresh
+        EventCache -- request handlers should use get_calendar_events instead,
+        which reads the cache that this method's caller populates.
+        """
         try:
             if not start_date:
                 start_date = datetime.now()
@@ -65,10 +94,10 @@ class IntegrationService:
             else:
                 # Otherwise just get events from start_date onwards
                 events = [e for e in events if e.date >= start_date]
-            
+
             if not isinstance(events, list):
                 return []
-                
+
             formatted_events = []
             for event in events:
                 try:
@@ -82,7 +111,7 @@ class IntegrationService:
                     formatted_events.append(formatted_event)
                 except Exception as e:
                     continue  # Skip events that can't be formatted
-                    
+
             return formatted_events
         except Exception as e:
             return []  # Return empty list on error instead of raising

@@ -29,8 +29,9 @@ def update_event_cache(app):
             current_year = datetime.now().year
             # Get events for current and next year
             for year in [current_year, current_year + 1]:
-                # Get fresh events from APIs
-                events = integration_service.get_calendar_events(
+                # Get fresh events from the live APIs (get_calendar_events reads
+                # this cache rather than fetching live -- see integration_service)
+                events = integration_service.fetch_live_calendar_events(
                     start_date=datetime(year, 1, 1),
                     end_date=datetime(year, 12, 31)
                 )

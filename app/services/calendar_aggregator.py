@@ -6,6 +6,8 @@ from ..utils.logging_setup import get_logger
 
 logger = get_logger(__name__)
 
+REQUEST_TIMEOUT_SECONDS = 10
+
 
 class EventGroup:
     def __init__(self, date=datetime.datetime.now(), events=[]):
@@ -172,7 +174,7 @@ class Event:
     def from_hijri_api(event):
         notes = []
         notes.append({"hijri": event["hijri"]})
-        event_name = event["holidays"][0]
+        event_name = event["hijri"]["holidays"][0]
         new_event = Event(name=event_name,
             date=datetime.datetime.strptime(event["gregorian"]["date"], "%Y-%m-%d"),
             source="Hijri API",
@@ -207,7 +209,7 @@ class HolidayAPI:
     def get_events_for_country(self, country="US", year=-1):
         events = []
         try:
-            events_json = requests.get(self.__build_url(country, year)).json()
+            events_json = requests.get(self.__build_url(country, year), timeout=REQUEST_TIMEOUT_SECONDS).json()
             for event in events_json:
                 events.append(Event.from_holiday_api(event))
         except Exception as e:
@@ -235,7 +237,7 @@ class NagerPublicHolidaysAPI:
     def get_events_for_country(self, country_code="US", year=-1):
         events = []
         try:
-            events_json = requests.get(self.__build_url(country_code, year)).json()
+            events_json = requests.get(self.__build_url(country_code, year), timeout=REQUEST_TIMEOUT_SECONDS).json()
             for event in events_json:
                 events.append(Event.from_nager_public_holidays_api(event))
         except Exception as e:
@@ -262,7 +264,7 @@ class InadiutoriumAPI:
     def get_events_for_month(self, year=-1, month=-1):
         events = []
         try:
-            events_json = requests.get(self.__build_url(year, month)).json()
+            events_json = requests.get(self.__build_url(year, month), timeout=REQUEST_TIMEOUT_SECONDS).json()
             for event in events_json:
                 events.append(Event.from_inadiutorium_api(event))
             time.sleep(0.5)
@@ -293,7 +295,7 @@ class HijriCalendarAPI:
     def get_events_for_month(self, month=-1, year=-1):
         events = []
         try:
-            dates_json  = requests.get(self.__build_url(month, year)).json()["data"]
+            dates_json  = requests.get(self.__build_url(month, year), timeout=REQUEST_TIMEOUT_SECONDS).json()["data"]
             for date in dates_json:
                 if len(date["hijri"]["holidays"]) > 0:
                     events.append(Event.from_hijri_api(date))
@@ -305,7 +307,7 @@ class HijriCalendarAPI:
     def get_events(self, year=-1):
         events = []
         for month in range(0, 12):
-            events.extend(self.get_events_for_month(year, month + 1))
+            events.extend(self.get_events_for_month(month + 1, year))
         return events
 
 

@@ -7,7 +7,7 @@ import uuid
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session, current_app, abort
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from ..models import Entity, db
+from ..models import Entity, EntityComment, db
 from ..utils.utils import Utils
 from ..utils.logging_setup import get_logger
 from ..utils.translations import _
@@ -636,7 +636,60 @@ def list_places():
         Entity.category,  # Then by category alphabetically
         Entity.name  # Finally by name alphabetically
     ).all()
-    return render_template('places.html', places=places)
+    commented_entity_ids = {
+        row.entity_id for row in
+        EntityComment.query.filter_by(user_id=current_user.id).with_entities(EntityComment.entity_id).all()
+    }
+    return render_template('places.html', places=places, commented_entity_ids=commented_entity_ids)
+
+@entity_api_bp.route('/entities/<int:entity_id>/comment', methods=['GET'])
+@login_required
+def get_entity_comment(entity_id):
+    """Return the current user's private comment on an entity, if any.
+
+    Private to the requesting user regardless of ownership -- an entity's
+    owner has no visibility into other users' comments on their own place.
+    """
+    entity = Entity.query.get_or_404(entity_id)
+    if not entity.can_view(current_user.id):
+        abort(403)
+
+    comment = EntityComment.query.filter_by(entity_id=entity_id, user_id=current_user.id).first()
+    return jsonify({'comment': comment.to_dict() if comment else None})
+
+@entity_api_bp.route('/entities/<int:entity_id>/comment', methods=['PUT'])
+@login_required
+def save_entity_comment(entity_id):
+    """Create or update the current user's private comment on an entity."""
+    entity = Entity.query.get_or_404(entity_id)
+    if not entity.can_view(current_user.id):
+        abort(403)
+
+    data = request.get_json(silent=True) or {}
+    body = (data.get('body') or '').strip()
+    if not body:
+        return jsonify({'error': _('Comment cannot be empty.')}), 400
+
+    comment = EntityComment.query.filter_by(entity_id=entity_id, user_id=current_user.id).first()
+    if comment:
+        comment.body = body
+    else:
+        comment = EntityComment(entity_id=entity_id, user_id=current_user.id, body=body)
+        db.session.add(comment)
+
+    db.session.commit()
+    return jsonify({'comment': comment.to_dict()})
+
+@entity_api_bp.route('/entities/<int:entity_id>/comment', methods=['DELETE'])
+@login_required
+def delete_entity_comment(entity_id):
+    """Remove the current user's private comment on an entity, if one exists."""
+    comment = EntityComment.query.filter_by(entity_id=entity_id, user_id=current_user.id).first()
+    if comment:
+        db.session.delete(comment)
+        db.session.commit()
+
+    return jsonify({'success': True})
 
 def get_open_entities(current_time, current_day, current_hour, debug=False):
     """

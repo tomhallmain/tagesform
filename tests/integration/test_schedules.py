@@ -34,7 +34,7 @@ def test_create_schedule(client, auth, test_user, db_session):
     
     response = client.post('/new-schedule', data=schedule_data, follow_redirects=True)
     assert response.status_code == 200
-    assert_in_response('Schedule created successfully!', response)  # flash(), not translated
+    assert_in_response(expected_text('Schedule created successfully!'), response)
     
     # Verify schedule was created
     schedule = ScheduleRecord.query.filter_by(title='Test Schedule').first()
@@ -88,10 +88,9 @@ def test_schedule_validation(client, auth):
     })
     
     assert response.status_code == 400
-    # flash()es -- not translated
-    assert_in_response('Title is required', response)
-    assert_in_response('Start time and end time are required', response)
-    assert_in_response('Recurrence is required', response)
+    assert_in_response(expected_text('Title is required'), response)
+    assert_in_response(expected_text('Start time and end time are required'), response)
+    assert_in_response(expected_text('Recurrence is required'), response)
 
     # Test with invalid time format
     response = client.post('/new-schedule', data={
@@ -102,7 +101,7 @@ def test_schedule_validation(client, auth):
     })
 
     assert response.status_code == 400
-    assert_in_response('Invalid time format. Please use HH:MM format', response)  # flash(), not translated
+    assert_in_response(expected_text('Invalid time format. Please use HH:MM format'), response)
 
 def test_schedule_user_isolation(client, auth, test_user, db_session):
     """Test that users can only see their own schedules"""

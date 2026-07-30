@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from ..models import ScheduleRecord, db
 from ..services.integration_service import integration_service
+from ..utils.translations import _
 
 # Create two separate blueprints
 schedules_bp = Blueprint('schedules', __name__)  # For schedule pages
@@ -35,23 +36,23 @@ def new_schedule():
         if recurrence == 'weekly':
             weekday_options = [int(day) for day in request.form.getlist('weekday_options[]')]
             if not weekday_options:
-                flash('Please select at least one day of the week for weekly schedules', 'error')
+                flash(_('Please select at least one day of the week for weekly schedules'), 'error')
                 has_errors = True
 
         if not title:
-            flash('Title is required', 'error')
+            flash(_('Title is required'), 'error')
             has_errors = True
 
         if not start_time or not end_time:
-            flash('Start time and end time are required', 'error')
+            flash(_('Start time and end time are required'), 'error')
             has_errors = True
 
         if not recurrence:
-            flash('Recurrence is required', 'error')
+            flash(_('Recurrence is required'), 'error')
             has_errors = True
 
         if recurrence == 'annual' and not annual_dates:
-            flash('At least one annual date is required for annual schedules', 'error')
+            flash(_('At least one annual date is required for annual schedules'), 'error')
             has_errors = True
 
         # Validate month/day combinations
@@ -59,13 +60,13 @@ def new_schedule():
             for date in annual_dates:
                 month, day = date['month'], date['day']
                 if month in [4, 6, 9, 11] and day > 30:
-                    flash(f'Invalid date: {month}/{day} - this month only has 30 days', 'error')
+                    flash(_('Invalid date: {0}/{1} - this month only has 30 days').format(month, day), 'error')
                     has_errors = True
                 elif month == 2 and day > 29:
-                    flash(f'Invalid date: {month}/{day} - February only has 29 days', 'error')
+                    flash(_('Invalid date: {0}/{1} - February only has 29 days').format(month, day), 'error')
                     has_errors = True
                 elif day > 31:
-                    flash(f'Invalid date: {month}/{day} - no month has more than 31 days', 'error')
+                    flash(_('Invalid date: {0}/{1} - no month has more than 31 days').format(month, day), 'error')
                     has_errors = True
 
         if has_errors:
@@ -76,7 +77,7 @@ def new_schedule():
             start_minutes = ScheduleRecord.time_to_minutes(start_time)
             end_minutes = ScheduleRecord.time_to_minutes(end_time)
         except ValueError:
-            flash('Invalid time format. Please use HH:MM format', 'error')
+            flash(_('Invalid time format. Please use HH:MM format'), 'error')
             return render_template('new_schedule.html'), 400
 
         # Create new schedule with times converted to minutes
@@ -96,7 +97,7 @@ def new_schedule():
         db.session.add(schedule)
         db.session.commit()
 
-        flash('Schedule created successfully!', 'success')
+        flash(_('Schedule created successfully!'), 'success')
         return redirect(url_for('main.index'))
 
     return render_template('new_schedule.html')
@@ -121,11 +122,11 @@ def toggle_schedule(schedule_id):
     """Toggle a schedule's enabled status"""
     schedule = ScheduleRecord.query.filter_by(id=schedule_id, user_id=current_user.id).first()
     if not schedule:
-        return jsonify({'success': False, 'error': 'Schedule not found'}), 404
+        return jsonify({'success': False, 'error': _('Schedule not found')}), 404
         
     data = request.get_json()
     if 'enabled' not in data:
-        return jsonify({'success': False, 'error': 'Missing enabled parameter'}), 400
+        return jsonify({'success': False, 'error': _('Missing enabled parameter')}), 400
         
     schedule.enabled = data['enabled']
     db.session.commit()
@@ -138,7 +139,7 @@ def edit_schedule(schedule_id):
     """Edit an existing schedule"""
     schedule = ScheduleRecord.query.filter_by(id=schedule_id, user_id=current_user.id).first()
     if not schedule:
-        flash('Schedule not found', 'error')
+        flash(_('Schedule not found'), 'error')
         return redirect(url_for('schedules.list_schedules'))
 
     if request.method == 'POST':
@@ -167,23 +168,23 @@ def edit_schedule(schedule_id):
         if recurrence == 'weekly':
             weekday_options = [int(day) for day in request.form.getlist('weekday_options[]')]
             if not weekday_options:
-                flash('Please select at least one day of the week for weekly schedules', 'error')
+                flash(_('Please select at least one day of the week for weekly schedules'), 'error')
                 has_errors = True
 
         if not title:
-            flash('Title is required', 'error')
+            flash(_('Title is required'), 'error')
             has_errors = True
 
         if not start_time or not end_time:
-            flash('Start time and end time are required', 'error')
+            flash(_('Start time and end time are required'), 'error')
             has_errors = True
 
         if not recurrence:
-            flash('Recurrence is required', 'error')
+            flash(_('Recurrence is required'), 'error')
             has_errors = True
 
         if recurrence == 'annual' and not annual_dates:
-            flash('At least one annual date is required for annual schedules', 'error')
+            flash(_('At least one annual date is required for annual schedules'), 'error')
             has_errors = True
 
         # Validate month/day combinations
@@ -191,13 +192,13 @@ def edit_schedule(schedule_id):
             for date in annual_dates:
                 month, day = date['month'], date['day']
                 if month in [4, 6, 9, 11] and day > 30:
-                    flash(f'Invalid date: {month}/{day} - this month only has 30 days', 'error')
+                    flash(_('Invalid date: {0}/{1} - this month only has 30 days').format(month, day), 'error')
                     has_errors = True
                 elif month == 2 and day > 29:
-                    flash(f'Invalid date: {month}/{day} - February only has 29 days', 'error')
+                    flash(_('Invalid date: {0}/{1} - February only has 29 days').format(month, day), 'error')
                     has_errors = True
                 elif day > 31:
-                    flash(f'Invalid date: {month}/{day} - no month has more than 31 days', 'error')
+                    flash(_('Invalid date: {0}/{1} - no month has more than 31 days').format(month, day), 'error')
                     has_errors = True
 
         if has_errors:
@@ -208,7 +209,7 @@ def edit_schedule(schedule_id):
             start_minutes = ScheduleRecord.time_to_minutes(start_time)
             end_minutes = ScheduleRecord.time_to_minutes(end_time)
         except ValueError:
-            flash('Invalid time format. Please use HH:MM format', 'error')
+            flash(_('Invalid time format. Please use HH:MM format'), 'error')
             return render_template('edit_schedule.html', schedule=schedule), 400
 
         # Update schedule
@@ -225,7 +226,7 @@ def edit_schedule(schedule_id):
 
         db.session.commit()
 
-        flash('Schedule updated successfully!', 'success')
+        flash(_('Schedule updated successfully!'), 'success')
         return redirect(url_for('schedules.list_schedules'))
 
     return render_template('edit_schedule.html', schedule=schedule) 

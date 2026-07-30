@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, current_user, login_required
 from ..models import User, db
 from ..models import Activity, ScheduleRecord, Entity
+from ..utils.translations import _
 
 # Create two separate blueprints
 auth_bp = Blueprint('auth', __name__)  # For auth routes
@@ -20,11 +21,11 @@ def login():
         
         user = User.query.filter_by(username=username).first()
         if user is None:
-            flash('Invalid username or password', 'error')
+            flash(_('Invalid username or password'), 'error')
             return redirect(url_for('auth.login'))
             
         if not user.check_password(password):
-            flash('Invalid username or password', 'error')
+            flash(_('Invalid username or password'), 'error')
             return redirect(url_for('auth.login'))
         
         # Log the user in and remember them
@@ -50,13 +51,13 @@ def register():
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
         if password != confirm_password:
-            flash('Passwords do not match', 'error')
+            flash(_('Passwords do not match'), 'error')
             return render_template('register.html')
         if User.query.filter_by(username=username).first():
-            flash('Username already exists')
+            flash(_('Username already exists'))
             return redirect(url_for('auth.register'))
         if User.query.filter_by(email=email).first():
-            flash('Email already registered')
+            flash(_('Email already registered'))
             return redirect(url_for('auth.register'))
         
         user = User(username=username, email=email)
@@ -64,7 +65,7 @@ def register():
         db.session.add(user)
         db.session.commit()
         
-        flash('Registration successful')
+        flash(_('Registration successful'))
         return redirect(url_for('auth.login'))
     
     return render_template('register.html')
@@ -118,10 +119,10 @@ def update_profile():
 
     # Validate username and email aren't taken by other users
     if username != current_user.username and User.query.filter_by(username=username).first():
-        flash('Username already exists', 'error')
+        flash(_('Username already exists'), 'error')
         return redirect(url_for('profile.profile'))
     if email != current_user.email and User.query.filter_by(email=email).first():
-        flash('Email already registered', 'error')
+        flash(_('Email already registered'), 'error')
         return redirect(url_for('profile.profile'))
 
     # Update user information
@@ -131,10 +132,10 @@ def update_profile():
     # Update password if provided
     if new_password:
         if new_password != confirm_password:
-            flash('Passwords do not match', 'error')
+            flash(_('Passwords do not match'), 'error')
             return redirect(url_for('profile.profile'))
         current_user.set_password(new_password)
 
     db.session.commit()
-    flash('Profile updated successfully', 'success')
+    flash(_('Profile updated successfully'), 'success')
     return redirect(url_for('profile.profile')) 

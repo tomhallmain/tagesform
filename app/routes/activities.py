@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from ..models import Activity, ScheduleRecord, db
 from ..services.activity_service import infer_activity_importance
+from ..utils.translations import _
 
 # Create two separate blueprints
 activities_bp = Blueprint('activities', __name__)  # For activity pages
@@ -25,18 +26,18 @@ def add_activity():
 
         # Validate required fields
         if not title:
-            flash('Title is required', 'error')
+            flash(_('Title is required'), 'error')
             return render_template('add_activity.html'), 400
-            
+
         if not scheduled_date or not scheduled_time:
-            flash('Date and time are required', 'error')
+            flash(_('Date and time are required'), 'error')
             return render_template('add_activity.html'), 400
 
         try:
             # Create datetime object from date and time
             scheduled_datetime = datetime.strptime(f"{scheduled_date} {scheduled_time}", "%Y-%m-%d %H:%M")
         except ValueError:
-            flash('Invalid date or time format', 'error')
+            flash(_('Invalid date or time format'), 'error')
             return render_template('add_activity.html'), 400
 
         # Create new activity
@@ -58,7 +59,7 @@ def add_activity():
         db.session.add(activity)
         db.session.commit()
 
-        flash('Activity added successfully!', 'success')
+        flash(_('Activity added successfully!'), 'success')
         return redirect(url_for('main.index'))
 
     return render_template('add_activity.html')

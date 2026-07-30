@@ -11,14 +11,15 @@ def test_login_page(client):
     """Test login page loads correctly"""
     response = client.get('/login', follow_redirects=True)
     assert response.status_code == 200
-    # <title>Login - Tagesform</title> is not run through _() -- always English.
-    assert_in_response('Login', response)
+    assert_in_response(expected_text('Login - Tagesform'), response)
 
 def test_register_page(client):
     """Test register page loads correctly"""
     response = client.get('/register', follow_redirects=True)
     assert response.status_code == 200
-    assert_in_response(expected_text('Register'), response)
+    # register.html is standalone -- doesn't extend base.html, so the nav's
+    # _('Register') link never renders here; only the <title> does.
+    assert_in_response(expected_text('Register - Tagesform'), response)
 
 def test_successful_registration(client, db_session):
     """Test successful user registration"""
@@ -29,7 +30,7 @@ def test_successful_registration(client, db_session):
         'confirm_password': 'testpass123'
     }, follow_redirects=True)
     assert response.status_code == 200  # Should end up at login page
-    assert_in_response('Registration successful', response)  # flash(), not translated
+    assert_in_response(expected_text('Registration successful'), response)
 
     # Verify user was created
     user = User.query.filter_by(username='testuser').first()
@@ -45,7 +46,7 @@ def test_duplicate_username_registration(client, test_user):
         'password': 'testpass123',
         'confirm_password': 'testpass123'
     }, follow_redirects=True)
-    assert_in_response('Username already exists', response)  # flash(), not translated
+    assert_in_response(expected_text('Username already exists'), response)
 
 def test_duplicate_email_registration(client, test_user):
     """Test registration with existing email"""
@@ -55,7 +56,7 @@ def test_duplicate_email_registration(client, test_user):
         'password': 'testpass123',
         'confirm_password': 'testpass123'
     }, follow_redirects=True)
-    assert_in_response('Email already registered', response)  # flash(), not translated
+    assert_in_response(expected_text('Email already registered'), response)
 
 def test_password_mismatch_registration(client):
     """Test registration with mismatched passwords"""
@@ -65,7 +66,7 @@ def test_password_mismatch_registration(client):
         'password': 'testpass123',
         'confirm_password': 'differentpass'
     }, follow_redirects=True)
-    assert_in_response('Passwords do not match', response)  # flash(), not translated
+    assert_in_response(expected_text('Passwords do not match'), response)
 
 def test_successful_login(client, test_user):
     """Test successful login"""
@@ -105,8 +106,8 @@ def test_invalid_login(client, test_user):
     with client.session_transaction() as sess:
         assert '_user_id' not in sess
 
-    # Check for error message -- flash(), not translated
-    assert_in_response('Invalid username or password', response)
+    # Check for error message
+    assert_in_response(expected_text('Invalid username or password'), response)
 
     # Check that we're on the login page
     assert_in_response(expected_text('Sign in to your account'), response)
@@ -125,8 +126,7 @@ def test_logout(client, auth):
 def test_login_required_redirect(client):
     """Test that protected routes redirect to login"""
     response = client.get('/profile/', follow_redirects=True)
-    # <title>Login - Tagesform</title> is not run through _() -- always English.
-    assert_in_response('Login', response)
+    assert_in_response(expected_text('Login - Tagesform'), response)
     assert response.request.path == '/login'
 
 def test_profile_update(client, auth, test_user, db_session):
@@ -141,7 +141,7 @@ def test_profile_update(client, auth, test_user, db_session):
         'confirm_password': 'newpass123'
     }, follow_redirects=True)
 
-    assert_in_response('Profile updated successfully', response)  # flash(), not translated
+    assert_in_response(expected_text('Profile updated successfully'), response)
 
     # Verify changes
     updated_user = db.session.get(User, test_user.id)

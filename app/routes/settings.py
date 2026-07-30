@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from ..models import Activity, ScheduleRecord, Entity, db
-from ..utils.translations import I18N
+from ..utils.translations import I18N, _
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 
@@ -25,11 +25,11 @@ def update_notifications():
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
-            'message': 'Notification settings updated!',
+            'message': _('Notification settings updated!'),
             'type': 'success'
         })
     
-    flash('Notification settings updated!', 'success')
+    flash(_('Notification settings updated!'), 'success')
     return redirect(url_for('settings.settings'))
 
 @settings_bp.route('/update-display', methods=['POST'])
@@ -47,12 +47,12 @@ def update_display():
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
-            'message': 'Display settings updated!',
+            'message': _('Display settings updated!'),
             'type': 'success',
             'preferences': preferences
         })
     
-    flash('Display settings updated!', 'success')
+    flash(_('Display settings updated!'), 'success')
     return redirect(url_for('settings.settings'))
 
 @settings_bp.route('/update-weather', methods=['POST'])
@@ -68,11 +68,11 @@ def update_weather():
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
-            'message': 'Weather settings updated!',
+            'message': _('Weather settings updated!'),
             'type': 'success'
         })
     
-    flash('Weather settings updated!', 'success')
+    flash(_('Weather settings updated!'), 'success')
     return redirect(url_for('settings.settings'))
 
 @settings_bp.route('/update-language', methods=['POST'])
@@ -87,11 +87,11 @@ def update_language():
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
-            'message': 'Language settings updated!',
+            'message': _('Language settings updated!'),
             'type': 'success'
         })
     
-    flash('Language settings updated!', 'success')
+    flash(_('Language settings updated!'), 'success')
     return redirect(url_for('settings.settings'))
 
 @settings_bp.route('/export-data')
@@ -140,23 +140,23 @@ def delete_account():
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({
-                'message': 'Account deleted successfully',
+                'message': _('Account deleted successfully'),
                 'type': 'success',
                 'redirect': url_for('main.index')
             })
         
-        flash('Your account has been deleted successfully', 'success')
+        flash(_('Your account has been deleted successfully'), 'success')
         return redirect(url_for('main.index'))
         
     except Exception as e:
         db.session.rollback()
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({
-                'message': 'Failed to delete account',
+                'message': _('Failed to delete account'),
                 'type': 'error'
             }), 500
         
-        flash('Failed to delete account', 'error')
+        flash(_('Failed to delete account'), 'error')
         return redirect(url_for('settings.settings'))
 
 @settings_bp.route('/settings/clear-data', methods=['POST'])
@@ -173,5 +173,5 @@ def clear_data():
     Entity.query.filter_by(user_id=current_user.id).delete()
     
     db.session.commit()
-    flash('All data cleared successfully', 'success')
+    flash(_('All data cleared successfully'), 'success')
     return redirect(url_for('settings.settings')) 

@@ -41,7 +41,7 @@ class TestLanguageSettings:
         }, follow_redirects=True)
 
         assert response.status_code == 200
-        assert_in_response('Language settings updated!', response)  # flash(), not translated
+        assert_in_response(expected_text('Language settings updated!', locale='de'), response)
 
         # Verify user preference was updated
         db_session.refresh(test_user)
@@ -57,7 +57,7 @@ class TestLanguageSettings:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data['message'] == 'Language settings updated!'  # not translated (see routes/settings.py)
+        assert data['message'] == expected_text('Language settings updated!', locale='fr')
         assert data['type'] == 'success'
 
         # Verify user preference was updated

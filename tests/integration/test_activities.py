@@ -39,8 +39,7 @@ def test_add_activity(mock_infer, client, auth, test_user, db_session):
     
     response = client.post('/add-activity', data=activity_data, follow_redirects=True)
     assert response.status_code == 200
-    # Not run through _() in the route (see app/routes/activities.py) -- always English.
-    assert_in_response('Activity added successfully!', response)
+    assert_in_response(expected_text('Activity added successfully!'), response)
     
     # Verify activity was created
     activity = Activity.query.filter_by(title='Test Activity').first()
@@ -94,7 +93,7 @@ def test_add_activity_validation(client, auth):
     }, follow_redirects=True)
     
     assert response.status_code == 400
-    assert_in_response('Title is required', response)  # flash(), not translated
+    assert_in_response(expected_text('Title is required'), response)
 
     # Test with title but missing date/time
     response = client.post('/add-activity', data={
@@ -104,7 +103,7 @@ def test_add_activity_validation(client, auth):
     }, follow_redirects=True)
 
     assert response.status_code == 400
-    assert_in_response('Date and time are required', response)  # flash(), not translated
+    assert_in_response(expected_text('Date and time are required'), response)
 
     # Test with invalid date format
     response = client.post('/add-activity', data={
@@ -114,7 +113,7 @@ def test_add_activity_validation(client, auth):
     }, follow_redirects=True)
 
     assert response.status_code == 400
-    assert_in_response('Invalid date or time format', response)  # flash(), not translated
+    assert_in_response(expected_text('Invalid date or time format'), response)
 
 def test_activity_user_isolation(client, auth, test_user, db_session):
     """Test that users can only see their own activities"""

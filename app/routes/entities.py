@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from ..models import Entity, db
 from ..utils.utils import Utils
 from ..utils.logging_setup import get_logger
+from ..utils.translations import _
 
 logger = get_logger('entities')
 
@@ -122,13 +123,13 @@ def add_place():
                 rating = int(rating_str)
                 if rating < 0 or rating > 4:
                     if is_ajax:
-                        return jsonify({'error': 'Invalid rating value. Must be between 0 and 4.'}), 400
-                    flash('Invalid rating value. Must be between 0 and 4.')
+                        return jsonify({'error': _('Invalid rating value. Must be between 0 and 4.')}), 400
+                    flash(_('Invalid rating value. Must be between 0 and 4.'))
                     return render_template('add_place.html'), 400
             except ValueError:
                 if is_ajax:
-                    return jsonify({'error': 'Invalid rating value. Must be a number.'}), 400
-                flash('Invalid rating value. Must be a number.')
+                    return jsonify({'error': _('Invalid rating value. Must be a number.')}), 400
+                flash(_('Invalid rating value. Must be a number.'))
                 return render_template('add_place.html'), 400
 
         # If a valid rating is provided, automatically set visited to True
@@ -138,8 +139,8 @@ def add_place():
         # Rest of validation and entity creation
         if not name:
             if is_ajax:
-                return jsonify({'error': 'Name is required.'}), 400
-            flash('Name is required.')
+                return jsonify({'error': _('Name is required.')}), 400
+            flash(_('Name is required.'))
             return render_template('add_place.html'), 400
 
         # Initialize properties dictionary
@@ -182,7 +183,7 @@ def add_place():
                 })
             
             # For regular form submission, show error
-            flash('Potential duplicate found. Please review the details before saving.', 'warning')
+            flash(_('Potential duplicate found. Please review the details before saving.'), 'warning')
             return render_template('add_place.html', 
                                 name=name, 
                                 category=category, 
@@ -219,16 +220,16 @@ def add_place():
             db.session.add(entity)
             db.session.commit()
 
-            flash('Place added successfully!', 'success')
+            flash(_('Place added successfully!'), 'success')
             return redirect(url_for('entities.list_places', _anchor=f'entity-{entity.id}'))
 
         except Exception as e:
             db.session.rollback()
             # Check if it's a duplicate key error
             if 'UNIQUE constraint failed' in str(e):
-                flash('This place already exists in your list.', 'error')
+                flash(_('This place already exists in your list.'), 'error')
             else:
-                flash(f'Error adding place: {str(e)}', 'error')
+                flash(_('Error adding place: {0}').format(str(e)), 'error')
             return render_template('add_place.html', 
                                 name=name, 
                                 category=category, 
@@ -250,14 +251,14 @@ def delete_place(entity_id):
     
     # Ensure user owns this entity
     if not entity.can_edit(current_user.id):
-        flash('You do not have permission to delete this place.', 'error')
+        flash(_('You do not have permission to delete this place.'), 'error')
         return redirect(url_for('entities.list_places'))
     
     name = entity.name
     db.session.delete(entity)
     db.session.commit()
     
-    flash(f'Successfully deleted "{name}"', 'success')
+    flash(_('Successfully deleted "{0}"').format(name), 'success')
     return redirect(url_for('entities.list_places'))
 
 @entities_bp.route('/review-import')
@@ -266,18 +267,18 @@ def review_import():
     # Get the import ID from session
     import_id = session.get('current_import_id')
     if not import_id:
-        flash('No data to review. Please import a CSV file first.', 'error')
+        flash(_('No data to review. Please import a CSV file first.'), 'error')
         return redirect(url_for('entities.import_places'))
     
     # Get the imported data from the database
     import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
-        flash('Import data not found or expired.', 'error')
+        flash(_('Import data not found or expired.'), 'error')
         return redirect(url_for('entities.import_places'))
     
     data = import_data.json_data
     if not data:
-        flash('No data to review.', 'error')
+        flash(_('No data to review.'), 'error')
         return redirect(url_for('entities.import_places'))
     
     # Check if data is already processed (has duplicates and non_duplicates)
@@ -326,18 +327,18 @@ def confirm_import():
     # Get the import ID from session
     import_id = session.get('current_import_id')
     if not import_id:
-        flash('No data to import. Please import a CSV file first.', 'error')
+        flash(_('No data to import. Please import a CSV file first.'), 'error')
         return redirect(url_for('entities.import_places'))
     
     # Get the import data from database
     import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
-        flash('Import data not found or expired.', 'error')
+        flash(_('Import data not found or expired.'), 'error')
         return redirect(url_for('entities.import_places'))
     
     data = import_data.json_data
     if not data:
-        flash('No data to import.', 'error')
+        flash(_('No data to import.'), 'error')
         return redirect(url_for('entities.import_places'))
     
     try:
@@ -364,12 +365,12 @@ def confirm_import():
         # Clear the import ID from session
         session.pop('current_import_id', None)
         
-        flash(f'Successfully imported {entities_added} places', 'success')
+        flash(_('Successfully imported {0} places').format(entities_added), 'success')
         return redirect(url_for('entities.list_places'))
         
     except Exception as e:
         db.session.rollback()
-        flash(f'Error importing places: {str(e)}', 'error')
+        flash(_('Error importing places: {0}').format(str(e)), 'error')
         return redirect(url_for('entities.review_import'))
 
 @entities_bp.route('/import-places', methods=['GET', 'POST'])
@@ -378,18 +379,18 @@ def import_places():
     if request.method == 'POST':
         if 'file' not in request.files:
             logger.warning("No file uploaded in import_places")
-            flash('No file uploaded', 'error')
+            flash(_('No file uploaded'), 'error')
             return redirect(request.url)
         
         file = request.files['file']
         if file.filename == '':
             logger.warning("No file selected in import_places")
-            flash('No file selected', 'error')
+            flash(_('No file selected'), 'error')
             return redirect(request.url)
         
         if not file.filename.endswith('.csv'):
             logger.warning(f"Invalid file type uploaded: {file.filename}")
-            flash('Only CSV files are allowed', 'error')
+            flash(_('Only CSV files are allowed'), 'error')
             return redirect(request.url)
         
         # Define expected column names
@@ -445,9 +446,9 @@ def import_places():
                 logger.warning(f"Headers checked for name: {headers}")
                 logger.warning(f"Similar columns found: {similar_columns}")
                 if similar_columns:
-                    raise ValueError(f'Could not find "name" column. Did you mean: {", ".join(similar_columns)}?')
+                    raise ValueError(_('Could not find "name" column. Did you mean: {0}?').format(", ".join(similar_columns)))
                 else:
-                    raise ValueError('CSV file must contain a "name" column')
+                    raise ValueError(_('CSV file must contain a "name" column'))
             
             parsed_entities = []
             skipped_rows = []
@@ -575,7 +576,7 @@ def import_places():
                 parsed_entities.append(entity_params)
             
             if not parsed_entities:
-                flash('No valid places found in the CSV file', 'error')
+                flash(_('No valid places found in the CSV file'), 'error')
                 return redirect(request.url)
             
             # Create a new import record in the database
@@ -596,9 +597,9 @@ def import_places():
             
             # Show warnings about skipped rows and invalid categories
             if skipped_rows:
-                flash(f'Skipped {len(skipped_rows)} rows: {"; ".join(skipped_rows)}', 'warning')
+                flash(_('Skipped {0} rows: {1}').format(len(skipped_rows), "; ".join(skipped_rows)), 'warning')
             if invalid_categories:
-                flash(f'Found invalid categories that were set to "other": {", ".join(invalid_categories)}', 'warning')
+                flash(_('Found invalid categories that were set to "other": {0}').format(", ".join(invalid_categories)), 'warning')
             
             return redirect(url_for('entities.review_import'))
             
@@ -606,7 +607,7 @@ def import_places():
             flash(str(ve), 'error')
             return redirect(request.url)
         except Exception as e:
-            flash(f'Error processing CSV: {str(e)}', 'error')
+            flash(_('Error processing CSV: {0}').format(str(e)), 'error')
             return redirect(request.url)
     
     return render_template('import_places.html')
@@ -747,12 +748,12 @@ def remove_from_import(index):
     # Get the import ID from session
     import_id = session.get('current_import_id')
     if not import_id:
-        return jsonify({'success': False, 'error': 'No active import found'})
+        return jsonify({'success': False, 'error': _('No active import found')})
     
     # Get the import data from database
     import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Import data not found or expired'})
+        return jsonify({'success': False, 'error': _('Import data not found or expired')})
     
     data = import_data.json_data
     non_duplicates = data.get('non_duplicates', [])
@@ -767,7 +768,7 @@ def remove_from_import(index):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
     
-    return jsonify({'success': False, 'error': 'Invalid index'})
+    return jsonify({'success': False, 'error': _('Invalid index')})
 
 @entity_api_bp.route('/entities/handle-duplicate/<int:index>', methods=['POST'])
 @login_required
@@ -778,13 +779,13 @@ def handle_duplicate(index):
     import_id = session.get('current_import_id')
     print(f"Debug - Import ID from session: {import_id}")
     if not import_id:
-        return jsonify({'success': False, 'error': 'No active import found'})
+        return jsonify({'success': False, 'error': _('No active import found')})
     
     # Get the import data from database
     import_data = db.session.get(ImportData, import_id)
     print(f"Debug - Found import data: {import_data is not None}")
     if not import_data or import_data.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Import data not found or expired'})
+        return jsonify({'success': False, 'error': _('Import data not found or expired')})
     
     data = import_data.json_data
     duplicates = data.get('duplicates', [])
@@ -798,11 +799,11 @@ def handle_duplicate(index):
     # Validate index
     if not duplicates:
         print("Debug - No duplicates to process")
-        return jsonify({'success': False, 'error': 'No duplicates to process'})
+        return jsonify({'success': False, 'error': _('No duplicates to process')})
     
     if index < 0 or index >= len(duplicates):
         print(f"Debug - Invalid index {index} for duplicates length {len(duplicates)}")
-        return jsonify({'success': False, 'error': 'Invalid duplicate index'})
+        return jsonify({'success': False, 'error': _('Invalid duplicate index')})
     
     duplicate = duplicates[index]
     action = request.json.get('action')
@@ -821,7 +822,7 @@ def handle_duplicate(index):
             # Update existing entity with new data
             existing_id = duplicate['existing'].get('id')
             if not existing_id:
-                return jsonify({'success': False, 'error': 'Invalid existing entity'})
+                return jsonify({'success': False, 'error': _('Invalid existing entity')})
                 
             existing_entity = Entity.query.get(existing_id)
             if existing_entity and existing_entity.user_id == current_user.id:
@@ -842,7 +843,7 @@ def handle_duplicate(index):
             
         else:
             print(f"Debug - Invalid action: {action}")
-            return jsonify({'success': False, 'error': 'Invalid action'})
+            return jsonify({'success': False, 'error': _('Invalid action')})
         
         # Update the data in the database
         print("Debug - Updating database with new data state")
@@ -871,20 +872,20 @@ def review_non_duplicates():
     # Get the import ID from session
     import_id = session.get('current_import_id')
     if not import_id:
-        flash('No data to review. Please import a CSV file first.', 'error')
+        flash(_('No data to review. Please import a CSV file first.'), 'error')
         return redirect(url_for('entities.import_places'))
     
     # Get the import data from database
     import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
-        flash('Import data not found or expired.', 'error')
+        flash(_('Import data not found or expired.'), 'error')
         return redirect(url_for('entities.import_places'))
     
     data = import_data.json_data
     non_duplicates = data.get('non_duplicates', [])
     
     if not non_duplicates:
-        flash('No non-duplicate entries to review.', 'warning')
+        flash(_('No non-duplicate entries to review.'), 'warning')
         return redirect(url_for('entities.import_places'))
     
     # Update the data to only include non-duplicates
@@ -900,13 +901,13 @@ def review_all():
     # Get the import ID from session
     import_id = session.get('current_import_id')
     if not import_id:
-        flash('No data to review. Please import a CSV file first.', 'error')
+        flash(_('No data to review. Please import a CSV file first.'), 'error')
         return redirect(url_for('entities.import_places'))
     
     # Get the import data from database
     import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
-        flash('Import data not found or expired.', 'error')
+        flash(_('Import data not found or expired.'), 'error')
         return redirect(url_for('entities.import_places'))
     
     data = import_data.json_data
@@ -917,7 +918,7 @@ def review_all():
     all_entries = non_duplicates + [d['new'] for d in duplicates]
     
     if not all_entries:
-        flash('No entries to review.', 'warning')
+        flash(_('No entries to review.'), 'warning')
         return redirect(url_for('entities.import_places'))
     
     # Update the data to include all entries
@@ -933,7 +934,7 @@ def edit_place(entity_id):
     
     # Check if user can edit this entity
     if not entity.can_edit(current_user.id):
-        flash('You do not have permission to edit this place.', 'error')
+        flash(_('You do not have permission to edit this place.'), 'error')
         return redirect(url_for('entities.list_places'))
     
     if request.method == 'POST':
@@ -952,10 +953,10 @@ def edit_place(entity_id):
             try:
                 rating = int(rating_str)
                 if rating < 0 or rating > 4:
-                    flash('Invalid rating value. Must be between 0 and 4.')
+                    flash(_('Invalid rating value. Must be between 0 and 4.'))
                     return render_template('edit_place.html', place=entity), 400
             except ValueError:
-                flash('Invalid rating value. Must be a number.')
+                flash(_('Invalid rating value. Must be a number.'))
                 return render_template('edit_place.html', place=entity), 400
 
         # If a valid rating is provided, automatically set visited to True
@@ -964,7 +965,7 @@ def edit_place(entity_id):
 
         # Rest of validation and entity update
         if not name:
-            flash('Name is required.')
+            flash(_('Name is required.'))
             return render_template('edit_place.html', place=entity), 400
 
         # Initialize properties dictionary
@@ -1004,12 +1005,12 @@ def edit_place(entity_id):
             entity.is_public = is_public
 
             db.session.commit()
-            flash('Place updated successfully!', 'success')
+            flash(_('Place updated successfully!'), 'success')
             return redirect(url_for('entities.list_places'))
 
         except Exception as e:
             db.session.rollback()
-            flash(f'Error updating place: {str(e)}', 'error')
+            flash(_('Error updating place: {0}').format(str(e)), 'error')
             return render_template('edit_place.html', place=entity)
 
     return render_template('edit_place.html', place=entity)
@@ -1027,7 +1028,7 @@ def share_place(entity_id):
     if entity.user_id != current_user.id:
         logger.warning(f"User {current_user.id} attempted to modify sharing settings for entity {entity_id} owned by user {entity.user_id}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'You do not have permission to share this place.'}), 403
+            return jsonify({'error': _('You do not have permission to share this place.')}), 403
         abort(403)
     
     action = request.form.get('share_action')
@@ -1035,16 +1036,16 @@ def share_place(entity_id):
     
     if action == 'make_public':
         entity.is_public = True
-        message = 'Place is now public and can be viewed by all users.'
+        message = _('Place is now public and can be viewed by all users.')
         logger.info(f"Entity {entity_id} ({entity.name}) made public by user {current_user.id}")
     elif action == 'make_private':
         entity.is_public = False
-        message = 'Place is now private.'
+        message = _('Place is now private.')
         logger.info(f"Entity {entity_id} ({entity.name}) made private by user {current_user.id}")
     else:
         logger.error(f"Invalid action received: {action}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Invalid action.'}), 400
+            return jsonify({'error': _('Invalid action.')}), 400
         abort(400)
     
     db.session.commit()
@@ -1066,29 +1067,29 @@ def share_with_user(entity_id):
     
     # Ensure user owns this entity
     if entity.user_id != current_user.id:
-        flash('You do not have permission to share this place.', 'error')
+        flash(_('You do not have permission to share this place.'), 'error')
         return redirect(url_for('entities.list_places'))
     
     username = request.form.get('username')
     if not username:
-        flash('Username is required.', 'error')
+        flash(_('Username is required.'), 'error')
         return redirect(url_for('entities.list_places'))
     
     # Find the user to share with
     from ..models import User
     user_to_share = User.query.filter_by(username=username).first()
     if not user_to_share:
-        flash(f'User "{username}" not found.', 'error')
+        flash(_('User "{0}" not found.').format(username), 'error')
         return redirect(url_for('entities.list_places'))
     
     if user_to_share.id == current_user.id:
-        flash('You cannot share with yourself.', 'error')
+        flash(_('You cannot share with yourself.'), 'error')
         return redirect(url_for('entities.list_places'))
     
     if entity.share_with(user_to_share.id):
-        flash(f'Place shared with {username}.', 'success')
+        flash(_('Place shared with {0}.').format(username), 'success')
     else:
-        flash(f'Place is already shared with {username}.', 'info')
+        flash(_('Place is already shared with {0}.').format(username), 'info')
     
     db.session.commit()
     return redirect(url_for('entities.list_places'))
@@ -1100,24 +1101,24 @@ def unshare_with_user(entity_id):
     
     # Ensure user owns this entity
     if entity.user_id != current_user.id:
-        flash('You do not have permission to modify sharing settings.', 'error')
+        flash(_('You do not have permission to modify sharing settings.'), 'error')
         return redirect(url_for('entities.list_places'))
     
     user_id = request.form.get('user_id')
     if not user_id:
-        flash('User ID is required.', 'error')
+        flash(_('User ID is required.'), 'error')
         return redirect(url_for('entities.list_places'))
     
     try:
         user_id = int(user_id)
     except ValueError:
-        flash('Invalid user ID.', 'error')
+        flash(_('Invalid user ID.'), 'error')
         return redirect(url_for('entities.list_places'))
     
     if entity.unshare_with(user_id):
-        flash('User removed from sharing list.', 'success')
+        flash(_('User removed from sharing list.'), 'success')
     else:
-        flash('User was not in the sharing list.', 'info')
+        flash(_('User was not in the sharing list.'), 'info')
     
     db.session.commit()
     return redirect(url_for('entities.list_places'))
@@ -1275,7 +1276,7 @@ def check_duplicates(import_id):
     """Check for duplicates in the import data"""
     import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
-        return jsonify({'error': 'Import not found'}), 404
+        return jsonify({'error': _('Import not found')}), 404
 
     # ... rest of the function ...
 
@@ -1285,6 +1286,6 @@ def handle_duplicates(import_id):
     """Handle duplicate actions"""
     import_data = db.session.get(ImportData, import_id)
     if not import_data or import_data.user_id != current_user.id:
-        return jsonify({'error': 'Import not found'}), 404
+        return jsonify({'error': _('Import not found')}), 404
 
     # ... rest of the function ... 

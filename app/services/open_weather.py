@@ -115,13 +115,14 @@ class OpenWeatherAPI:
     HOURLY_FORECAST_ENDPOINT = "https://api.openweathermap.org/data/2.5/forecast"
     GEO_ENDPOINT = "https://api.openweathermap.org/geo/1.0/direct"
     api_key = config.open_weather_api_key
-    
+    REQUEST_TIMEOUT_SECONDS = 10
+
     def __init__(self):
         pass
 
     def get_coordinates(self, city=config.open_weather_city):
         url = f"{self.GEO_ENDPOINT}?q={city}&limit=3&appid={self.api_key}"
-        response = requests.get(url)
+        response = requests.get(url, timeout=self.REQUEST_TIMEOUT_SECONDS)
         resp_json = response.json()[0]
         return float(resp_json["lat"]), float(resp_json["lon"])
 
@@ -129,10 +130,10 @@ class OpenWeatherAPI:
         lat, lon = self.get_coordinates(city)
 
         current_weather_url = f"{self.WEATHER_ENDPOINT}?lat={lat}&lon={lon}&appid={self.api_key}&units=imperial"
-        current_weather_response = requests.get(current_weather_url)
+        current_weather_response = requests.get(current_weather_url, timeout=self.REQUEST_TIMEOUT_SECONDS)
 
         hourly_forecast_url = f"{self.HOURLY_FORECAST_ENDPOINT}?lat={lat}&lon={lon}&appid={self.api_key}&units=imperial"
-        hourly_forecast_response = requests.get(hourly_forecast_url)
+        hourly_forecast_response = requests.get(hourly_forecast_url, timeout=self.REQUEST_TIMEOUT_SECONDS)
 
         weather = OpenWeatherResponse(current_weather_response.json(), hourly_forecast_response.json())
         return weather

@@ -1,5 +1,6 @@
 import pytest
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from app.models import Entity, ScheduleRecord, Activity, db
 from app.services.integration_service import integration_service
 from flask import current_app
@@ -7,6 +8,33 @@ from flask_login import login_user
 from freezegun import freeze_time
 
 pytestmark = pytest.mark.integration
+
+_FAKE_WEATHER = {
+    'datetime': '2024-03-15T12:00:00',
+    'city': 'Testville, US',
+    'temperature': 68,
+    'feels_like': 66,
+    'humidity': '50%',
+    'pressure': '1013 hPa',
+    'wind': '5 miles per hour',
+    'rain': None,
+    'clouds': '10%',
+    'description': 'Clear, clear sky',
+    'sunrise': '06:30',
+    'sunset': '19:45',
+    'hourly_forecast': None,
+    'daytime_rain_forecast': None
+}
+
+@pytest.fixture(autouse=True)
+def mock_weather():
+    """get_dashboard_data() always calls OpenWeatherAPI, which would
+    otherwise make real, unmocked network requests on every test in this
+    file (see app/services/open_weather.py) -- patch it at the service
+    boundary with a deterministic fake so these tests don't depend on
+    network access or a real OPEN_WEATHER_API_KEY."""
+    with patch.object(integration_service, 'get_current_weather', return_value=dict(_FAKE_WEATHER)):
+        yield
 
 def assert_event_in_timeframe(events, title, timeframe, event_type='activity'):
     """Helper method to check if an event (activity or schedule) exists in a timeframe and provide detailed output on failure.

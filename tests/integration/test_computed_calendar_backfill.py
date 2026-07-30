@@ -15,6 +15,21 @@ def _fake_hebcal_event(year):
     return Event(name=f"Test Holiday {year}", date=datetime(year, 9, 12), source='Hebcal')
 
 
+def _fake_usno_event(year):
+    return Event(name="Vernal Equinox", date=datetime(year, 3, 20), source='USNO')
+
+
+@pytest.fixture(autouse=True)
+def mock_usno_by_default():
+    """USNO is a real, network-calling source in computed_sources (unlike
+    NobelPrizeSchedule, which is pure computation) -- keep it silent by
+    default so tests focused on Hebcal/Nobel don't hit the network. Tests
+    that actually exercise USNO override this with their own patch."""
+    with patch.object(integration_service.calendar_aggregator.usno_astronomical_events_api,
+                       'get_events', return_value=[]):
+        yield
+
+
 def test_backfill_populates_missing_years_on_first_run(app, db_session):
     with freeze_time("2026-01-01"):
         with patch.object(integration_service.calendar_aggregator.hebcal_api, 'get_events',
@@ -77,6 +92,19 @@ def test_backfill_populates_nobel_prize_schedule_using_real_curated_data(app, db
     ).first()
     assert physics_2027 is not None
     assert physics_2027.date == datetime(2027, 10, 6)
+
+
+def test_backfill_populates_usno_astronomical_events(app, db_session):
+    with freeze_time("2026-01-01"):
+        with patch.object(integration_service.calendar_aggregator.hebcal_api, 'get_events', return_value=[]), \
+             patch.object(integration_service.calendar_aggregator.usno_astronomical_events_api, 'get_events',
+                           side_effect=lambda year: [_fake_usno_event(year)]) as mock_get_events:
+            backfill_computed_calendar_events(app)
+
+    assert mock_get_events.call_count == COMPUTED_CALENDAR_BACKFILL_YEARS
+
+    cached_years = {row.year for row in EventCache.query.filter_by(source='USNO').all()}
+    assert cached_years == set(range(2026, 2026 + COMPUTED_CALENDAR_BACKFILL_YEARS))
 
 
 def test_backfill_failure_for_one_year_does_not_block_other_years(app, db_session):

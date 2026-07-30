@@ -199,6 +199,74 @@ class Event:
         return new_event
 
     @staticmethod
+    def from_usno_season_api(item):
+        """item shape: {'year', 'month', 'day', 'phenom', 'time'} -- phenom
+        is one of 'Equinox', 'Solstice', 'Perihelion', 'Aphelion'."""
+        notes = []
+        if "time" in item:
+            notes.append({"time_utc": item["time"]})
+        new_event = Event(name=item["phenom"],
+            date=datetime.datetime(item["year"], item["month"], item["day"]),
+            source="USNO",
+            fixed=True,
+            country=None,
+            other_name=None,
+            notes=notes)
+        return new_event
+
+    @staticmethod
+    def from_usno_eclipse_api(item):
+        """item shape: {'year', 'month', 'day', 'event'} -- event is a
+        description like 'Annular Solar Eclipse'."""
+        new_event = Event(name=item["event"],
+            date=datetime.datetime(item["year"], item["month"], item["day"]),
+            source="USNO",
+            fixed=True,
+            country=None,
+            other_name=None,
+            notes=None)
+        return new_event
+
+    @staticmethod
+    def from_usno_moon_phase_api(item):
+        """item shape: {'year', 'month', 'day', 'phase', 'time'} -- phase is
+        one of 'New Moon', 'First Quarter', 'Full Moon', 'Last Quarter'."""
+        notes = []
+        if "time" in item:
+            notes.append({"time_utc": item["time"]})
+        new_event = Event(name=item["phase"],
+            date=datetime.datetime(item["year"], item["month"], item["day"]),
+            source="USNO",
+            fixed=True,
+            country=None,
+            other_name=None,
+            notes=notes)
+        return new_event
+
+    @staticmethod
+    def from_launch_library_api(item):
+        notes = []
+        status = item.get("status") or {}
+        if status.get("name"):
+            notes.append({"status": status["name"]})
+        mission = item.get("mission") or {}
+        if mission.get("description"):
+            notes.append({"mission": mission["description"]})
+        # 'net' ("no earlier than") is ISO 8601 with a trailing 'Z'. Stripped
+        # to a naive datetime -- every other Event.date in this module is
+        # naive, and mixing naive/aware datetimes would raise a TypeError the
+        # moment this gets sorted/compared against them in get_events().
+        launch_time = datetime.datetime.fromisoformat(item["net"].replace("Z", "+00:00")).replace(tzinfo=None)
+        new_event = Event(name=item["name"],
+            date=launch_time,
+            source="Launch Library",
+            fixed=False,
+            country=None,
+            other_name=None,
+            notes=notes)
+        return new_event
+
+    @staticmethod
     def merge_events(events=[], events_to_merge=[]):
         for event_to_merge in events_to_merge:
             has_merged_event = False
@@ -370,6 +438,110 @@ class HebcalAPI:
         return events
 
 
+class USNOAstronomicalEventsAPI:
+    """Equinoxes/solstices/perihelion/aphelion, solar eclipses, and moon
+    phases via the free, keyless US Naval Observatory Astronomical
+    Applications API (aa.usno.navy.mil).
+
+    Not wired into CalendarAggregator.get_events() -- same reasoning as
+    HebcalAPI: these are computed/deterministic (not live-changing) data,
+    so they belong in the backfill_computed_calendar_events job instead.
+    """
+    BASE_URL = "https://aa.usno.navy.mil/api"
+
+    def __init__(self):
+        pass
+
+    def get_events(self, year=-1):
+        events = []
+        events.extend(self._get_seasons(year))
+        events.extend(self._get_solar_eclipses(year))
+        events.extend(self._get_moon_phases(year))
+        return events
+
+    def _get_seasons(self, year):
+        events = []
+        try:
+            data = requests.get(f"{self.BASE_URL}/seasons", params={"year": year},
+                                 timeout=REQUEST_TIMEOUT_SECONDS).json().get("data", [])
+            for item in data:
+                events.append(Event.from_usno_season_api(item))
+        except Exception as e:
+            logger.error("Error getting seasons from USNO API: " + str(e))
+            raise e
+        return events
+
+    def _get_solar_eclipses(self, year):
+        events = []
+        try:
+            eclipses = requests.get(f"{self.BASE_URL}/eclipses/solar/year", params={"year": year},
+                                     timeout=REQUEST_TIMEOUT_SECONDS).json().get("eclipses_in_year", [])
+            for item in eclipses:
+                events.append(Event.from_usno_eclipse_api(item))
+        except Exception as e:
+            logger.error("Error getting solar eclipses from USNO API: " + str(e))
+            raise e
+        return events
+
+    def _get_moon_phases(self, year):
+        events = []
+        try:
+            phases = requests.get(f"{self.BASE_URL}/moon/phases/year", params={"year": year},
+                                   timeout=REQUEST_TIMEOUT_SECONDS).json().get("phasedata", [])
+            for item in phases:
+                events.append(Event.from_usno_moon_phase_api(item))
+        except Exception as e:
+            logger.error("Error getting moon phases from USNO API: " + str(e))
+            raise e
+        return events
+
+
+class LaunchLibraryAPI:
+    """Rocket launches via the free Launch Library 2 API (thespacedevs.com).
+    No account or API key required for this usage.
+
+    Unlike Hebcal/USNO/NobelPrizeSchedule, this IS wired into
+    CalendarAggregator.get_events() -- launch schedules slip, scrub, and get
+    added constantly, so this is genuinely live data refreshed on
+    update_event_cache's cycle, not the backfill job.
+
+    Deliberately does NOT fetch "a whole year" the way Nager/Inadiutorium/
+    Hijri do: the free, unauthenticated tier is capped at 15 requests/hour
+    per IP (TheSpaceDevs' own documented limit), and two years of global
+    launch activity could take dozens of paginated requests to page through.
+    Instead this fetches a short rolling window with a large page size
+    (well under the limit per call), which also better reflects that launch
+    dates aren't meaningfully known much further out than that anyway.
+    """
+    BASE_URL = "https://ll.thespacedevs.com/2.2.0/launch/upcoming/"
+    WINDOW_DAYS = 120
+    PAGE_LIMIT = 100
+
+    def __init__(self):
+        pass
+
+    def get_events(self, year=-1):
+        # year is accepted for interface consistency with every other
+        # source (CalendarAggregator.get_events(year) calls all of them the
+        # same way), but a short forward-looking window from *now* is
+        # fetched regardless of which year is asked for -- see class
+        # docstring. The caller (fetch_live_calendar_events) already filters
+        # results down to whichever year's date range it actually wants, so
+        # this is safe: launches outside that range are simply dropped
+        # there, the same way this method's caller already handles every
+        # other source.
+        events = []
+        try:
+            results = requests.get(self.BASE_URL, params={"limit": self.PAGE_LIMIT},
+                                    timeout=REQUEST_TIMEOUT_SECONDS).json().get("results", [])
+            for item in results:
+                events.append(Event.from_launch_library_api(item))
+        except Exception as e:
+            logger.error("Error getting events from Launch Library API: " + str(e))
+            raise e
+        return events
+
+
 class NobelPrizeSchedule:
     """Nobel Prize announcement dates -- a manually curated schedule, not a
     live API call.
@@ -430,9 +602,14 @@ class CalendarAggregator:
         self.public_holidays_api = NagerPublicHolidaysAPI()
         self.inadiutorium_api = InadiutoriumAPI()
         self.hijri_calendar_api = HijriCalendarAPI()
-        # Neither is merged into get_events() below -- see HebcalAPI's and
-        # NobelPrizeSchedule's docstrings.
+        # Genuinely live/changeable data -- merged into get_events() below,
+        # same as the three above.
+        self.launch_library_api = LaunchLibraryAPI()
+        # Computed/curated, not merged into get_events() below -- see
+        # HebcalAPI's/NobelPrizeSchedule's docstrings. Used instead by
+        # backfill_computed_calendar_events.
         self.hebcal_api = HebcalAPI()
+        self.usno_astronomical_events_api = USNOAstronomicalEventsAPI()
         self.nobel_prize_schedule = NobelPrizeSchedule()
 
     def get_events(self, year):
@@ -440,11 +617,13 @@ class CalendarAggregator:
         inadiutorium = self.inadiutorium_api.get_events(year)
         public_holidays = self.public_holidays_api.get_events(["US", "DE", "GB", "CA", "RU"], year)
         hijri = self.hijri_calendar_api.get_events(year)
+        launches = self.launch_library_api.get_events(year)
 
         all_events = []
         Event.merge_events(all_events, public_holidays)
         Event.merge_events(all_events, inadiutorium)
         Event.merge_events(all_events, hijri)
+        Event.merge_events(all_events, launches)
         all_events.sort(key=lambda e: (e.date))
         return all_events
 

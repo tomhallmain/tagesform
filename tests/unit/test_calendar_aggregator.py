@@ -3,7 +3,8 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from app.services.calendar_aggregator import (
-    CalendarAggregator, Event, HebcalAPI, HijriCalendarAPI, NobelPrizeSchedule, format_event,
+    CalendarAggregator, Event, HebcalAPI, HijriCalendarAPI, LaunchLibraryAPI,
+    NobelPrizeSchedule, USNOAstronomicalEventsAPI, format_event,
 )
 
 pytestmark = pytest.mark.unit
@@ -112,6 +113,7 @@ def test_calendar_aggregator_does_not_merge_hebcal_into_get_events():
     with patch.object(aggregator.public_holidays_api, 'get_events', return_value=[]), \
          patch.object(aggregator.inadiutorium_api, 'get_events', return_value=[]), \
          patch.object(aggregator.hijri_calendar_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.launch_library_api, 'get_events', return_value=[]), \
          patch.object(aggregator.hebcal_api, 'get_events') as mock_hebcal_get_events:
         aggregator.get_events(2026)
 
@@ -186,7 +188,135 @@ def test_calendar_aggregator_does_not_merge_nobel_prize_schedule_into_get_events
     with patch.object(aggregator.public_holidays_api, 'get_events', return_value=[]), \
          patch.object(aggregator.inadiutorium_api, 'get_events', return_value=[]), \
          patch.object(aggregator.hijri_calendar_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.launch_library_api, 'get_events', return_value=[]), \
          patch.object(aggregator.nobel_prize_schedule, 'get_events') as mock_get_events:
         aggregator.get_events(2026)
 
     mock_get_events.assert_not_called()
+
+
+def test_from_usno_season_api_parses_phenom_and_date():
+    item = {"year": 2026, "month": 3, "day": 20, "phenom": "Equinox", "time": "12:46"}
+
+    event = Event.from_usno_season_api(item)
+
+    assert event.name == "Equinox"
+    assert event.date == datetime.datetime(2026, 3, 20)
+    assert event.sources == ["USNO"]
+
+
+def test_from_usno_eclipse_api_parses_event_description_and_date():
+    item = {"year": 2026, "month": 2, "day": 17, "event": "Annular Solar Eclipse"}
+
+    event = Event.from_usno_eclipse_api(item)
+
+    assert event.name == "Annular Solar Eclipse"
+    assert event.date == datetime.datetime(2026, 2, 17)
+
+
+def test_from_usno_moon_phase_api_parses_phase_and_date():
+    item = {"year": 2026, "month": 1, "day": 3, "phase": "Full Moon", "time": "05:03"}
+
+    event = Event.from_usno_moon_phase_api(item)
+
+    assert event.name == "Full Moon"
+    assert event.date == datetime.datetime(2026, 1, 3)
+
+
+def test_usno_get_events_aggregates_all_three_endpoints_and_passes_timeout():
+    api = USNOAstronomicalEventsAPI()
+
+    def fake_get(url, params=None, timeout=None):
+        assert timeout is not None
+        if url.endswith('/seasons'):
+            return _fake_response({"data": [
+                {"year": 2026, "month": 3, "day": 20, "phenom": "Equinox", "time": "12:46"}
+            ]})
+        if url.endswith('/eclipses/solar/year'):
+            return _fake_response({"eclipses_in_year": [
+                {"year": 2026, "month": 2, "day": 17, "event": "Annular Solar Eclipse"}
+            ]})
+        if url.endswith('/moon/phases/year'):
+            return _fake_response({"phasedata": [
+                {"year": 2026, "month": 1, "day": 3, "phase": "Full Moon", "time": "05:03"}
+            ]})
+        raise AssertionError(f"Unexpected URL: {url}")
+
+    with patch("app.services.calendar_aggregator.requests.get", side_effect=fake_get):
+        events = api.get_events(year=2026)
+
+    assert {e.name for e in events} == {"Equinox", "Annular Solar Eclipse", "Full Moon"}
+
+
+def test_calendar_aggregator_does_not_merge_usno_into_get_events():
+    """Same reasoning as Hebcal/Nobel: computed/deterministic data belongs
+    in the backfill job, not update_event_cache's tight recurring cycle."""
+    aggregator = CalendarAggregator()
+    assert hasattr(aggregator, 'usno_astronomical_events_api')
+    assert isinstance(aggregator.usno_astronomical_events_api, USNOAstronomicalEventsAPI)
+
+    with patch.object(aggregator.public_holidays_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.inadiutorium_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.hijri_calendar_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.launch_library_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.usno_astronomical_events_api, 'get_events') as mock_get_events:
+        aggregator.get_events(2026)
+
+    mock_get_events.assert_not_called()
+
+
+def test_from_launch_library_api_parses_name_and_strips_timezone():
+    """The Launch Library 'net' field is ISO 8601 with a trailing 'Z'
+    (timezone-aware). Event.date must come out naive -- every other Event
+    in this module is naive, and mixing naive/aware datetimes raises a
+    TypeError the moment CalendarAggregator.get_events() sorts them
+    together."""
+    item = {
+        "name": "Falcon 9 Block 5 | Starlink Group 17-52",
+        "net": "2026-08-01T02:00:00Z",
+        "status": {"id": 1, "name": "Go"},
+        "mission": {"description": "Starlink satellite deployment"},
+    }
+
+    event = Event.from_launch_library_api(item)
+
+    assert event.name == "Falcon 9 Block 5 | Starlink Group 17-52"
+    assert event.date == datetime.datetime(2026, 8, 1, 2, 0, 0)
+    assert event.date.tzinfo is None
+    assert event.sources == ["Launch Library"]
+
+
+def test_launch_library_get_events_requests_upcoming_with_a_large_limit_and_timeout():
+    """Must not mirror the 'fetch a whole year' pattern the other live
+    sources use -- Launch Library's free tier is capped at 15 requests/hour,
+    and paging through two years of global launches could blow through that
+    in a single job run. A single call with a large limit keeps this well
+    under budget."""
+    api = LaunchLibraryAPI()
+
+    with patch("app.services.calendar_aggregator.requests.get",
+               return_value=_fake_response({"results": []})) as mock_get:
+        api.get_events(year=2026)
+
+    mock_get.assert_called_once()
+    call = mock_get.call_args
+    assert call.args[0] == LaunchLibraryAPI.BASE_URL
+    assert call.kwargs.get("params", {}).get("limit") == LaunchLibraryAPI.PAGE_LIMIT
+    assert call.kwargs.get("timeout") is not None
+
+
+def test_calendar_aggregator_merges_launch_library_into_get_events():
+    """Unlike Hebcal/USNO/Nobel, Launch Library IS live/changeable data
+    (launches slip and get scrubbed constantly), so it belongs in the
+    merged get_events() aggregate refreshed by update_event_cache."""
+    aggregator = CalendarAggregator()
+    assert hasattr(aggregator, 'launch_library_api')
+    assert isinstance(aggregator.launch_library_api, LaunchLibraryAPI)
+
+    with patch.object(aggregator.public_holidays_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.inadiutorium_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.hijri_calendar_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.launch_library_api, 'get_events', return_value=[]) as mock_get_events:
+        aggregator.get_events(2026)
+
+    mock_get_events.assert_called_once()

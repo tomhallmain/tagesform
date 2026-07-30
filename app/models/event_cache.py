@@ -35,6 +35,7 @@ class EventCache(db.Model):
     def to_dict(self):
         """Convert to dictionary format matching the API response"""
         return {
+            'id': self.id,
             'title': self.title,
             'start_time': self.date.strftime('%Y-%m-%d %H:%M'),
             'description': self.description,

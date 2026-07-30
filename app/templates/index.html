@@ -83,6 +83,12 @@
     <div class="md:flex md:space-x-6">
         <!-- Main Activities Section -->
         <div class="md:w-2/3">
+            <!-- Suggestion Queue -->
+            <div class="bg-white shadow rounded-lg p-6 mb-6" id="suggestion-queue-card" style="display: none;">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ _('Suggestions') }}</h2>
+                <div class="space-y-2" id="suggestions-list"></div>
+            </div>
+
             <!-- Priority Activities -->
             <div class="bg-white shadow rounded-lg p-6 mb-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ _('Coming Up') }}</h2>
@@ -437,6 +443,74 @@
         }
     }
 
+    // Fetch and display the suggestion queue
+    async function fetchSuggestions() {
+        try {
+            const response = await fetch('/api/suggestions/queue');
+            const data = await response.json();
+            const card = document.getElementById('suggestion-queue-card');
+            const list = document.getElementById('suggestions-list');
+
+            if (!data.items || data.items.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+            list.innerHTML = data.items.map(item => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">${item.title}</p>
+                        ${item.reason ? `<p class="text-xs text-gray-500">${item.reason}</p>` : ''}
+                    </div>
+                    <div class="flex items-center space-x-3 flex-shrink-0">
+                        <button type="button" class="suggestion-complete-btn text-xs text-green-600 hover:text-green-800" data-item-id="${item.id}">{{ _('Done') }}</button>
+                        <button type="button" class="suggestion-snooze-btn text-xs text-gray-500 hover:text-gray-700" data-item-id="${item.id}">{{ _('Snooze') }}</button>
+                        <button type="button" class="suggestion-dismiss-btn text-xs text-red-500 hover:text-red-700" data-item-id="${item.id}">{{ _('Dismiss') }}</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error fetching suggestions:', error);
+        }
+    }
+
+    async function actOnSuggestion(itemId, action, message) {
+        try {
+            const response = await fetch(`/api/suggestions/queue/${itemId}/${action}`, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (response.ok) {
+                showToast(message);
+                fetchSuggestions();
+            } else {
+                showToast('{{ _("An error occurred") }}', 'error');
+            }
+        } catch (error) {
+            console.error(`Error handling suggestion ${action}:`, error);
+            showToast('{{ _("An error occurred") }}', 'error');
+        }
+    }
+
+    document.addEventListener('click', (e) => {
+        const completeBtn = e.target.closest('.suggestion-complete-btn');
+        if (completeBtn) {
+            actOnSuggestion(completeBtn.dataset.itemId, 'complete', '{{ _("Marked as done!") }}');
+            return;
+        }
+        const snoozeBtn = e.target.closest('.suggestion-snooze-btn');
+        if (snoozeBtn) {
+            actOnSuggestion(snoozeBtn.dataset.itemId, 'snooze', '{{ _("Snoozed!") }}');
+            return;
+        }
+        const dismissBtn = e.target.closest('.suggestion-dismiss-btn');
+        if (dismissBtn) {
+            actOnSuggestion(dismissBtn.dataset.itemId, 'dismiss', '{{ _("Dismissed.") }}');
+            return;
+        }
+    });
+
     // Initial display
     document.addEventListener('DOMContentLoaded', () => {
         console.log('DOM loaded in index page - displaying initial data');
@@ -444,6 +518,7 @@
         fetchCalendarEvents('day');
         fetchAvailableEntities();
         fetchStats();
+        fetchSuggestions();
     });
 
     // Weather refresh - every 20 minutes

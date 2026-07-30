@@ -82,9 +82,9 @@ def create_app(config_name=None):
     from .routes import (
         auth_bp, profile_bp, activities_bp, activity_api_bp,
         schedules_bp, schedule_api_bp, entities_bp, entity_api_bp,
-        settings_bp, main_bp
+        settings_bp, suggestions_api_bp, main_bp
     )
-    
+
     app.register_blueprint(main_bp)  # Main routes should be registered first
     app.register_blueprint(auth_bp)  # Auth routes at root level
     app.register_blueprint(profile_bp, url_prefix='/profile')  # Profile routes under /profile
@@ -95,6 +95,7 @@ def create_app(config_name=None):
     app.register_blueprint(entities_bp)  # Entity pages at root level
     app.register_blueprint(entity_api_bp)  # Entity API routes under /api
     app.register_blueprint(settings_bp, url_prefix='/settings')  # Settings remain under /settings
+    app.register_blueprint(suggestions_api_bp)  # Suggestion queue API routes under /api/suggestions
 
     # Initialize scheduler only for non-testing environments
     if config_name != 'testing' and config.is_main_werkzeug_process():

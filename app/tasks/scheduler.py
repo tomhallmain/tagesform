@@ -3,7 +3,7 @@ from ..utils.config import config
 from ..utils.logging_setup import get_logger
 from .background_tasks import (
     update_activity_importance, update_event_cache, create_database_backup,
-    backfill_computed_calendar_events,
+    backfill_computed_calendar_events, refresh_suggestion_queue,
 )
 
 logger = get_logger('scheduler')
@@ -36,6 +36,16 @@ def init_scheduler(app, scheduler):
             backfill_computed_calendar_events,
             'interval',
             hours=config.COMPUTED_CALENDAR_BACKFILL_INTERVAL,
+            args=[app],
+            next_run_time='2025-01-01 00:00:00'
+        )
+
+        # Run immediately so the dashboard's suggestion queue isn't empty
+        # while waiting for the first scheduled interval.
+        scheduler.add_job(
+            refresh_suggestion_queue,
+            'interval',
+            hours=config.SUGGESTION_QUEUE_REFRESH_INTERVAL,
             args=[app],
             next_run_time='2025-01-01 00:00:00'
         )

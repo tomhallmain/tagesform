@@ -188,14 +188,14 @@ def db_session(_db):
     """Creates a new database session for a test."""
     connection = _db.engine.connect()
     transaction = connection.begin()
-    
+
     # Create a new session factory
     session_factory = sessionmaker(bind=connection)
     session = scoped_session(session_factory)
     _db.session = session
-    
+
     yield session
-    
+
     transaction.rollback()
     connection.close()
     session.remove()

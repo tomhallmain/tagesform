@@ -1,5 +1,5 @@
 from datetime import datetime
-from ..models import Activity, Entity, EventCache, UserCalendarDescriptor, db
+from ..models import Activity, Entity, EventCache, User, UserCalendarDescriptor, db
 from ..services.activity_service import infer_activity_importance
 from ..services.integration_service import integration_service
 from ..services.calendar_aggregator import format_event
@@ -7,6 +7,7 @@ from ..services.custom_calendar_service import (
     parse_descriptor, regenerate_event_cache_for_user, DescriptorValidationError
 )
 from ..services.entity_calendar_service import regenerate_event_cache_for_entity
+from ..services.suggestion_queue_service import refresh_queue_for_user
 from ..utils.logging_setup import get_logger
 from ..services.backup_service import get_backup_service
 
@@ -142,6 +143,24 @@ def backfill_computed_calendar_events(app):
                 except Exception as e:
                     logger.error(f"Error backfilling {source_name} events for year {year}: {e}")
                     db.session.rollback()
+
+def refresh_suggestion_queue(app):
+    """Background job to recompute each user's suggestion queue.
+
+    Candidates are drawn from activities, entities, and
+    IntegrationService.get_calendar_events (which by now already merges
+    public holidays, Hebrew/USNO/Nobel Prize/rocket-launch events, custom
+    calendars, and entity calendars -- see suggestion_queue_service.py's
+    module docstring). One user's failure must not prevent other users'
+    queues from refreshing, same as the per-user/per-entity loops above.
+    """
+    with app.app_context():
+        for user in User.query.all():
+            try:
+                refresh_queue_for_user(user)
+            except Exception as e:
+                logger.error(f"Error refreshing suggestion queue for user {user.id}: {e}")
+                db.session.rollback()
 
 def create_database_backup(app):
     """Create a database backup"""

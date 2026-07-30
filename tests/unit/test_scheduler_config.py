@@ -66,6 +66,35 @@ def test_init_scheduler_registers_computed_calendar_backfill_job_with_configured
     assert 'next_run_time' in backfill_call.kwargs
 
 
+def test_suggestion_queue_refresh_interval_defaults_to_6_hours(monkeypatch):
+    monkeypatch.delenv('SUGGESTION_QUEUE_REFRESH_INTERVAL', raising=False)
+    assert Config().SUGGESTION_QUEUE_REFRESH_INTERVAL == 6
+
+
+def test_suggestion_queue_refresh_interval_respects_env_override(monkeypatch):
+    monkeypatch.setenv('SUGGESTION_QUEUE_REFRESH_INTERVAL', '12')
+    assert Config().SUGGESTION_QUEUE_REFRESH_INTERVAL == 12
+
+
+def test_init_scheduler_registers_suggestion_queue_job_with_configured_interval(app, monkeypatch):
+    monkeypatch.setattr(scheduler_module.config, 'is_main_process', True)
+    monkeypatch.setattr(scheduler_module.config, 'SUGGESTION_QUEUE_REFRESH_INTERVAL', 12)
+
+    mock_scheduler = MagicMock()
+    mock_scheduler.running = False
+
+    scheduler_module.init_scheduler(app, mock_scheduler)
+
+    suggestion_call = next(
+        call for call in mock_scheduler.add_job.call_args_list
+        if call.args[0] is scheduler_module.refresh_suggestion_queue
+    )
+    assert suggestion_call.kwargs['hours'] == 12
+    # Must run immediately so the dashboard isn't empty while waiting for
+    # the first scheduled interval.
+    assert 'next_run_time' in suggestion_call.kwargs
+
+
 def test_init_scheduler_does_nothing_outside_the_main_werkzeug_process(app, monkeypatch):
     """The scheduler must not register jobs in a reloader watcher process --
     see the process-guard gotcha documented for create_app()/init_scheduler."""

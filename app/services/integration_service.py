@@ -53,7 +53,7 @@ class IntegrationService:
             logger.error(f"Error getting current schedule: {str(e)}", exc_info=True)
             raise Exception(f"Error getting current schedule: {str(e)}")
 
-    def get_calendar_events(self, start_date=None, end_date=None):
+    def get_calendar_events(self, start_date=None, end_date=None, user=None):
         """Get calendar events for the specified date range from the cache.
 
         Reads from EventCache rather than the live holiday/religious-calendar
@@ -64,12 +64,17 @@ class IntegrationService:
         alone issues one request per month, each taking upwards of 20 seconds).
 
         Includes: global rows (public holidays etc., user_id AND entity_id
-        both NULL); the current user's own custom-calendar rows; and entries
-        from entities the current user owns or that are shared with them
-        (NOT merely public ones -- see docs/entity-calendar.md's Ownership
-        section for why). Never another user's custom-calendar rows, and
-        never another user's private view of an entity they don't have
-        access to.
+        both NULL); `user`'s own custom-calendar rows; and entries from
+        entities `user` owns or that are shared with them (NOT merely public
+        ones -- see docs/entity-calendar.md's Ownership section for why).
+        Never another user's custom-calendar rows, and never another user's
+        private view of an entity they don't have access to.
+
+        `user` defaults to the logged-in current_user, for the normal
+        request path (the dashboard's /api/calendar/events). The
+        suggestion-queue background job passes an explicit user instead,
+        since it refreshes every user's queue outside of any request
+        context, where current_user can't resolve.
 
         Each returned dict also carries an 'ancient_egyptian_date' field --
         the Ancient Egyptian civil-calendar equivalent of that event's date,
@@ -80,14 +85,17 @@ class IntegrationService:
         """
         from ..models import Entity, EventCache, db
 
+        if user is None:
+            user = current_user
+
         try:
             if not start_date:
                 start_date = datetime.now()
 
             visible_entity_ids = Entity.query.filter(
                 db.or_(
-                    Entity.user_id == current_user.id,
-                    Entity.shared_with.contains([current_user.id])
+                    Entity.user_id == user.id,
+                    Entity.shared_with.contains([user.id])
                 )
             ).with_entities(Entity.id)
 
@@ -95,7 +103,7 @@ class IntegrationService:
                 EventCache.date >= start_date,
                 db.or_(
                     db.and_(EventCache.user_id.is_(None), EventCache.entity_id.is_(None)),
-                    EventCache.user_id == current_user.id,
+                    EventCache.user_id == user.id,
                     EventCache.entity_id.in_(visible_entity_ids)
                 )
             )

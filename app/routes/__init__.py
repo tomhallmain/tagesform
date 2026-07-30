@@ -3,6 +3,7 @@ from .activities import activities_bp, activity_api_bp
 from .settings import settings_bp
 from .entities import entities_bp, entity_api_bp
 from .schedules import schedules_bp, schedule_api_bp
+from .suggestions import suggestions_api_bp
 from .main import main_bp
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     'entity_api_bp',
     'schedules_bp',
     'schedule_api_bp',
+    'suggestions_api_bp',
     'main_bp'
 ] 

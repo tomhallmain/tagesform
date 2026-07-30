@@ -63,6 +63,10 @@ class Config:
         # longer interval later, independently of Nager's cadence.
         self.COMPUTED_CALENDAR_BACKFILL_INTERVAL = int(os.getenv('COMPUTED_CALENDAR_BACKFILL_INTERVAL', '24'))
 
+        # How often the suggestion queue (dashboard "you might want to do
+        # this" list) is recomputed per user.
+        self.SUGGESTION_QUEUE_REFRESH_INTERVAL = int(os.getenv('SUGGESTION_QUEUE_REFRESH_INTERVAL', '6'))
+
         # Process settings
         self.is_main_process = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
 

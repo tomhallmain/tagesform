@@ -14,16 +14,22 @@ class AppInfoCache:
 
     def __init__(self):
         self._cache = {AppInfoCache.INFO_KEY: {}, AppInfoCache.HISTORY_KEY: [], AppInfoCache.DIRECTORIES_KEY: {}}
+        # Tests (and any other caller that shouldn't touch the real app
+        # package directory) can redirect this via TAGESFORM_CACHE_DIR --
+        # this singleton is instantiated on first import, so the override
+        # must be set in the environment before `app` is ever imported.
+        _override = os.environ.get("TAGESFORM_CACHE_DIR")
+        self._cache_loc = os.path.join(_override, "app_info_cache.json") if _override else AppInfoCache.CACHE_LOC
         self.load()
         self.validate()
 
     def store(self):
-        with open(AppInfoCache.CACHE_LOC, "w") as f:
+        with open(self._cache_loc, "w") as f:
             json.dump(self._cache, f, indent=4)
 
     def load(self):
         try:
-            with open(AppInfoCache.CACHE_LOC, "r") as f:
+            with open(self._cache_loc, "r") as f:
                 self._cache = json.load(f)
         except FileNotFoundError:
             pass

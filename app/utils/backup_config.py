@@ -8,7 +8,12 @@ logger = get_logger('backup_config')
 
 class BackupConfig:
     def __init__(self):
-        self.config_file = Path('backup_config.json')
+        # Tests (and any other caller that shouldn't touch the real repo-root
+        # backup_config.json) can redirect this via TAGESFORM_CONFIG_DIR --
+        # this singleton is instantiated on first import, so the override
+        # must be set in the environment before `app` is ever imported.
+        _override = os.environ.get("TAGESFORM_CONFIG_DIR")
+        self.config_file = Path(_override) / 'backup_config.json' if _override else Path('backup_config.json')
         self.config = self._load_config()
     
     def _load_config(self):

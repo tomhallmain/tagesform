@@ -5,7 +5,12 @@ from pathlib import Path
 def get_app_data_dir():
     """Get the application data directory based on the operating system"""
     try:
-        if os.name == 'nt':  # Windows
+        # Tests (and any other caller that shouldn't touch the real user
+        # data directory) can redirect this via TAGESFORM_DATA_DIR.
+        override = os.getenv('TAGESFORM_DATA_DIR')
+        if override:
+            app_dir = Path(override)
+        elif os.name == 'nt':  # Windows
             app_data = os.getenv('APPDATA')
             if not app_data:
                 raise EnvironmentError("APPDATA environment variable not found")
@@ -13,11 +18,11 @@ def get_app_data_dir():
         else:  # Linux/Mac
             home = Path.home()
             app_dir = home / '.local' / 'share' / 'tagesform'
-        
+
         # Create directory if it doesn't exist
         app_dir.mkdir(parents=True, exist_ok=True)
         return app_dir
-        
+
     except Exception:
         raise
 

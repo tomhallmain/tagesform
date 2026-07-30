@@ -2,9 +2,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
-"POT-Creation-Date: 2025-08-07 10:31-0400\n"
-"PO-Revision-Date: 2025-08-07 10:31-0400\n"
-"Last-Translator: Thomas Hall <tomhall.main@gmail.com>\n"
+"POT-Creation-Date: 2026-07-30 00:33-0400\n"
+"PO-Revision-Date: 2026-07-30 00:33-0400\n"
+"Last-Translator: Translator Name <translator@example.com>\n"
 "Language-Team: en Team <<EMAIL>>\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -12,15 +12,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: app/models/schedule.py:133
+#: app/models/schedule.py:131
 msgid "{0} - Annual Dates: {1} - Times: {2}-{3}"
 msgstr "{0} - Annual Dates: {1} - Times: {2}-{3}"
 
-#: app/models/schedule.py:138
+#: app/models/schedule.py:136
 msgid "Every day"
 msgstr "Every day"
 
-#: app/models/schedule.py:141
+#: app/models/schedule.py:139
 msgid "{0} - Days: {1} - Times: {2}-{3}"
 msgstr "{0} - Days: {1} - Times: {2}-{3}"
 
@@ -166,12 +166,12 @@ msgid "Not Rated"
 msgstr "Not Rated"
 
 #: app/templates/add_place.html:74 app/templates/edit_place.html:52
-#: app/utils/filters.py:21
+#: app/utils/filters.py:19
 msgid "Terrible"
 msgstr "Terrible"
 
 #: app/templates/add_place.html:75 app/templates/edit_place.html:53
-#: app/utils/filters.py:20
+#: app/utils/filters.py:18
 msgid "Bad"
 msgstr "Bad"
 
@@ -180,12 +180,12 @@ msgid "OK"
 msgstr "OK"
 
 #: app/templates/add_place.html:77 app/templates/edit_place.html:55
-#: app/utils/filters.py:18
+#: app/utils/filters.py:16
 msgid "Good"
 msgstr "Good"
 
 #: app/templates/add_place.html:78 app/templates/edit_place.html:56
-#: app/utils/filters.py:17
+#: app/utils/filters.py:15
 msgid "Great"
 msgstr "Great"
 
@@ -227,6 +227,14 @@ msgstr "Saturday"
 #: app/templates/new_schedule.html:70 app/utils/translations.py:78
 msgid "Sunday"
 msgstr "Sunday"
+
+#: app/templates/add_place.html:101 app/templates/edit_place.html:82
+msgid "Open time (optional)"
+msgstr "Open time (optional)"
+
+#: app/templates/add_place.html:106 app/templates/edit_place.html:88
+msgid "Close time (optional)"
+msgstr "Close time (optional)"
 
 #: app/templates/add_place.html:110
 msgid "Note: If no times are specified, default daytime hours will be assumed"
@@ -297,9 +305,9 @@ msgid "Profile"
 msgstr "Profile"
 
 #: app/templates/base.html:93 app/templates/settings.html:5
-#: tests/test_translations.py:109 tests/test_translations.py:122
-#: tests/test_translations.py:127 tests/test_translations.py:348
-#: tests/test_translations.py:355
+#: tests/unit/test_translations.py:96 tests/unit/test_translations.py:109
+#: tests/unit/test_translations.py:114 tests/unit/test_translations.py:169
+#: tests/unit/test_translations.py:176
 msgid "Settings"
 msgstr "Settings"
 
@@ -318,6 +326,18 @@ msgstr "Register"
 #: app/templates/edit_place.html:5
 msgid "Edit Place"
 msgstr "Edit Place"
+
+#: app/templates/edit_place.html:128
+msgid "Share with specific user"
+msgstr "Share with specific user"
+
+#: app/templates/edit_place.html:132
+msgid "Enter username"
+msgstr "Enter username"
+
+#: app/templates/edit_place.html:135 app/templates/places.html:58
+msgid "Share"
+msgstr "Share"
 
 #: app/templates/edit_place.html:142
 msgid "Shared with"
@@ -800,10 +820,6 @@ msgstr "Cuisine"
 msgid "Visited"
 msgstr "Visited"
 
-#: app/templates/edit_place.html:135 app/templates/places.html:58
-msgid "Share"
-msgstr "Share"
-
 #: app/templates/places.html:83 app/templates/review_import.html:56
 msgid "Yes"
 msgstr "Yes"
@@ -913,7 +929,7 @@ msgstr "Create Account"
 msgid "Actions"
 msgstr "Actions"
 
-#: app/templates/review_import.html:86
+#: app/routes/entities.py:921 app/templates/review_import.html:86
 msgid "No entries to review."
 msgstr "No entries to review."
 
@@ -1219,7 +1235,7 @@ msgstr "Open:"
 msgid "Hours vary"
 msgstr "Hours vary"
 
-#: app/utils/filters.py:19
+#: app/utils/filters.py:17
 msgid "Okay"
 msgstr "Okay"
 
@@ -1227,26 +1243,364 @@ msgstr "Okay"
 msgid " (Pending runs: {0})"
 msgstr " (Pending runs: {0})"
 
-#: tests/test_translations.py:113 tests/test_translations.py:170
+#: tests/unit/test_translations.py:100 tests/unit/test_translations.py:157
 msgid "Untranslated String"
 msgstr "Untranslated String"
 
-#: tests/test_translations.py:159
+#: tests/unit/test_translations.py:146
 msgid "Test String"
 msgstr "Test String"
 
-#: app/templates/add_place.html:101 app/templates/edit_place.html:82
-msgid "Open time (optional)"
-msgstr "Open time (optional)"
+#: app/routes/activities.py:29 app/routes/schedules.py:43
+#: app/routes/schedules.py:175
+msgid "Title is required"
+msgstr "Title is required"
 
-#: app/templates/add_place.html:106 app/templates/edit_place.html:88
-msgid "Close time (optional)"
-msgstr "Close time (optional)"
+#: app/routes/activities.py:33
+msgid "Date and time are required"
+msgstr "Date and time are required"
 
-#: app/templates/edit_place.html:128
-msgid "Share with specific user"
-msgstr "Share with specific user"
+#: app/routes/activities.py:40
+msgid "Invalid date or time format"
+msgstr "Invalid date or time format"
 
-#: app/templates/edit_place.html:132
-msgid "Enter username"
-msgstr "Enter username"
+#: app/routes/activities.py:62
+msgid "Activity added successfully!"
+msgstr "Activity added successfully!"
+
+#: app/routes/auth.py:24 app/routes/auth.py:28
+msgid "Invalid username or password"
+msgstr "Invalid username or password"
+
+#: app/routes/auth.py:54 app/routes/auth.py:135
+msgid "Passwords do not match"
+msgstr "Passwords do not match"
+
+#: app/routes/auth.py:57 app/routes/auth.py:122
+msgid "Username already exists"
+msgstr "Username already exists"
+
+#: app/routes/auth.py:60 app/routes/auth.py:125
+msgid "Email already registered"
+msgstr "Email already registered"
+
+#: app/routes/auth.py:68
+msgid "Registration successful"
+msgstr "Registration successful"
+
+#: app/routes/auth.py:140
+msgid "Profile updated successfully"
+msgstr "Profile updated successfully"
+
+#: app/routes/entities.py:126 app/routes/entities.py:127
+#: app/routes/entities.py:956
+msgid "Invalid rating value. Must be between 0 and 4."
+msgstr "Invalid rating value. Must be between 0 and 4."
+
+#: app/routes/entities.py:131 app/routes/entities.py:132
+#: app/routes/entities.py:959
+msgid "Invalid rating value. Must be a number."
+msgstr "Invalid rating value. Must be a number."
+
+#: app/routes/entities.py:142 app/routes/entities.py:143
+#: app/routes/entities.py:968
+msgid "Name is required."
+msgstr "Name is required."
+
+#: app/routes/entities.py:186
+msgid "Potential duplicate found. Please review the details before saving."
+msgstr "Potential duplicate found. Please review the details before saving."
+
+#: app/routes/entities.py:223
+msgid "Place added successfully!"
+msgstr "Place added successfully!"
+
+#: app/routes/entities.py:230
+msgid "This place already exists in your list."
+msgstr "This place already exists in your list."
+
+#: app/routes/entities.py:232
+msgid "Error adding place: {0}"
+msgstr "Error adding place: {0}"
+
+#: app/routes/entities.py:254
+msgid "You do not have permission to delete this place."
+msgstr "You do not have permission to delete this place."
+
+#: app/routes/entities.py:261
+msgid "Successfully deleted \"{0}\""
+msgstr "Successfully deleted \"{0}\""
+
+#: app/routes/entities.py:270 app/routes/entities.py:875
+#: app/routes/entities.py:904
+msgid "No data to review. Please import a CSV file first."
+msgstr "No data to review. Please import a CSV file first."
+
+#: app/routes/entities.py:276 app/routes/entities.py:336
+#: app/routes/entities.py:881 app/routes/entities.py:910
+msgid "Import data not found or expired."
+msgstr "Import data not found or expired."
+
+#: app/routes/entities.py:281
+msgid "No data to review."
+msgstr "No data to review."
+
+#: app/routes/entities.py:330
+msgid "No data to import. Please import a CSV file first."
+msgstr "No data to import. Please import a CSV file first."
+
+#: app/routes/entities.py:341
+msgid "No data to import."
+msgstr "No data to import."
+
+#: app/routes/entities.py:368
+msgid "Successfully imported {0} places"
+msgstr "Successfully imported {0} places"
+
+#: app/routes/entities.py:373
+msgid "Error importing places: {0}"
+msgstr "Error importing places: {0}"
+
+#: app/routes/entities.py:382
+msgid "No file uploaded"
+msgstr "No file uploaded"
+
+#: app/routes/entities.py:388
+msgid "No file selected"
+msgstr "No file selected"
+
+#: app/routes/entities.py:393
+msgid "Only CSV files are allowed"
+msgstr "Only CSV files are allowed"
+
+#: app/routes/entities.py:449
+msgid "Could not find \"name\" column. Did you mean: {0}?"
+msgstr "Could not find \"name\" column. Did you mean: {0}?"
+
+#: app/routes/entities.py:451
+msgid "CSV file must contain a \"name\" column"
+msgstr "CSV file must contain a \"name\" column"
+
+#: app/routes/entities.py:579
+msgid "No valid places found in the CSV file"
+msgstr "No valid places found in the CSV file"
+
+#: app/routes/entities.py:600
+msgid "Skipped {0} rows: {1}"
+msgstr "Skipped {0} rows: {1}"
+
+#: app/routes/entities.py:602
+msgid "Found invalid categories that were set to \"other\": {0}"
+msgstr "Found invalid categories that were set to \"other\": {0}"
+
+#: app/routes/entities.py:610
+msgid "Error processing CSV: {0}"
+msgstr "Error processing CSV: {0}"
+
+#: app/routes/entities.py:751 app/routes/entities.py:782
+msgid "No active import found"
+msgstr "No active import found"
+
+#: app/routes/entities.py:756 app/routes/entities.py:788
+msgid "Import data not found or expired"
+msgstr "Import data not found or expired"
+
+#: app/routes/entities.py:771
+msgid "Invalid index"
+msgstr "Invalid index"
+
+#: app/routes/entities.py:802
+msgid "No duplicates to process"
+msgstr "No duplicates to process"
+
+#: app/routes/entities.py:806
+msgid "Invalid duplicate index"
+msgstr "Invalid duplicate index"
+
+#: app/routes/entities.py:825
+msgid "Invalid existing entity"
+msgstr "Invalid existing entity"
+
+#: app/routes/entities.py:846
+msgid "Invalid action"
+msgstr "Invalid action"
+
+#: app/routes/entities.py:888
+msgid "No non-duplicate entries to review."
+msgstr "No non-duplicate entries to review."
+
+#: app/routes/entities.py:937
+msgid "You do not have permission to edit this place."
+msgstr "You do not have permission to edit this place."
+
+#: app/routes/entities.py:1008
+msgid "Place updated successfully!"
+msgstr "Place updated successfully!"
+
+#: app/routes/entities.py:1013
+msgid "Error updating place: {0}"
+msgstr "Error updating place: {0}"
+
+#: app/routes/entities.py:1031 app/routes/entities.py:1070
+msgid "You do not have permission to share this place."
+msgstr "You do not have permission to share this place."
+
+#: app/routes/entities.py:1039
+msgid "Place is now public and can be viewed by all users."
+msgstr "Place is now public and can be viewed by all users."
+
+#: app/routes/entities.py:1043
+msgid "Place is now private."
+msgstr "Place is now private."
+
+#: app/routes/entities.py:1048
+msgid "Invalid action."
+msgstr "Invalid action."
+
+#: app/routes/entities.py:1075
+msgid "Username is required."
+msgstr "Username is required."
+
+#: app/routes/entities.py:1082
+msgid "User \"{0}\" not found."
+msgstr "User \"{0}\" not found."
+
+#: app/routes/entities.py:1086
+msgid "You cannot share with yourself."
+msgstr "You cannot share with yourself."
+
+#: app/routes/entities.py:1090
+msgid "Place shared with {0}."
+msgstr "Place shared with {0}."
+
+#: app/routes/entities.py:1092
+msgid "Place is already shared with {0}."
+msgstr "Place is already shared with {0}."
+
+#: app/routes/entities.py:1104
+msgid "You do not have permission to modify sharing settings."
+msgstr "You do not have permission to modify sharing settings."
+
+#: app/routes/entities.py:1109
+msgid "User ID is required."
+msgstr "User ID is required."
+
+#: app/routes/entities.py:1115
+msgid "Invalid user ID."
+msgstr "Invalid user ID."
+
+#: app/routes/entities.py:1119
+msgid "User removed from sharing list."
+msgstr "User removed from sharing list."
+
+#: app/routes/entities.py:1121
+msgid "User was not in the sharing list."
+msgstr "User was not in the sharing list."
+
+#: app/routes/entities.py:1279 app/routes/entities.py:1289
+msgid "Import not found"
+msgstr "Import not found"
+
+#: app/routes/schedules.py:39 app/routes/schedules.py:171
+msgid "Please select at least one day of the week for weekly schedules"
+msgstr "Please select at least one day of the week for weekly schedules"
+
+#: app/routes/schedules.py:47 app/routes/schedules.py:179
+msgid "Start time and end time are required"
+msgstr "Start time and end time are required"
+
+#: app/routes/schedules.py:51 app/routes/schedules.py:183
+msgid "Recurrence is required"
+msgstr "Recurrence is required"
+
+#: app/routes/schedules.py:55 app/routes/schedules.py:187
+msgid "At least one annual date is required for annual schedules"
+msgstr "At least one annual date is required for annual schedules"
+
+#: app/routes/schedules.py:63 app/routes/schedules.py:195
+msgid "Invalid date: {0}/{1} - this month only has 30 days"
+msgstr "Invalid date: {0}/{1} - this month only has 30 days"
+
+#: app/routes/schedules.py:66 app/routes/schedules.py:198
+msgid "Invalid date: {0}/{1} - February only has 29 days"
+msgstr "Invalid date: {0}/{1} - February only has 29 days"
+
+#: app/routes/schedules.py:69 app/routes/schedules.py:201
+msgid "Invalid date: {0}/{1} - no month has more than 31 days"
+msgstr "Invalid date: {0}/{1} - no month has more than 31 days"
+
+#: app/routes/schedules.py:80 app/routes/schedules.py:212
+msgid "Invalid time format. Please use HH:MM format"
+msgstr "Invalid time format. Please use HH:MM format"
+
+#: app/routes/schedules.py:100
+msgid "Schedule created successfully!"
+msgstr "Schedule created successfully!"
+
+#: app/routes/schedules.py:125 app/routes/schedules.py:142
+msgid "Schedule not found"
+msgstr "Schedule not found"
+
+#: app/routes/schedules.py:129
+msgid "Missing enabled parameter"
+msgstr "Missing enabled parameter"
+
+#: app/routes/schedules.py:229
+msgid "Schedule updated successfully!"
+msgstr "Schedule updated successfully!"
+
+#: app/routes/settings.py:28 app/routes/settings.py:32
+msgid "Notification settings updated!"
+msgstr "Notification settings updated!"
+
+#: app/routes/settings.py:50 app/routes/settings.py:55
+msgid "Display settings updated!"
+msgstr "Display settings updated!"
+
+#: app/routes/settings.py:71 app/routes/settings.py:75
+msgid "Weather settings updated!"
+msgstr "Weather settings updated!"
+
+#: app/routes/settings.py:90 app/routes/settings.py:94
+msgid "Language settings updated!"
+msgstr "Language settings updated!"
+
+#: app/routes/settings.py:143
+msgid "Account deleted successfully"
+msgstr "Account deleted successfully"
+
+#: app/routes/settings.py:148
+msgid "Your account has been deleted successfully"
+msgstr "Your account has been deleted successfully"
+
+#: app/routes/settings.py:155 app/routes/settings.py:159
+msgid "Failed to delete account"
+msgstr "Failed to delete account"
+
+#: app/routes/settings.py:176
+msgid "All data cleared successfully"
+msgstr "All data cleared successfully"
+
+#: app/templates/import_places.html:3
+msgid "Import Places - Tagesform"
+msgstr "Import Places - Tagesform"
+
+#: app/templates/login.html:3
+msgid "Login - Tagesform"
+msgstr "Login - Tagesform"
+
+#: app/templates/profile.html:3
+msgid "Profile - {0}"
+msgstr "Profile - {0}"
+
+#: app/templates/register.html:6
+msgid "Register - Tagesform"
+msgstr "Register - Tagesform"
+
+#: app/templates/review_duplicates.html:3
+msgid "Review Duplicates - Tagesform"
+msgstr "Review Duplicates - Tagesform"
+
+#: app/templates/review_import.html:3
+msgid "Review Import - Tagesform"
+msgstr "Review Import - Tagesform"

@@ -1,7 +1,10 @@
 from datetime import datetime
-from ..models import Activity, EventCache, db
+from ..models import Activity, EventCache, UserCalendarDescriptor, db
 from ..services.activity_service import infer_activity_importance
 from ..services.integration_service import integration_service
+from ..services.custom_calendar_service import (
+    parse_descriptor, regenerate_event_cache_for_user, DescriptorValidationError
+)
 from ..utils.logging_setup import get_logger
 from ..services.backup_service import get_backup_service
 
@@ -25,8 +28,8 @@ def update_activity_importance(app):
 def update_event_cache(app):
     """Background job to update the event cache"""
     with app.app_context():
+        current_year = datetime.now().year
         try:
-            current_year = datetime.now().year
             # Get events for current and next year
             for year in [current_year, current_year + 1]:
                 # Get fresh events from the live APIs (get_calendar_events reads
@@ -35,21 +38,42 @@ def update_event_cache(app):
                     start_date=datetime(year, 1, 1),
                     end_date=datetime(year, 12, 31)
                 )
-                
-                # Delete existing cache for this year
-                EventCache.query.filter_by(year=year).delete()
-                
+
+                # Delete existing global cache for this year -- user_id=None
+                # scopes this to the global/public rows only, leaving any
+                # per-user custom calendar rows (refreshed separately below)
+                # untouched.
+                EventCache.query.filter_by(year=year, user_id=None).delete()
+
                 # Add new events to cache
                 for event_dict in events:
                     cache_entry = EventCache.from_event_dict(event_dict)
                     db.session.add(cache_entry)
-                
+
                 db.session.commit()
                 logger.info(f"Updated event cache for year {year}")
-                
+
         except Exception as e:
             logger.error(f"Error updating event cache: {str(e)}")
             db.session.rollback()
+
+        # Refresh each user's custom calendar independently -- a parse
+        # failure for one user's descriptor must not prevent other users'
+        # descriptors (or the global cache above) from refreshing.
+        for descriptor in UserCalendarDescriptor.query.all():
+            try:
+                entries = parse_descriptor(descriptor.raw_yaml)
+                regenerate_event_cache_for_user(descriptor.user_id, entries, years=[current_year, current_year + 1])
+                if descriptor.last_parse_error is not None:
+                    descriptor.last_parse_error = None
+                    db.session.commit()
+            except DescriptorValidationError as e:
+                logger.error(f"Error parsing custom calendar for user {descriptor.user_id}: {e}")
+                descriptor.last_parse_error = str(e)
+                db.session.commit()
+            except Exception as e:
+                logger.error(f"Error refreshing custom calendar for user {descriptor.user_id}: {e}")
+                db.session.rollback()
 
 def create_database_backup(app):
     """Create a database backup"""

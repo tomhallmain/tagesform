@@ -141,6 +141,40 @@
             </form>
         </div>
 
+        <!-- Custom Calendar -->
+        <div class="p-6">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ _('Custom Calendar') }}</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                {{ _('Describe your own personal calendar entries (birthdays, anniversaries, etc.) in YAML. They show up alongside public holidays in your Calendar Events, visible only to you.') }}
+            </p>
+            {% if calendar_descriptor and calendar_descriptor.last_parse_error %}
+            <div class="mb-4 p-3 rounded-md bg-red-50 dark:bg-red-900 text-sm text-red-700 dark:text-red-200">
+                {{ _('Your saved custom calendar could not be refreshed:') }} {{ calendar_descriptor.last_parse_error }}
+            </div>
+            {% endif %}
+            <form method="POST" action="{{ url_for('settings.update_calendar_descriptor') }}" class="space-y-4">
+                <div>
+                    <label for="raw_yaml" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Calendar Descriptor (YAML)') }}</label>
+                    <textarea name="raw_yaml" id="raw_yaml" rows="10"
+                        placeholder="events:&#10;  - title: &quot;Mom's Birthday&quot;&#10;    recurrence: annual&#10;    month: 4&#10;    day: 12&#10;  - title: &quot;Anniversary Trip&quot;&#10;    recurrence: once&#10;    date: 2026-09-14"
+                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm">{{ calendar_descriptor.raw_yaml if calendar_descriptor else '' }}</textarea>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    {% if calendar_descriptor %}
+                    <button type="submit" formaction="{{ url_for('settings.delete_calendar_descriptor') }}"
+                        onclick="return confirm('{{ _('Remove your custom calendar and all its cached events?') }}');"
+                        class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        {{ _('Remove') }}
+                    </button>
+                    {% endif %}
+                    <button type="submit"
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800">
+                        {{ _('Save Custom Calendar') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+
         <!-- Data Management -->
         <div class="p-6">
             <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ _('Data Management') }}</h2>

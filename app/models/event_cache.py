@@ -10,6 +10,10 @@ class EventCache(db.Model):
     source = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     year = db.Column(db.Integer, nullable=False)  # For efficient querying
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_event_cache_user'), nullable=True)
+    # NULL for global/public events (holidays, etc. from the background job);
+    # set to the owning user's id for personal entries from that user's
+    # custom calendar descriptor (see UserCalendarDescriptor).
     
     @staticmethod
     def from_event_dict(event_dict):

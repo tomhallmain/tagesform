@@ -61,13 +61,20 @@ class IntegrationService:
         synchronously here used to mean every dashboard load and every
         time-horizon tab click triggered minutes of live API calls (Inadiutorium
         alone issues one request per month, each taking upwards of 20 seconds).
+
+        Includes both global rows (public holidays etc., user_id NULL) and the
+        current user's own custom-calendar rows -- never another user's.
         """
-        from ..models import EventCache
+        from ..models import EventCache, db
+
         try:
             if not start_date:
                 start_date = datetime.now()
 
-            query = EventCache.query.filter(EventCache.date >= start_date)
+            query = EventCache.query.filter(
+                EventCache.date >= start_date,
+                db.or_(EventCache.user_id.is_(None), EventCache.user_id == current_user.id)
+            )
             if end_date:
                 query = query.filter(EventCache.date <= end_date)
 

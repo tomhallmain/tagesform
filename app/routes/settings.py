@@ -1,6 +1,12 @@
+from datetime import datetime
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
-from ..models import Activity, ScheduleRecord, Entity, db
+from ..models import Activity, ScheduleRecord, Entity, UserCalendarDescriptor, db
+from ..services.custom_calendar_service import (
+    parse_descriptor, regenerate_event_cache_for_user, delete_event_cache_for_user,
+    DescriptorValidationError,
+)
 from ..utils.translations import I18N, _
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
@@ -9,7 +15,13 @@ settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 @login_required
 def settings():
     available_languages = I18N.get_available_languages()
-    return render_template('settings.html', preferences=current_user.preferences or {}, available_languages=available_languages)
+    calendar_descriptor = UserCalendarDescriptor.query.filter_by(user_id=current_user.id).first()
+    return render_template(
+        'settings.html',
+        preferences=current_user.preferences or {},
+        available_languages=available_languages,
+        calendar_descriptor=calendar_descriptor,
+    )
 
 @settings_bp.route('/update-notifications', methods=['POST'])
 @login_required
@@ -97,6 +109,64 @@ def update_language():
         })
 
     flash(_('Language settings updated!'), 'success')
+    return redirect(url_for('settings.settings'))
+
+@settings_bp.route('/update-calendar-descriptor', methods=['POST'])
+@login_required
+def update_calendar_descriptor():
+    """Save the user's custom calendar YAML descriptor.
+
+    On success, immediately regenerates that user's Custom Calendar
+    EventCache rows for this year and next, so they show up on the
+    dashboard right away rather than waiting for the next background
+    refresh. On failure, nothing is saved -- the previously-stored,
+    still-valid descriptor (if any) and its already-cached events are left
+    untouched.
+    """
+    raw_yaml = request.form.get('raw_yaml', '')
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    try:
+        entries = parse_descriptor(raw_yaml)
+    except DescriptorValidationError as e:
+        error_message = str(e)
+        if is_ajax:
+            return jsonify({'error': error_message}), 400
+        flash(error_message, 'error')
+        return redirect(url_for('settings.settings'))
+
+    descriptor = UserCalendarDescriptor.query.filter_by(user_id=current_user.id).first()
+    if descriptor:
+        descriptor.raw_yaml = raw_yaml
+        descriptor.last_parse_error = None
+    else:
+        descriptor = UserCalendarDescriptor(user_id=current_user.id, raw_yaml=raw_yaml)
+        db.session.add(descriptor)
+    db.session.commit()
+
+    current_year = datetime.utcnow().year
+    regenerate_event_cache_for_user(current_user.id, entries, years=[current_year, current_year + 1])
+
+    if is_ajax:
+        return jsonify({'message': _('Custom calendar saved!'), 'type': 'success'})
+
+    flash(_('Custom calendar saved!'), 'success')
+    return redirect(url_for('settings.settings'))
+
+@settings_bp.route('/delete-calendar-descriptor', methods=['POST'])
+@login_required
+def delete_calendar_descriptor():
+    """Remove the user's custom calendar descriptor and its cached events."""
+    descriptor = UserCalendarDescriptor.query.filter_by(user_id=current_user.id).first()
+    if descriptor:
+        db.session.delete(descriptor)
+        db.session.commit()
+    delete_event_cache_for_user(current_user.id)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'message': _('Custom calendar removed.'), 'type': 'success'})
+
+    flash(_('Custom calendar removed.'), 'success')
     return redirect(url_for('settings.settings'))
 
 @settings_bp.route('/export-data')

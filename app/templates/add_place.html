@@ -267,6 +267,17 @@
         // Handle modal actions
         confirmBtn.addEventListener('click', () => {
             modal.classList.add('hidden');
+            // Tell the backend to skip the duplicate check on this
+            // resubmission -- otherwise it just finds the same duplicates
+            // again and blocks the save a second time.
+            let confirmField = form.querySelector('input[name="confirm_duplicate"]');
+            if (!confirmField) {
+                confirmField = document.createElement('input');
+                confirmField.type = 'hidden';
+                confirmField.name = 'confirm_duplicate';
+                form.appendChild(confirmField);
+            }
+            confirmField.value = '1';
             form.submit();
         });
 

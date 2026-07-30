@@ -3,7 +3,30 @@
 {% block content %}
 <div class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
     <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">{{ _('Edit Place') }}</h1>
-    
+
+    <!-- Duplicate Alert Modal (shown only when this edit makes the place public) -->
+    <div id="duplicateModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg leading-6 font-medium text-red-900 dark:text-red-100">⚠️ {{ _('Potential Duplicate Found') }}</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-red-700 dark:text-red-300">{{ _('Similar public places already exist. Please review before proceeding:') }}</p>
+                    <div id="duplicatesList" class="mt-2 text-left max-h-60 overflow-y-auto">
+                        <!-- Duplicates will be listed here -->
+                    </div>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="saveAnywayBtn" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                        {{ _('Save Anyway') }}
+                    </button>
+                    <button id="cancelBtn" class="mt-2 px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        {{ _('Cancel') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <form method="POST" id="editPlaceForm" class="space-y-6">
         <div>
             <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Place Name') }}</label>
@@ -223,6 +246,83 @@
                     visitedCheckbox.checked = true;
                 }
             });
+        });
+
+        // Handle form submission -- pre-check for duplicates via AJAX before
+        // actually saving. The server only actually runs the duplicate
+        // check when this edit is making the place public; otherwise this
+        // request just comes back with has_duplicates: false immediately.
+        const form = document.getElementById('editPlaceForm');
+        const modal = document.getElementById('duplicateModal');
+        const confirmBtn = document.getElementById('saveAnywayBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const duplicateList = document.getElementById('duplicatesList');
+
+        form.addEventListener('submit', async function(e) {
+            // The "Share" button submits to a different formaction entirely
+            // (share_with_user) -- let it go through normally, untouched.
+            if (e.submitter && e.submitter.hasAttribute('formaction')) {
+                return;
+            }
+
+            e.preventDefault();
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.has_duplicates) {
+                    document.querySelectorAll('.flash-message').forEach(msg => msg.remove());
+
+                    modal.classList.remove('hidden');
+
+                    duplicateList.innerHTML = data.duplicates.map(dup => `
+                        <li class="py-2">
+                            <div class="font-medium">${dup.name}</div>
+                            <div class="text-sm text-gray-500">${dup.category} • ${dup.location || '{{ _('No location') }}'}</div>
+                        </li>
+                    `).join('');
+                } else {
+                    form.submit();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                form.submit(); // Fallback to normal submission
+            }
+        });
+
+        confirmBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            // Tell the backend to skip the duplicate check on this
+            // resubmission -- otherwise it just finds the same duplicates
+            // again and blocks the save a second time.
+            let confirmField = form.querySelector('input[name="confirm_duplicate"]');
+            if (!confirmField) {
+                confirmField = document.createElement('input');
+                confirmField.type = 'hidden';
+                confirmField.name = 'confirm_duplicate';
+                form.appendChild(confirmField);
+            }
+            confirmField.value = '1';
+            form.submit();
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
         });
     });
 </script>

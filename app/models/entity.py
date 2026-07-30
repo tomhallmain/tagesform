@@ -108,19 +108,22 @@ class Entity(db.Model, JSONFieldMixin):
         return False
 
     @classmethod
-    def find_duplicates(cls, name, category, location, user_id):
-        """Find potential duplicates based on name similarity and exact category/location match"""
-        # Log input parameters
-        print(f"Finding duplicates for: name='{name}', category='{category}', location='{location}', user_id={user_id}")
+    def find_duplicates(cls, name, category, location, user_id, include_public=False, exclude_id=None):
+        """Find potential duplicates based on name similarity and exact category/location match.
 
-        # Debug: Show all entities with similar names regardless of location
-        debug_query = cls.query.filter(
-            cls.user_id == user_id,
-            cls.category == category
-        )
-        print("\nDEBUG - All existing records with matching category:")
-        for record in debug_query.all():
-            print(f"Found record: id={record.id}, name='{record.name}', category='{record.category}', location='{record.location}'")
+        By default this only searches the given user's own places. Pass
+        include_public=True to widen the search to also cover other users'
+        public places -- intended for the case where the place being
+        created/edited is itself being made public, since a private place
+        only ever needs to be checked against the owner's own list.
+        exclude_id excludes a specific entity (the one being edited) from
+        matching against itself.
+        """
+        # Log input parameters
+        print(f"Finding duplicates for: name='{name}', category='{category}', location='{location}', user_id={user_id}, include_public={include_public}")
+
+        owner_filter = cls.user_id == user_id
+        scope_filter = db.or_(owner_filter, cls.is_public == True) if include_public else owner_filter
 
         # Normalize location value
         location = location if location else None
@@ -128,7 +131,7 @@ class Entity(db.Model, JSONFieldMixin):
 
         # First check for exact matches
         exact_match_query = cls.query.filter(
-            cls.user_id == user_id,
+            scope_filter,
             cls.name.ilike(name),
             cls.category == category,
             db.or_(
@@ -139,19 +142,21 @@ class Entity(db.Model, JSONFieldMixin):
                 cls.location == ''
             )
         )
+        if exclude_id is not None:
+            exact_match_query = exact_match_query.filter(cls.id != exclude_id)
         print(f"Exact match query: {exact_match_query}")
-        
+
         exact_matches = exact_match_query.all()
         print(f"Found {len(exact_matches)} exact matches")
         for match in exact_matches:
             print(f"Exact match found: id={match.id}, name='{match.name}', category='{match.category}', location='{match.location}'")
-        
+
         if exact_matches:
             return [match.to_dict() for match in exact_matches]
 
         # If no exact matches, look for similar names with matching category and similar location handling
         similar_match_query = cls.query.filter(
-            cls.user_id == user_id,
+            scope_filter,
             cls.category == category,
             db.or_(
                 # Both locations match (including both being None/empty)
@@ -161,16 +166,18 @@ class Entity(db.Model, JSONFieldMixin):
                 cls.location == ''
             )
         )
+        if exclude_id is not None:
+            similar_match_query = similar_match_query.filter(cls.id != exclude_id)
         print(f"Similar match query: {similar_match_query}")
-        
+
         similar_matches = similar_match_query.all()
         print(f"Found {len(similar_matches)} category/location matches before name similarity check")
-        
+
         # Filter for similar names using Utils.is_similar_strings
         from ..utils.utils import Utils
         final_matches = [entity for entity in similar_matches if Utils.is_similar_strings(entity.name.lower(), name.lower())]
         print(f"Found {len(final_matches)} matches after name similarity check")
         for match in final_matches:
             print(f"Similar match found: id={match.id}, name='{match.name}', category='{match.category}', location='{match.location}'")
-        
+
         return [match.to_dict() for match in final_matches]

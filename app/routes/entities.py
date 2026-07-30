@@ -165,13 +165,20 @@ def add_place():
         # Process visibility setting
         is_public = 'is_public' in request.form
 
-        # Check for duplicates before creating the entity
+        # Check for duplicates before creating the entity. Only widen the
+        # search to other users' public places if this place is itself
+        # being made public -- a private place only competes with the
+        # owner's own list. Skipped entirely once the user has confirmed
+        # via the "Save as New Entry" button on the duplicate-warning modal
+        # -- otherwise the confirmed resubmission just hits the same check
+        # again and gets blocked a second time.
         entity_id = request.form.get('id')  # Get entity ID if this is an update
-        potential_duplicates = Entity.find_duplicates(
+        potential_duplicates = [] if request.form.get('confirm_duplicate') else Entity.find_duplicates(
             name=name,
             category=category,
             location=location,
-            user_id=current_user.id
+            user_id=current_user.id,
+            include_public=is_public
         )
 
         if potential_duplicates:
@@ -938,6 +945,8 @@ def edit_place(entity_id):
         return redirect(url_for('entities.list_places'))
     
     if request.method == 'POST':
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
         name = request.form.get('name')
         category = request.form.get('category')
         location = request.form.get('location')
@@ -989,7 +998,38 @@ def edit_place(entity_id):
 
         # Add visibility handling
         is_public = 'is_public' in request.form
-        
+
+        # Only run a duplicate check on edit when the place is transitioning
+        # to public -- editing a place that stays private (or stays/becomes
+        # private) never needs one, and a place that was already public was
+        # already checked against public places when it was made public.
+        # Skipped once the user has confirmed via "Save Anyway" on the
+        # duplicate-warning modal -- see add_place for why.
+        becoming_public = is_public and not entity.is_public
+        if becoming_public and not request.form.get('confirm_duplicate'):
+            potential_duplicates = Entity.find_duplicates(
+                name=name,
+                category=category,
+                location=location,
+                user_id=current_user.id,
+                include_public=True,
+                exclude_id=entity.id
+            )
+
+            if potential_duplicates:
+                if is_ajax:
+                    return jsonify({
+                        'has_duplicates': True,
+                        'duplicates': potential_duplicates
+                    })
+
+                flash(_('Potential duplicate found. Please review the details before saving.'), 'warning')
+                return render_template('edit_place.html', place=entity), 400
+
+        # If this is just an AJAX duplicate check (and none were found), return success
+        if is_ajax:
+            return jsonify({'has_duplicates': False})
+
         try:
             # Update entity
             entity.name = name

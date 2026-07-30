@@ -42,6 +42,85 @@ def test_add_place_duplicate_check(client, auth, db_session):
     assert data['duplicates'][0]['category'] == 'restaurant'
     assert data['duplicates'][0]['location'] == '123 Test St'
 
+def _create_other_user_with_public_place(db_session, name='Test Restaurant', category='restaurant',
+                                          location='123 Test St', is_public=True):
+    """Create a second user owning a place, for cross-user duplicate-check tests."""
+    from app.models import User
+    other_user = User(username='other_user', email='other@example.com')
+    other_user.set_password('password')
+    db_session.add(other_user)
+    db_session.commit()
+
+    other_place = Entity(
+        name=name,
+        category=category,
+        location=location,
+        is_public=is_public,
+        user_id=other_user.id
+    )
+    db_session.add(other_place)
+    db_session.commit()
+    return other_user, other_place
+
+def test_add_place_duplicate_check_includes_public_places_when_making_public(client, auth, db_session):
+    """A new place being made public should be checked against other users' public places too."""
+    auth.login()
+    _create_other_user_with_public_place(db_session)
+
+    response = client.post('/add-place',
+                         data={
+                             'name': 'Test Restaurant',
+                             'category': 'restaurant',
+                             'location': '123 Test St',
+                             'is_public': 'on'
+                         },
+                         headers={'X-Requested-With': 'XMLHttpRequest'})
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['has_duplicates'] is True
+    assert len(data['duplicates']) == 1
+    assert data['duplicates'][0]['name'] == 'Test Restaurant'
+
+def test_add_place_duplicate_check_excludes_public_places_when_staying_private(client, auth, db_session):
+    """A new place staying private should only be checked against the current user's own places."""
+    auth.login()
+    _create_other_user_with_public_place(db_session)
+
+    response = client.post('/add-place',
+                         data={
+                             'name': 'Test Restaurant',
+                             'category': 'restaurant',
+                             'location': '123 Test St'
+                             # is_public omitted -- staying private
+                         },
+                         headers={'X-Requested-With': 'XMLHttpRequest'})
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['has_duplicates'] is False
+
+def test_add_place_confirm_duplicate_bypasses_check(client, auth, test_user, db_session):
+    """The 'Save as New Entry' resubmission (confirm_duplicate=1) must actually save,
+    not hit the same duplicate check and get blocked again."""
+    auth.login()
+    _create_other_user_with_public_place(db_session)
+
+    response = client.post('/add-place',
+                         data={
+                             'name': 'Test Restaurant',
+                             'category': 'restaurant',
+                             'location': '123 Test St',
+                             'is_public': 'on',
+                             'confirm_duplicate': '1'
+                         },
+                         follow_redirects=True)
+
+    assert response.status_code == 200
+    saved = Entity.query.filter_by(name='Test Restaurant', user_id=test_user.id).first()
+    assert saved is not None
+    assert saved.is_public is True
+
 def test_import_places_duplicate_check(client, auth, test_user, db_session):
     """Test duplicate checking during CSV import"""
     # Login
@@ -314,6 +393,147 @@ def test_edit_place_rating_and_visited(client, auth, test_user, db_session):
     place = db_session.get(Entity, place.id)
     assert place.rating == 2
     assert place.visited is True
+
+def test_edit_place_becoming_public_succeeds_without_duplicate(client, auth, test_user, db_session):
+    """Making a place public should still save normally when the (now
+    widened) duplicate check finds nothing."""
+    auth.login()
+
+    place = Entity(name='My Place', category='restaurant', location='1 Main St',
+                    is_public=False, user_id=test_user.id)
+    db_session.add(place)
+    db_session.commit()
+
+    response = client.post(f'/edit-place/{place.id}', data={
+        'name': 'My Place',
+        'category': 'restaurant',
+        'location': '1 Main St',
+        'is_public': 'on'
+    })
+    assert response.status_code == 302
+
+    place = db_session.get(Entity, place.id)
+    assert place.is_public is True
+
+def test_edit_place_no_duplicate_check_when_staying_private(client, auth, test_user, db_session):
+    """Editing a place that stays private must not trigger a duplicate check,
+    even if a matching public place exists elsewhere."""
+    auth.login()
+    _create_other_user_with_public_place(db_session, name='My Place', location='1 Main St')
+
+    place = Entity(name='My Place', category='restaurant', location='1 Main St',
+                    is_public=False, user_id=test_user.id)
+    db_session.add(place)
+    db_session.commit()
+
+    response = client.post(f'/edit-place/{place.id}', data={
+        'name': 'My Place',
+        'category': 'restaurant',
+        'location': '1 Main St',
+        'description': 'updated description'
+        # is_public omitted -- staying private
+    })
+    assert response.status_code == 302
+
+    place = db_session.get(Entity, place.id)
+    assert place.description == 'updated description'
+    assert place.is_public is False
+
+def test_edit_place_no_duplicate_check_when_already_public(client, auth, test_user, db_session):
+    """Editing a place that was already public (and stays public) must not
+    trigger a duplicate check -- it's not a transition to public."""
+    auth.login()
+    _create_other_user_with_public_place(db_session, name='My Place', location='1 Main St')
+
+    place = Entity(name='My Place', category='restaurant', location='1 Main St',
+                    is_public=True, user_id=test_user.id)
+    db_session.add(place)
+    db_session.commit()
+
+    response = client.post(f'/edit-place/{place.id}', data={
+        'name': 'My Place',
+        'category': 'restaurant',
+        'location': '1 Main St',
+        'is_public': 'on',
+        'description': 'updated description'
+    })
+    assert response.status_code == 302
+
+    place = db_session.get(Entity, place.id)
+    assert place.description == 'updated description'
+    assert place.is_public is True
+
+def test_edit_place_duplicate_check_when_becoming_public(client, auth, test_user, db_session):
+    """Editing a private place to make it public must be checked against
+    other users' public places, and blocked if a match is found."""
+    auth.login()
+    _create_other_user_with_public_place(db_session, name='My Place', location='1 Main St')
+
+    place = Entity(name='My Place', category='restaurant', location='1 Main St',
+                    is_public=False, user_id=test_user.id)
+    db_session.add(place)
+    db_session.commit()
+
+    response = client.post(f'/edit-place/{place.id}', data={
+        'name': 'My Place',
+        'category': 'restaurant',
+        'location': '1 Main St',
+        'is_public': 'on'
+    })
+    assert response.status_code == 400
+
+    place = db_session.get(Entity, place.id)
+    assert place.is_public is False  # Blocked -- change was not saved
+
+def test_edit_place_duplicate_check_ajax_when_becoming_public(client, auth, test_user, db_session):
+    """The AJAX duplicate pre-check (used by the edit form's JS) should
+    report the match without saving anything."""
+    auth.login()
+    _create_other_user_with_public_place(db_session, name='My Place', location='1 Main St')
+
+    place = Entity(name='My Place', category='restaurant', location='1 Main St',
+                    is_public=False, user_id=test_user.id)
+    db_session.add(place)
+    db_session.commit()
+
+    response = client.post(f'/edit-place/{place.id}', data={
+        'name': 'My Place',
+        'category': 'restaurant',
+        'location': '1 Main St',
+        'is_public': 'on'
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['has_duplicates'] is True
+    assert len(data['duplicates']) == 1
+    assert data['duplicates'][0]['name'] == 'My Place'
+
+    place = db_session.get(Entity, place.id)
+    assert place.is_public is False  # AJAX pre-check must not have saved anything
+
+def test_edit_place_confirm_duplicate_bypasses_check(client, auth, test_user, db_session):
+    """The 'Save Anyway' resubmission (confirm_duplicate=1) must actually
+    save the change, not hit the same duplicate check and get blocked again."""
+    auth.login()
+    _create_other_user_with_public_place(db_session, name='My Place', location='1 Main St')
+
+    place = Entity(name='My Place', category='restaurant', location='1 Main St',
+                    is_public=False, user_id=test_user.id)
+    db_session.add(place)
+    db_session.commit()
+
+    response = client.post(f'/edit-place/{place.id}', data={
+        'name': 'My Place',
+        'category': 'restaurant',
+        'location': '1 Main St',
+        'is_public': 'on',
+        'confirm_duplicate': '1'
+    })
+    assert response.status_code == 302
+
+    place = db_session.get(Entity, place.id)
+    assert place.is_public is True
 
 def test_rating_validation(client, auth):
     """Test validation of rating values"""

@@ -6,6 +6,8 @@ import json
 from datetime import datetime, timedelta
 from io import BytesIO
 
+pytestmark = pytest.mark.integration
+
 def test_add_place_duplicate_check(client, auth, db_session):
     """Test duplicate checking when adding a place"""
     # Login

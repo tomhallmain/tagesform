@@ -2,6 +2,8 @@ import pytest
 from flask import url_for
 from app.models import User, db
 
+pytestmark = pytest.mark.integration
+
 def test_login_page(client):
     """Test login page loads correctly"""
     response = client.get('/login', follow_redirects=True)

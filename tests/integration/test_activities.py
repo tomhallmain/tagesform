@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from app.models import Activity
 from unittest.mock import patch
 
+pytestmark = pytest.mark.integration
+
 def test_add_activity_page(client, auth):
     """Test add activity page loads correctly"""
     auth.login()

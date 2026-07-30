@@ -3,6 +3,8 @@ from flask import url_for
 from datetime import datetime, timedelta
 from app.models import Activity, ScheduleRecord, Entity
 
+pytestmark = pytest.mark.integration
+
 def test_index_redirect_anonymous(client):
     """Test that anonymous users are redirected to login"""
     response = client.get('/')

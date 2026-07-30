@@ -3,6 +3,8 @@ from flask import url_for
 from datetime import datetime, timedelta
 from app.models import ScheduleRecord
 
+pytestmark = pytest.mark.integration
+
 def test_new_schedule_page(client, auth):
     """Test new schedule page loads correctly"""
     auth.login()

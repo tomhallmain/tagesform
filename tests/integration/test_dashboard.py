@@ -6,6 +6,8 @@ from flask import current_app
 from flask_login import login_user
 from freezegun import freeze_time
 
+pytestmark = pytest.mark.integration
+
 def assert_event_in_timeframe(events, title, timeframe, event_type='activity'):
     """Helper method to check if an event (activity or schedule) exists in a timeframe and provide detailed output on failure.
     

@@ -71,7 +71,7 @@
                                             {{ place.name }}
                                         </td>
                                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate" data-value="{{ place.category }}">
-                                            {{ place.category | title_case }}
+                                            {{ _(place.category | title_case) }}
                                         </td>
                                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 truncate" data-value="{{ place.location or '' }}">
                                             {{ place.location | title_case if place.location else '-' }}

@@ -43,8 +43,8 @@
                                         <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white break-words" title="{{ place.name }}">
                                             {{ place.name }}
                                         </td>
-                                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 truncate" title="{{ place.category | title_case }}">
-                                            {{ place.category | title_case }}
+                                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 truncate" title="{{ _(place.category | title_case) }}">
+                                            {{ _(place.category | title_case) }}
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 truncate" title="{{ place.location | title_case if place.location else '-' }}">
                                             {{ place.location | title_case if place.location else '-' }}

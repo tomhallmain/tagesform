@@ -84,13 +84,18 @@ def update_language():
     
     # Update preferences using the new method
     preferences = current_user.update_preferences(updates)
-    
+
+    # The language just changed -- any _() call below (or in a template
+    # rendered from this request going forward) must re-resolve against the
+    # new preference rather than whatever locale was cached before this.
+    I18N.reset_locale_cache()
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
             'message': _('Language settings updated!'),
             'type': 'success'
         })
-    
+
     flash(_('Language settings updated!'), 'success')
     return redirect(url_for('settings.settings'))
 

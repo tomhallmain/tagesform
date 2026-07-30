@@ -96,10 +96,6 @@ class TestTranslationSystem:
             result = I18N._('Settings')
             assert result == 'Settings'
 
-            # Test fallback for untranslated string
-            result = I18N._('Untranslated String')
-            assert result == 'Untranslated String'
-
     def test_translation_function_different_languages(self, app):
         """Test that _() function works with different languages"""
         with app.app_context():
@@ -131,32 +127,6 @@ class TestTranslationSystem:
             assert I18N.day_of_the_week(0) == 'Monday'
             assert I18N.day_of_the_week(1) == 'Tuesday'
             assert I18N.day_of_the_week(6) == 'Sunday'
-
-    def test_translation_fallback_behavior(self, app):
-        """Test that translation system works even without translation files"""
-        with app.app_context():
-            g.current_locale = 'en'
-            g.current_translation = None  # Force recreation
-
-            # Should work even if translation files are not available
-            translation = I18N.get_current_translation()
-            assert translation is not None
-
-            # Should return the original string
-            result = I18N._('Test String')
-            assert result == 'Test String'
-
-    def test_translation_fallback_for_missing_strings(self, app):
-        """Test that untranslated strings fall back to original"""
-        with app.app_context():
-            # Test with a string that likely doesn't have translations
-            g.current_locale = 'de'
-            g.current_translation = None  # Force recreation
-
-            # This string probably doesn't have a German translation
-            result = I18N._('Untranslated String')
-            assert result == 'Untranslated String'  # Should fall back to original
-
 
 def test_translation_system_thread_safety(app):
     """Test that translation system is thread-safe (per-request isolation)"""

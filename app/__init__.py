@@ -61,6 +61,18 @@ def create_app(config_name=None):
     def inject_locale():
         return dict(current_locale=I18N.get_current_locale())
 
+    # I18N.get_current_locale()/get_current_translation() cache their result
+    # on flask.g so a request doesn't re-resolve the locale on every _()
+    # call. g is normally fresh per request, so this is usually a no-op --
+    # but anything that keeps an app context alive across multiple requests
+    # (e.g. this app's own test suite, which pushes one app context for the
+    # whole session) would otherwise leak one request's resolved locale into
+    # the next. Clearing it explicitly at request start keeps locale
+    # resolution correctly scoped to a single request regardless.
+    @app.before_request
+    def reset_locale_cache():
+        I18N.reset_locale_cache()
+
     # User loader for Flask-Login
     @login_manager.user_loader
     def load_user(user_id):

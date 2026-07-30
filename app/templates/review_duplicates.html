@@ -32,7 +32,7 @@
                             
                             <div class="grid grid-cols-3 gap-4">
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Category</dt>
-                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.new.category }}</dd>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ _(duplicate.new.category | title_case) }}</dd>
                             </div>
                             
                             <div class="grid grid-cols-3 gap-4">
@@ -65,7 +65,7 @@
                             
                             <div class="grid grid-cols-3 gap-4">
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Category</dt>
-                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ duplicate.existing.category }}</dd>
+                                <dd class="text-sm text-gray-900 dark:text-white col-span-2">{{ _(duplicate.existing.category | title_case) }}</dd>
                             </div>
                             
                             <div class="grid grid-cols-3 gap-4">

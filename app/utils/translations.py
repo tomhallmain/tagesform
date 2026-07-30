@@ -61,6 +61,22 @@ class I18N:
             return s
 
     @staticmethod
+    def reset_locale_cache():
+        """Clear the per-request locale/translation cache on `g`.
+
+        get_current_locale()/get_current_translation() cache onto `g` so a
+        request doesn't re-resolve the locale on every _() call. That cache
+        needs clearing whenever the active user's language preference
+        changes within the same request (e.g. right after saving a new
+        preference) -- otherwise a _() call later in that same request keeps
+        returning the *previous* language instead of the one just selected.
+        """
+        if hasattr(g, 'current_locale'):
+            del g.current_locale
+        if hasattr(g, 'current_translation'):
+            del g.current_translation
+
+    @staticmethod
     def day_of_the_week(day_index=0):
         if day_index == 0:
             return I18N._('Monday')
@@ -97,26 +113,16 @@ class I18N:
 _ = I18N._
 
 '''
-TRANSLATION WORKFLOW:
+NOTE when gathering the translation strings, set _() == to gettext.gettext() instead of the above, and run:
 
-Option 1: Use the custom extraction script (recommended):
-    ```python extract_translations.py```
+    ```python C:\Python310\Tools\i18n\pygettext.py -d base -o locale\base.pot .```
 
-Option 2: Use Babel (if installed):
-    ```bash
-    pybabel extract -F babel.cfg -k _l -o locale/base.pot .
-    ```
+in the base directory. The POT output file can be used as source for the PO files in each locale.
+Run personal script C:\Scripts\i18n_manager.py to generate new PO files and look for invalid translations.
 
-Option 3: Use pygettext (requires temporary modification):
-    - Temporarily change _() method to use gettext.gettext() directly
-    - Run: ```python C:\Python310\Tools\i18n\pygettext.py -d base -o locale\base.pot .```
-    - Revert the _() method back to normal
+Bonus command:
+    ```git diff Tagesform\locale\de\LC_MESSAGES\base.po Tagesform\locale\de\LC_MESSAGES\base1.po | rg -v "^.*#" | rg -C 3 "^(-|\+)"```
 
-After generating the POT file:
-1. Update PO files for each language in locale/[lang]/LC_MESSAGES/base.po
-2. Compile MO files: ```python C:\Python310\Tools\i18n\msgfmt.py -o locale/[lang]/LC_MESSAGES/base.mo locale/[lang]/LC_MESSAGES/base.po```
-
-The custom extraction script will detect:
-- I18N._('text') calls in Python files
-- {{ _('text') }} calls in Jinja2 templates
+Then for each locale once the PO files are set up as desired, run below in the deepest locale directory to produce the MO file from the PO file:
+    ```python C:\Python310\Tools\i18n\msgfmt.py -o base.mo base```
 '''

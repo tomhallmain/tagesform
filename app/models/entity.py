@@ -16,7 +16,7 @@ class Entity(db.Model, JSONFieldMixin):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_entity_user'), nullable=False)
-    is_public = db.Column(db.Boolean, default=False)  # Whether the entity is shared with other users
+    is_public = db.Column(db.Boolean, default=True)  # Whether the entity is shared with other users
     shared_with = db.Column(db.JSON)  # List of user IDs this entity is shared with
 
     __table_args__ = (

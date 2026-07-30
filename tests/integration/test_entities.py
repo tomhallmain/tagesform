@@ -573,7 +573,10 @@ def test_add_place_visibility(client, auth, db_session):
     assert place1 is not None
     assert place1.is_public is True
 
-    # Test case 2: Add place as private (default)
+    # Test case 2: Add place as private -- explicitly unchecked/omitted.
+    # The *form* now defaults the checkbox to checked (see
+    # test_add_place_form_defaults_is_public_to_checked), but the route
+    # itself still just reflects whatever the request actually sends.
     response = client.post('/add-place', data={
         'name': 'Private Restaurant',
         'category': 'restaurant'
@@ -583,4 +586,11 @@ def test_add_place_visibility(client, auth, db_session):
 
     place2 = Entity.query.filter_by(name='Private Restaurant').first()
     assert place2 is not None
-    assert place2.is_public is False 
+    assert place2.is_public is False
+
+def test_add_place_form_defaults_is_public_to_checked(client, auth):
+    """The add-place form should render with the public checkbox pre-checked."""
+    auth.login()
+    response = client.get('/add-place')
+    assert response.status_code == 200
+    assert_in_response('id="is_public" checked', response) 

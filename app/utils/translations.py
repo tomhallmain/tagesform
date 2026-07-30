@@ -91,27 +91,32 @@ class I18N:
                         languages.append(item)
         return sorted(languages)
 
-    '''
-    TRANSLATION WORKFLOW:
-    
-    Option 1: Use the custom extraction script (recommended):
-        ```python extract_translations.py```
-    
-    Option 2: Use Babel (if installed):
-        ```bash
-        pybabel extract -F babel.cfg -k _l -o locale/base.pot .
-        ```
-    
-    Option 3: Use pygettext (requires temporary modification):
-        - Temporarily change _() method to use gettext.gettext() directly
-        - Run: ```python C:\Python310\Tools\i18n\pygettext.py -d base -o locale\base.pot .```
-        - Revert the _() method back to normal
-    
-    After generating the POT file:
-    1. Update PO files for each language in locale/[lang]/LC_MESSAGES/base.po
-    2. Compile MO files: ```python C:\Python310\Tools\i18n\msgfmt.py -o locale/[lang]/LC_MESSAGES/base.mo locale/[lang]/LC_MESSAGES/base.po```
-    
-    The custom extraction script will detect:
-    - I18N._('text') calls in Python files
-    - {{ _('text') }} calls in Jinja2 templates
-    '''
+
+# Module-level alias so other modules can do `from ..utils.translations import _`
+# instead of importing I18N and aliasing it themselves.
+_ = I18N._
+
+'''
+TRANSLATION WORKFLOW:
+
+Option 1: Use the custom extraction script (recommended):
+    ```python extract_translations.py```
+
+Option 2: Use Babel (if installed):
+    ```bash
+    pybabel extract -F babel.cfg -k _l -o locale/base.pot .
+    ```
+
+Option 3: Use pygettext (requires temporary modification):
+    - Temporarily change _() method to use gettext.gettext() directly
+    - Run: ```python C:\Python310\Tools\i18n\pygettext.py -d base -o locale\base.pot .```
+    - Revert the _() method back to normal
+
+After generating the POT file:
+1. Update PO files for each language in locale/[lang]/LC_MESSAGES/base.po
+2. Compile MO files: ```python C:\Python310\Tools\i18n\msgfmt.py -o locale/[lang]/LC_MESSAGES/base.mo locale/[lang]/LC_MESSAGES/base.po```
+
+The custom extraction script will detect:
+- I18N._('text') calls in Python files
+- {{ _('text') }} calls in Jinja2 templates
+'''

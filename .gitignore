@@ -1,5 +1,6 @@
 __pycache__
 *.swp
+*.log
 app_info_cache.json
 configs/*
 !configs/config_example.json

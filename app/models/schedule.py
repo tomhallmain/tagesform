@@ -1,8 +1,6 @@
 from .mixins import db
 from datetime import date
-from ..utils.translations import I18N
-
-_ = I18N._
+from ..utils.translations import _
 
 class ScheduleRecord(db.Model):
     __tablename__ = 'schedule'  # Keep the original table name

@@ -1,6 +1,4 @@
-from app.utils.translations import I18N
-
-_ = I18N._
+from app.utils.translations import _
 
 def title_case(text):
     """Convert text to title case, handling None values"""

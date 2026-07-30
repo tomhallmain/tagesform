@@ -53,8 +53,8 @@ def create_app(config_name=None):
     app.jinja_env.filters['format_rating'] = format_rating
     
     # Register translation function for templates
-    from .utils.translations import I18N
-    app.jinja_env.globals['_'] = I18N._
+    from .utils.translations import I18N, _
+    app.jinja_env.globals['_'] = _
     
     # Add context processor for locale information
     @app.context_processor

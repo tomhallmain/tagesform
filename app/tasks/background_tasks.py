@@ -96,7 +96,8 @@ def update_event_cache(app):
 
 def backfill_computed_calendar_events(app):
     """Background job to backfill computed/deterministic calendar sources
-    (Hebrew via Hebcal; Coptic, once added) a wide horizon ahead.
+    (Hebrew via Hebcal; the curated Nobel Prize schedule; Coptic, once
+    added) a wide horizon ahead.
 
     Unlike update_event_cache's sources (Nager especially), these calendars'
     dates never change once computed -- there's nothing to "refresh." This
@@ -112,6 +113,7 @@ def backfill_computed_calendar_events(app):
 
         computed_sources = {
             'Hebcal': integration_service.calendar_aggregator.hebcal_api,
+            'Nobel Prize': integration_service.calendar_aggregator.nobel_prize_schedule,
         }
 
         for source_name, api in computed_sources.items():

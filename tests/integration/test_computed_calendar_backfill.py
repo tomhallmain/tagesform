@@ -57,6 +57,28 @@ def test_backfill_only_fetches_the_newly_missing_tail_year_after_horizon_advance
     mock_get_events.assert_called_once_with(new_tail_year)
 
 
+def test_backfill_populates_nobel_prize_schedule_using_real_curated_data(app, db_session):
+    """Exercises the real NobelPrizeSchedule (no network call, pure
+    computation) through the actual backfill job -- including the naive
+    previous-year fallback for years without a curated entry."""
+    with freeze_time("2026-01-01"):
+        with patch.object(integration_service.calendar_aggregator.hebcal_api, 'get_events', return_value=[]):
+            backfill_computed_calendar_events(app)
+
+    physics_2026 = EventCache.query.filter_by(
+        source='Nobel Prize', year=2026, title='Nobel Prize in Physics Announcement'
+    ).first()
+    assert physics_2026 is not None
+    assert physics_2026.date == datetime(2026, 10, 6)
+
+    # 2027 has no curated entry -- naively falls back to 2026's month/day.
+    physics_2027 = EventCache.query.filter_by(
+        source='Nobel Prize', year=2027, title='Nobel Prize in Physics Announcement'
+    ).first()
+    assert physics_2027 is not None
+    assert physics_2027.date == datetime(2027, 10, 6)
+
+
 def test_backfill_failure_for_one_year_does_not_block_other_years(app, db_session):
     def flaky_get_events(year):
         if year == 2028:

@@ -370,14 +370,70 @@ class HebcalAPI:
         return events
 
 
+class NobelPrizeSchedule:
+    """Nobel Prize announcement dates -- a manually curated schedule, not a
+    live API call.
+
+    No confirmed API exposes upcoming Nobel Prize announcement *dates*: the
+    official api.nobelprize.org is a historical database of past prizes and
+    laureates (keyed by year, not a specific date), and the actual schedule
+    is published by the Nobel Foundation as a press release each year, a few
+    months ahead, with no structured feed found for it. See
+    docs/scientific-calendar.md's Part 4 for the research behind this.
+
+    SCHEDULE below needs updating by hand once the Nobel Foundation
+    announces each coming year's dates. For any year not listed, get_events()
+    naively reuses the most recently curated earlier year's month/day for
+    each category -- an approximation (actual dates shift by a few days
+    year to year), not a verified prediction, but better than nothing once
+    this list falls behind.
+    """
+    SCHEDULE = {
+        2026: {
+            'Physiology or Medicine': (10, 5),
+            'Physics': (10, 6),
+            'Chemistry': (10, 7),
+            'Literature': (10, 8),
+            'Peace': (10, 9),
+            'Economic Sciences': (10, 12),
+        },
+    }
+
+    def _categories_for_year(self, year):
+        if year in self.SCHEDULE:
+            return self.SCHEDULE[year]
+
+        earlier_years = [y for y in self.SCHEDULE if y < year]
+        if not earlier_years:
+            return None
+        return self.SCHEDULE[max(earlier_years)]
+
+    def get_events(self, year=-1):
+        categories = self._categories_for_year(year)
+        if not categories:
+            return []
+
+        events = []
+        for category, (month, day) in categories.items():
+            events.append(Event(
+                name=f"Nobel Prize in {category} Announcement",
+                date=datetime.datetime(year, month, day),
+                source="Nobel Prize",
+                fixed=False,
+            ))
+        return events
+
+
 class CalendarAggregator:
     def __init__(self):
         # self.holiday_api = HolidayAPI(config.holiday_api_key)
         self.public_holidays_api = NagerPublicHolidaysAPI()
         self.inadiutorium_api = InadiutoriumAPI()
         self.hijri_calendar_api = HijriCalendarAPI()
-        # Not merged into get_events() below -- see HebcalAPI's docstring.
+        # Neither is merged into get_events() below -- see HebcalAPI's and
+        # NobelPrizeSchedule's docstrings.
         self.hebcal_api = HebcalAPI()
+        self.nobel_prize_schedule = NobelPrizeSchedule()
 
     def get_events(self, year):
         # holidays = self.holiday_api.get_events(["US", "DE", "GB", "CA", "RU"], year)

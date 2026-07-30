@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from app.services.calendar_aggregator import (
-    CalendarAggregator, Event, HebcalAPI, HijriCalendarAPI, format_event,
+    CalendarAggregator, Event, HebcalAPI, HijriCalendarAPI, NobelPrizeSchedule, format_event,
 )
 
 pytestmark = pytest.mark.unit
@@ -131,3 +131,62 @@ def test_format_event_produces_expected_shape():
         'location': 'US',
         'sources': ['Hebcal'],
     }
+
+
+def test_nobel_prize_schedule_uses_curated_dates_for_a_listed_year():
+    schedule = NobelPrizeSchedule()
+
+    events = schedule.get_events(2026)
+
+    by_name = {e.name: e.date for e in events}
+    assert by_name['Nobel Prize in Physics Announcement'] == datetime.datetime(2026, 10, 6)
+    assert by_name['Nobel Prize in Peace Announcement'] == datetime.datetime(2026, 10, 9)
+    assert all(e.sources == ['Nobel Prize'] for e in events)
+
+
+def test_nobel_prize_schedule_falls_back_to_previous_curated_year(monkeypatch):
+    """A year with no curated entry must naively reuse the most recent
+    earlier curated year's month/day, applied to the requested year."""
+    schedule = NobelPrizeSchedule()
+    monkeypatch.setattr(schedule, 'SCHEDULE', {2026: {'Physics': (10, 6)}})
+
+    events = schedule.get_events(2027)
+
+    assert len(events) == 1
+    assert events[0].date == datetime.datetime(2027, 10, 6)
+
+
+def test_nobel_prize_schedule_fallback_cascades_across_multiple_uncurated_years(monkeypatch):
+    """Two years past the last curated entry must still fall back to it --
+    not just the immediately-preceding year -- since nothing ever
+    back-fills the SCHEDULE dict itself."""
+    schedule = NobelPrizeSchedule()
+    monkeypatch.setattr(schedule, 'SCHEDULE', {2026: {'Physics': (10, 6)}})
+
+    events = schedule.get_events(2028)
+
+    assert len(events) == 1
+    assert events[0].date == datetime.datetime(2028, 10, 6)
+
+
+def test_nobel_prize_schedule_returns_empty_list_with_no_curated_year_at_or_before_target(monkeypatch):
+    schedule = NobelPrizeSchedule()
+    monkeypatch.setattr(schedule, 'SCHEDULE', {2026: {'Physics': (10, 6)}})
+
+    assert schedule.get_events(2025) == []
+
+
+def test_calendar_aggregator_does_not_merge_nobel_prize_schedule_into_get_events():
+    """Same reasoning as Hebcal: this is computed/curated data, not
+    something to refresh on update_event_cache's tight cycle."""
+    aggregator = CalendarAggregator()
+    assert hasattr(aggregator, 'nobel_prize_schedule')
+    assert isinstance(aggregator.nobel_prize_schedule, NobelPrizeSchedule)
+
+    with patch.object(aggregator.public_holidays_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.inadiutorium_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.hijri_calendar_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.nobel_prize_schedule, 'get_events') as mock_get_events:
+        aggregator.get_events(2026)
+
+    mock_get_events.assert_not_called()

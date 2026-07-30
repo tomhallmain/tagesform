@@ -43,11 +43,35 @@ def validate_entry_input(data):
     if description is not None and not isinstance(description, str):
         raise EntityCalendarValidationError(_("'description' must be a string."))
 
+    time = data.get('time')
+    if time is not None:
+        try:
+            time = datetime.strptime(time, '%H:%M').strftime('%H:%M')
+        except (TypeError, ValueError):
+            raise EntityCalendarValidationError(_("'time' must be in HH:MM 24-hour format."))
+
+    end_time = data.get('end_time')
+    if end_time is not None:
+        try:
+            end_time = datetime.strptime(end_time, '%H:%M').strftime('%H:%M')
+        except (TypeError, ValueError):
+            raise EntityCalendarValidationError(_("'end_time' must be in HH:MM 24-hour format."))
+
+    end_date = data.get('end_date')
+    if end_date is not None:
+        try:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date().isoformat()
+        except (TypeError, ValueError):
+            raise EntityCalendarValidationError(_("'end_date' must be an ISO date (YYYY-MM-DD)."))
+
     entry = {
         'title': title,
         'entry_type': entry_type,
         'recurrence': recurrence,
         'description': description or None,
+        'time': time,
+        'end_time': end_time,
+        'end_date': end_date,
         'date': None,
         'month': None,
         'day': None,

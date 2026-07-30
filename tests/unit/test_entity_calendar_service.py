@@ -94,3 +94,67 @@ def test_validate_entry_input_rejects_boolean_month(app):
     with app.app_context():
         with pytest.raises(EntityCalendarValidationError, match="month"):
             validate_entry_input({'title': 'X', 'recurrence': 'annual', 'month': True, 'day': 1})
+
+
+def test_validate_entry_input_time_defaults_to_none_when_omitted(app):
+    with app.app_context():
+        entry = validate_entry_input({'title': 'X', 'recurrence': 'once', 'date': '2026-01-01'})
+        assert entry['time'] is None
+
+
+def test_validate_entry_input_accepts_valid_time(app):
+    with app.app_context():
+        entry = validate_entry_input({
+            'title': 'X', 'recurrence': 'once', 'date': '2026-01-01', 'time': '09:30',
+        })
+        assert entry['time'] == '09:30'
+
+
+def test_validate_entry_input_rejects_malformed_time(app):
+    with app.app_context():
+        with pytest.raises(EntityCalendarValidationError, match="'time'"):
+            validate_entry_input({'title': 'X', 'recurrence': 'once', 'date': '2026-01-01', 'time': 'not-a-time'})
+
+
+def test_validate_entry_input_end_time_defaults_to_none_when_omitted(app):
+    with app.app_context():
+        entry = validate_entry_input({'title': 'X', 'recurrence': 'once', 'date': '2026-01-01'})
+        assert entry['end_time'] is None
+
+
+def test_validate_entry_input_accepts_valid_end_time(app):
+    with app.app_context():
+        entry = validate_entry_input({
+            'title': 'X', 'recurrence': 'once', 'date': '2026-01-01', 'end_time': '17:00',
+        })
+        assert entry['end_time'] == '17:00'
+
+
+def test_validate_entry_input_rejects_malformed_end_time(app):
+    with app.app_context():
+        with pytest.raises(EntityCalendarValidationError, match="end_time"):
+            validate_entry_input({
+                'title': 'X', 'recurrence': 'once', 'date': '2026-01-01', 'end_time': 'not-a-time',
+            })
+
+
+def test_validate_entry_input_end_date_defaults_to_none_when_omitted(app):
+    with app.app_context():
+        entry = validate_entry_input({'title': 'X', 'recurrence': 'once', 'date': '2026-01-01'})
+        assert entry['end_date'] is None
+
+
+def test_validate_entry_input_accepts_valid_end_date(app):
+    with app.app_context():
+        entry = validate_entry_input({
+            'title': 'X', 'recurrence': 'once', 'date': '2026-01-01', 'end_date': '2026-01-03',
+        })
+        assert entry['end_date'] == '2026-01-03'
+
+
+def test_validate_entry_input_rejects_malformed_end_date(app):
+    with app.app_context():
+        with pytest.raises(EntityCalendarValidationError, match="end_date"):
+            validate_entry_input({
+                'title': 'X', 'recurrence': 'once', 'date': '2026-01-01', 'end_date': 'not-a-date',
+            })

@@ -22,7 +22,7 @@ def init_scheduler(app, scheduler):
         scheduler.add_job(
             update_event_cache,
             'interval',
-            hours=3,  # Update cache every 3 hours
+            hours=config.EVENT_CACHE_UPDATE_INTERVAL,
             args=[app],
         )
 

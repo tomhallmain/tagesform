@@ -45,6 +45,14 @@ class Config:
         self.OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'deepseek-r1:14b')
         self.TASK_UPDATE_INTERVAL = int(os.getenv('TASK_UPDATE_INTERVAL', '24'))
 
+        # How often the event cache (holidays/religious calendars) is refreshed
+        # from the live upstream APIs. These change rarely in practice, so this
+        # defaults to once a day rather than the every-few-hours cadence a
+        # naive "keep it fresh" instinct might suggest -- the previous 3-hour
+        # interval was needlessly hammering free, unauthenticated public APIs
+        # for data that almost never changes that fast.
+        self.EVENT_CACHE_UPDATE_INTERVAL = int(os.getenv('EVENT_CACHE_UPDATE_INTERVAL', '24'))
+
         # Process settings
         self.is_main_process = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
 

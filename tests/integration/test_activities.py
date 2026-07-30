@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from app.models import Activity
 from unittest.mock import patch
 
+from helpers import assert_in_response, expected_text
+
 pytestmark = pytest.mark.integration
 
 def test_add_activity_page(client, auth):
@@ -11,7 +13,7 @@ def test_add_activity_page(client, auth):
     auth.login()
     response = client.get('/add-activity')
     assert response.status_code == 200
-    assert b'Add Activity' in response.data
+    assert_in_response(expected_text('Add Activity'), response)
 
 @patch('app.routes.activities.infer_activity_importance')
 def test_add_activity(mock_infer, client, auth, test_user, db_session):
@@ -37,7 +39,8 @@ def test_add_activity(mock_infer, client, auth, test_user, db_session):
     
     response = client.post('/add-activity', data=activity_data, follow_redirects=True)
     assert response.status_code == 200
-    assert b'Activity added successfully!' in response.data
+    # Not run through _() in the route (see app/routes/activities.py) -- always English.
+    assert_in_response('Activity added successfully!', response)
     
     # Verify activity was created
     activity = Activity.query.filter_by(title='Test Activity').first()
@@ -91,27 +94,27 @@ def test_add_activity_validation(client, auth):
     }, follow_redirects=True)
     
     assert response.status_code == 400
-    assert b'Title is required' in response.data
-    
+    assert_in_response('Title is required', response)  # flash(), not translated
+
     # Test with title but missing date/time
     response = client.post('/add-activity', data={
         'title': 'Test Activity',
         'scheduled_date': '',  # Missing date
         'scheduled_time': ''  # Missing time
     }, follow_redirects=True)
-    
+
     assert response.status_code == 400
-    assert b'Date and time are required' in response.data
-    
+    assert_in_response('Date and time are required', response)  # flash(), not translated
+
     # Test with invalid date format
     response = client.post('/add-activity', data={
         'title': 'Test Activity',
         'scheduled_date': 'invalid-date',
         'scheduled_time': '12:00'
     }, follow_redirects=True)
-    
+
     assert response.status_code == 400
-    assert b'Invalid date or time format' in response.data
+    assert_in_response('Invalid date or time format', response)  # flash(), not translated
 
 def test_activity_user_isolation(client, auth, test_user, db_session):
     """Test that users can only see their own activities"""

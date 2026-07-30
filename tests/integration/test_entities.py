@@ -6,6 +6,8 @@ import json
 from datetime import datetime, timedelta
 from io import BytesIO
 
+from helpers import assert_in_response
+
 pytestmark = pytest.mark.integration
 
 def test_add_place_duplicate_check(client, auth, db_session):
@@ -324,7 +326,7 @@ def test_rating_validation(client, auth):
         'rating': '5'  # Invalid rating (should be 0-4)
     })
     assert response.status_code == 400
-    assert b'Invalid rating value' in response.data
+    assert_in_response('Invalid rating value', response)  # flash(), not translated
 
     # Test non-numeric rating
     response = client.post('/add-place', data={
@@ -333,7 +335,7 @@ def test_rating_validation(client, auth):
         'rating': 'invalid'
     })
     assert response.status_code == 400
-    assert b'Invalid rating value' in response.data
+    assert_in_response('Invalid rating value', response)  # flash(), not translated
 
 def test_add_place_visibility(client, auth, db_session):
     """Test adding a place with different visibility settings"""

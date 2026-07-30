@@ -3,6 +3,8 @@ from flask import url_for
 from datetime import datetime, timedelta
 from app.models import Activity, ScheduleRecord, Entity
 
+from helpers import assert_in_response, expected_text
+
 pytestmark = pytest.mark.integration
 
 def test_index_redirect_anonymous(client):
@@ -17,9 +19,9 @@ def test_index_authenticated(client, auth):
     response = client.get('/')
     assert response.status_code == 200
     # Check for sections that are actually on the page
-    assert b'Current Weather' in response.data
-    assert b'Active Schedule' in response.data
-    assert b'Coming Up' in response.data
+    assert_in_response(expected_text('Current Weather'), response)
+    assert_in_response(expected_text('Active Schedule'), response)
+    assert_in_response(expected_text('Coming Up'), response)
 
 def test_stats_endpoint(client, auth, test_user, db_session):
     """Test the stats API endpoint"""

@@ -3,6 +3,8 @@ from flask import url_for
 from datetime import datetime, timedelta
 from app.models import ScheduleRecord
 
+from helpers import assert_in_response, assert_not_in_response, expected_text
+
 pytestmark = pytest.mark.integration
 
 def test_new_schedule_page(client, auth):
@@ -10,7 +12,9 @@ def test_new_schedule_page(client, auth):
     auth.login()
     response = client.get('/new-schedule')
     assert response.status_code == 200
-    assert b'New Schedule' in response.data
+    # "New Schedule" is the nav-bar link text (base.html); the page's own
+    # heading is "Create New Schedule" -- both are run through _().
+    assert_in_response(expected_text('New Schedule'), response)
 
 def test_create_schedule(client, auth, test_user, db_session):
     """Test creating a new schedule"""
@@ -30,7 +34,7 @@ def test_create_schedule(client, auth, test_user, db_session):
     
     response = client.post('/new-schedule', data=schedule_data, follow_redirects=True)
     assert response.status_code == 200
-    assert b'Schedule created successfully!' in response.data
+    assert_in_response('Schedule created successfully!', response)  # flash(), not translated
     
     # Verify schedule was created
     schedule = ScheduleRecord.query.filter_by(title='Test Schedule').first()
@@ -84,9 +88,10 @@ def test_schedule_validation(client, auth):
     })
     
     assert response.status_code == 400
-    assert b'Title is required' in response.data
-    assert b'Start time and end time are required' in response.data
-    assert b'Recurrence is required' in response.data
+    # flash()es -- not translated
+    assert_in_response('Title is required', response)
+    assert_in_response('Start time and end time are required', response)
+    assert_in_response('Recurrence is required', response)
 
     # Test with invalid time format
     response = client.post('/new-schedule', data={
@@ -95,9 +100,9 @@ def test_schedule_validation(client, auth):
         'end_time': 'invalid',
         'recurrence': 'daily'
     })
-    
+
     assert response.status_code == 400
-    assert b'Invalid time format. Please use HH:MM format' in response.data
+    assert_in_response('Invalid time format. Please use HH:MM format', response)  # flash(), not translated
 
 def test_schedule_user_isolation(client, auth, test_user, db_session):
     """Test that users can only see their own schedules"""
@@ -129,7 +134,7 @@ def test_schedule_user_isolation(client, auth, test_user, db_session):
     # Try to access schedules
     response = client.get('/schedules')
     assert response.status_code == 200
-    assert b'Test Schedule' not in response.data  # Should not see test_user's schedule
+    assert_not_in_response('Test Schedule', response, note="should not see test_user's schedule")
 
 def test_invalid_schedule_times(client, auth):
     """Test validation of schedule times"""

@@ -1,11 +1,12 @@
 from datetime import datetime
-from ..models import Activity, EventCache, UserCalendarDescriptor, db
+from ..models import Activity, Entity, EventCache, UserCalendarDescriptor, db
 from ..services.activity_service import infer_activity_importance
 from ..services.integration_service import integration_service
 from ..services.calendar_aggregator import format_event
 from ..services.custom_calendar_service import (
     parse_descriptor, regenerate_event_cache_for_user, DescriptorValidationError
 )
+from ..services.entity_calendar_service import regenerate_event_cache_for_entity
 from ..utils.logging_setup import get_logger
 from ..services.backup_service import get_backup_service
 
@@ -46,10 +47,12 @@ def update_event_cache(app):
                 )
 
                 # Delete existing global cache for this year -- user_id=None
-                # scopes this to the global/public rows only, leaving any
-                # per-user custom calendar rows (refreshed separately below)
-                # untouched.
-                EventCache.query.filter_by(year=year, user_id=None).delete()
+                # AND entity_id=None scopes this to the global/public rows
+                # only. Per-user custom calendar rows and per-entity calendar
+                # rows (both refreshed separately below) also have user_id
+                # NULL in the entity case, so entity_id=None is required here
+                # too, or this would wipe out entity calendar rows every run.
+                EventCache.query.filter_by(year=year, user_id=None, entity_id=None).delete()
 
                 # Add new events to cache
                 for event_dict in events:
@@ -79,6 +82,16 @@ def update_event_cache(app):
                 db.session.commit()
             except Exception as e:
                 logger.error(f"Error refreshing custom calendar for user {descriptor.user_id}: {e}")
+                db.session.rollback()
+
+        # Refresh each entity's calendar independently -- same reasoning as
+        # the per-user loop above: one entity's data shouldn't block others.
+        entities_with_calendars = Entity.query.filter(Entity.calendar_entries.isnot(None)).all()
+        for entity in entities_with_calendars:
+            try:
+                regenerate_event_cache_for_entity(entity, years=[current_year, current_year + 1])
+            except Exception as e:
+                logger.error(f"Error refreshing calendar for entity {entity.id}: {e}")
                 db.session.rollback()
 
 def backfill_computed_calendar_events(app):

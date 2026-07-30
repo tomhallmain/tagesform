@@ -18,6 +18,7 @@ class Entity(db.Model, JSONFieldMixin):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_entity_user'), nullable=False)
     is_public = db.Column(db.Boolean, default=True)  # Whether the entity is shared with other users
     shared_with = db.Column(db.JSON)  # List of user IDs this entity is shared with
+    calendar_entries = db.Column(db.JSON)  # List of dated entries (closures, special hours, events) -- see entity_calendar_service.py
 
     __table_args__ = (
         db.UniqueConstraint('name', 'category', 'location', 'user_id', name='uq_entity_name_category_location_user'),
@@ -106,6 +107,58 @@ class Entity(db.Model, JSONFieldMixin):
             self.shared_with.remove(user_id)
             return True
         return False
+
+    def get_calendar_entries(self):
+        """Return this entity's calendar entries (closures, special hours,
+        events), or an empty list if none exist."""
+        return self.calendar_entries or []
+
+    def add_calendar_entry(self, entry):
+        """Append a new (already-validated, already-id-assigned) calendar
+        entry."""
+        entries = self.get_calendar_entries() + [entry]
+        self._set_calendar_entries(entries)
+        return entry
+
+    def update_calendar_entry(self, entry_id, entry):
+        """Replace the entry with the given id. Returns the updated entry,
+        or None if no entry with that id exists."""
+        found = False
+        new_entries = []
+        for existing in self.get_calendar_entries():
+            if existing['id'] == entry_id:
+                found = True
+                new_entries.append(entry)
+            else:
+                new_entries.append(existing)
+        if not found:
+            return None
+        self._set_calendar_entries(new_entries)
+        return entry
+
+    def remove_calendar_entry(self, entry_id):
+        """Remove the entry with the given id. Returns True if an entry was
+        removed, False if no entry with that id existed."""
+        entries = self.get_calendar_entries()
+        new_entries = [e for e in entries if e['id'] != entry_id]
+        if len(new_entries) == len(entries):
+            return False
+        self._set_calendar_entries(new_entries)
+        return True
+
+    def _set_calendar_entries(self, entries):
+        """Replace the whole calendar_entries list.
+
+        Follows the same reset-then-set pattern as JSONFieldMixin.update_json_field:
+        SQLAlchemy's JSON column type does not detect in-place mutation of the
+        same list reference, so without the intermediate None write the second
+        setattr can be a no-op against the ORM's change tracking.
+        """
+        self.calendar_entries = None
+        db.session.commit()
+        self.calendar_entries = entries
+        db.session.commit()
+        db.session.refresh(self)
 
     @classmethod
     def find_duplicates(cls, name, category, location, user_id, include_public=False, exclude_id=None):

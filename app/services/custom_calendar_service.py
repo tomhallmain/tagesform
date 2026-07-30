@@ -129,8 +129,10 @@ def _parse_once_date(raw_date, label, title):
 
 
 def expand_entries_for_year(entries, year):
-    """Expand normalized entries (from parse_descriptor) into concrete
-    occurrences falling in `year`.
+    """Expand normalized entries (from parse_descriptor, or any other caller
+    producing the same {title, recurrence, month, day, year, description}
+    shape -- e.g. entity_calendar_service.py) into concrete occurrences
+    falling in `year`.
 
     'once' entries appear only in their own year. 'annual' entries recur
     every year; a Feb 29 annual entry falls back to Feb 28 in non-leap years.
@@ -150,7 +152,7 @@ def expand_entries_for_year(entries, year):
             'title': entry['title'],
             'date': datetime(year, month, day),
             'description': entry['description'],
-            'location': entry['location'],
+            'location': entry.get('location'),
         })
 
     return occurrences

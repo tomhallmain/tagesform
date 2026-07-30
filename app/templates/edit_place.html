@@ -189,6 +189,94 @@
             </button>
         </div>
     </form>
+
+    <!-- Calendar Entries: closures, special hours, one-off events for this place -->
+    <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+        <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">{{ _('Calendar Entries') }}</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            {{ _('Closures, special hours, or one-off events for this place. Shown in the Calendar Events feed for anyone who can view this place.') }}
+        </p>
+
+        <div id="calendar-entries-list" class="space-y-2 mb-4">
+            {% for entry in place.calendar_entries or [] %}
+            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
+                <div>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ entry.title }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {% if entry.recurrence == 'once' %}{{ entry.date }}{% else %}{{ _('Annually') }}: {{ entry.month }}/{{ entry.day }}{% endif %}
+                        {% if entry.entry_type %} &middot; {{ entry.entry_type }}{% endif %}
+                    </p>
+                    {% if entry.description %}<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ entry.description }}</p>{% endif %}
+                </div>
+                <div class="flex space-x-2 flex-shrink-0">
+                    <button type="button" class="edit-entry-btn text-blue-600 hover:text-blue-900 text-sm" data-entry="{{ entry|tojson }}">{{ _('Edit') }}</button>
+                    <button type="button" class="delete-entry-btn text-red-600 hover:text-red-900 text-sm" data-entry-id="{{ entry.id }}">{{ _('Delete') }}</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md space-y-3">
+            <input type="hidden" id="calendar-entry-id">
+            <div>
+                <label for="calendar-entry-title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Title') }}</label>
+                <input type="text" id="calendar-entry-title"
+                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="calendar-entry-type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Type') }}</label>
+                    <select id="calendar-entry-type"
+                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="closure">{{ _('Closure') }}</option>
+                        <option value="special_hours">{{ _('Special Hours') }}</option>
+                        <option value="event">{{ _('Event') }}</option>
+                        <option value="other">{{ _('Other') }}</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="calendar-entry-recurrence" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Recurrence') }}</label>
+                    <select id="calendar-entry-recurrence" onchange="updateCalendarEntryRecurrenceFields(this.value)"
+                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="once">{{ _('One-off date') }}</option>
+                        <option value="annual">{{ _('Annually') }}</option>
+                    </select>
+                </div>
+            </div>
+            <div id="calendar-entry-once-field">
+                <label for="calendar-entry-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Date') }}</label>
+                <input type="date" id="calendar-entry-date"
+                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <div id="calendar-entry-annual-fields" class="grid grid-cols-2 gap-4" style="display: none;">
+                <div>
+                    <label for="calendar-entry-month" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Month') }}</label>
+                    <input type="number" id="calendar-entry-month" min="1" max="12"
+                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="calendar-entry-day" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Day') }}</label>
+                    <input type="number" id="calendar-entry-day" min="1" max="31"
+                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+            </div>
+            <div>
+                <label for="calendar-entry-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ _('Description') }}</label>
+                <textarea id="calendar-entry-description" rows="2"
+                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button type="button" id="cancel-calendar-entry-btn"
+                    class="hidden px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    {{ _('Cancel') }}
+                </button>
+                <button type="button" id="save-calendar-entry-btn"
+                    class="px-3 py-1.5 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
+                    {{ _('Save Entry') }}
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -206,6 +294,15 @@
             cuisineField.style.display = 'none';
             cuisineInput.value = ''; // Clear the cuisine input when switching to non-restaurant
         }
+    }
+
+    // Toggle the one-off date field vs. the month/day fields for calendar entries
+    function updateCalendarEntryRecurrenceFields(value) {
+        const onceField = document.getElementById('calendar-entry-once-field');
+        const annualFields = document.getElementById('calendar-entry-annual-fields');
+        if (!onceField || !annualFields) return;
+        onceField.style.display = value === 'once' ? 'block' : 'none';
+        annualFields.style.display = value === 'annual' ? 'grid' : 'none';
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -322,6 +419,113 @@
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.classList.add('hidden');
+            }
+        });
+
+        // Calendar entries: add/edit/delete via the entity_api_bp CRUD
+        // endpoints, reloading the page on success rather than re-rendering
+        // the list client-side (matches the reload-based pattern already
+        // used elsewhere, e.g. settings.html's preference forms).
+        const entityId = {{ place.id }};
+        const entryIdField = document.getElementById('calendar-entry-id');
+        const entryTitleField = document.getElementById('calendar-entry-title');
+        const entryTypeField = document.getElementById('calendar-entry-type');
+        const entryRecurrenceField = document.getElementById('calendar-entry-recurrence');
+        const entryDateField = document.getElementById('calendar-entry-date');
+        const entryMonthField = document.getElementById('calendar-entry-month');
+        const entryDayField = document.getElementById('calendar-entry-day');
+        const entryDescriptionField = document.getElementById('calendar-entry-description');
+        const cancelEntryBtn = document.getElementById('cancel-calendar-entry-btn');
+
+        function resetCalendarEntryForm() {
+            entryIdField.value = '';
+            entryTitleField.value = '';
+            entryTypeField.value = 'closure';
+            entryRecurrenceField.value = 'once';
+            entryDateField.value = '';
+            entryMonthField.value = '';
+            entryDayField.value = '';
+            entryDescriptionField.value = '';
+            updateCalendarEntryRecurrenceFields('once');
+            cancelEntryBtn.classList.add('hidden');
+        }
+
+        document.querySelectorAll('.edit-entry-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const entry = JSON.parse(btn.dataset.entry);
+                entryIdField.value = entry.id;
+                entryTitleField.value = entry.title;
+                entryTypeField.value = entry.entry_type;
+                entryRecurrenceField.value = entry.recurrence;
+                entryDateField.value = entry.date || '';
+                entryMonthField.value = entry.month || '';
+                entryDayField.value = entry.day || '';
+                entryDescriptionField.value = entry.description || '';
+                updateCalendarEntryRecurrenceFields(entry.recurrence);
+                cancelEntryBtn.classList.remove('hidden');
+            });
+        });
+
+        cancelEntryBtn.addEventListener('click', resetCalendarEntryForm);
+
+        document.querySelectorAll('.delete-entry-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('{{ _("Delete this calendar entry?") }}')) return;
+
+                try {
+                    const response = await fetch(`/api/entities/${entityId}/calendar-entries/${btn.dataset.entryId}`, {
+                        method: 'DELETE',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        const data = await response.json();
+                        alert(data.error || '{{ _("An error occurred") }}');
+                    }
+                } catch (error) {
+                    alert('{{ _("An error occurred while deleting the entry") }}');
+                }
+            });
+        });
+
+        document.getElementById('save-calendar-entry-btn').addEventListener('click', async () => {
+            const entryId = entryIdField.value;
+            const recurrence = entryRecurrenceField.value;
+            const payload = {
+                title: entryTitleField.value,
+                entry_type: entryTypeField.value,
+                recurrence: recurrence,
+                description: entryDescriptionField.value
+            };
+            if (recurrence === 'once') {
+                payload.date = entryDateField.value;
+            } else {
+                payload.month = parseInt(entryMonthField.value, 10);
+                payload.day = parseInt(entryDayField.value, 10);
+            }
+
+            const url = entryId
+                ? `/api/entities/${entityId}/calendar-entries/${entryId}`
+                : `/api/entities/${entityId}/calendar-entries`;
+
+            try {
+                const response = await fetch(url, {
+                    method: entryId ? 'PUT' : 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || '{{ _("An error occurred") }}');
+                }
+            } catch (error) {
+                alert('{{ _("An error occurred while saving the entry") }}');
             }
         });
     });

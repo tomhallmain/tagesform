@@ -8,6 +8,10 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from ..models import Entity, EntityComment, db
+from ..services.entity_calendar_service import (
+    validate_entry_input, regenerate_event_cache_for_entity, delete_event_cache_for_entity,
+    EntityCalendarValidationError, MAX_ENTRIES_PER_ENTITY,
+)
 from ..utils.utils import Utils
 from ..utils.logging_setup import get_logger
 from ..utils.translations import _
@@ -262,9 +266,10 @@ def delete_place(entity_id):
         return redirect(url_for('entities.list_places'))
     
     name = entity.name
+    delete_event_cache_for_entity(entity.id)
     db.session.delete(entity)
     db.session.commit()
-    
+
     flash(_('Successfully deleted "{0}"').format(name), 'success')
     return redirect(url_for('entities.list_places'))
 
@@ -689,6 +694,86 @@ def delete_entity_comment(entity_id):
         db.session.delete(comment)
         db.session.commit()
 
+    return jsonify({'success': True})
+
+def _regenerate_entity_calendar_cache(entity):
+    current_year = datetime.utcnow().year
+    regenerate_event_cache_for_entity(entity, years=[current_year, current_year + 1])
+
+@entity_api_bp.route('/entities/<int:entity_id>/calendar-entries', methods=['GET'])
+@login_required
+def list_entity_calendar_entries(entity_id):
+    """List an entity's calendar entries (closures, special hours, events).
+
+    Unlike comments, these are visible to anyone who can view the entity --
+    they're authoritative information about the place, same category as
+    operating_hours, not a private per-viewer note.
+    """
+    entity = Entity.query.get_or_404(entity_id)
+    if not entity.can_view(current_user.id):
+        abort(403)
+
+    return jsonify({'entries': entity.get_calendar_entries()})
+
+@entity_api_bp.route('/entities/<int:entity_id>/calendar-entries', methods=['POST'])
+@login_required
+def create_entity_calendar_entry(entity_id):
+    """Add a calendar entry. Only the entity's owner may add one -- matching
+    operating_hours/description edit permissions, not EntityComment's (any
+    viewer can write their own comment; here, only the owner writes, and
+    everyone who can view sees the same entries)."""
+    entity = Entity.query.get_or_404(entity_id)
+    if not entity.can_edit(current_user.id):
+        abort(403)
+
+    data = request.get_json(silent=True) or {}
+    try:
+        entry = validate_entry_input(data)
+    except EntityCalendarValidationError as e:
+        return jsonify({'error': str(e)}), 400
+
+    if len(entity.get_calendar_entries()) >= MAX_ENTRIES_PER_ENTITY:
+        return jsonify({'error': _('Too many calendar entries for this place.')}), 400
+
+    entry['id'] = uuid.uuid4().hex[:8]
+    entity.add_calendar_entry(entry)
+    _regenerate_entity_calendar_cache(entity)
+
+    return jsonify({'entry': entry})
+
+@entity_api_bp.route('/entities/<int:entity_id>/calendar-entries/<entry_id>', methods=['PUT'])
+@login_required
+def update_entity_calendar_entry(entity_id, entry_id):
+    entity = Entity.query.get_or_404(entity_id)
+    if not entity.can_edit(current_user.id):
+        abort(403)
+
+    data = request.get_json(silent=True) or {}
+    try:
+        entry = validate_entry_input(data)
+    except EntityCalendarValidationError as e:
+        return jsonify({'error': str(e)}), 400
+
+    entry['id'] = entry_id
+    updated = entity.update_calendar_entry(entry_id, entry)
+    if updated is None:
+        return jsonify({'error': _('Calendar entry not found.')}), 404
+
+    _regenerate_entity_calendar_cache(entity)
+    return jsonify({'entry': updated})
+
+@entity_api_bp.route('/entities/<int:entity_id>/calendar-entries/<entry_id>', methods=['DELETE'])
+@login_required
+def delete_entity_calendar_entry(entity_id, entry_id):
+    entity = Entity.query.get_or_404(entity_id)
+    if not entity.can_edit(current_user.id):
+        abort(403)
+
+    removed = entity.remove_calendar_entry(entry_id)
+    if not removed:
+        return jsonify({'error': _('Calendar entry not found.')}), 404
+
+    _regenerate_entity_calendar_cache(entity)
     return jsonify({'success': True})
 
 def get_open_entities(current_time, current_day, current_hour, debug=False):

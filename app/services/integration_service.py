@@ -63,8 +63,13 @@ class IntegrationService:
         time-horizon tab click triggered minutes of live API calls (Inadiutorium
         alone issues one request per month, each taking upwards of 20 seconds).
 
-        Includes both global rows (public holidays etc., user_id NULL) and the
-        current user's own custom-calendar rows -- never another user's.
+        Includes: global rows (public holidays etc., user_id AND entity_id
+        both NULL); the current user's own custom-calendar rows; and entries
+        from entities the current user owns or that are shared with them
+        (NOT merely public ones -- see docs/entity-calendar.md's Ownership
+        section for why). Never another user's custom-calendar rows, and
+        never another user's private view of an entity they don't have
+        access to.
 
         Each returned dict also carries an 'ancient_egyptian_date' field --
         the Ancient Egyptian civil-calendar equivalent of that event's date,
@@ -73,15 +78,26 @@ class IntegrationService:
         method already serves rather than being a separate "today only"
         display (see docs/egyptian-calendars.md's Part 2 Goals).
         """
-        from ..models import EventCache, db
+        from ..models import Entity, EventCache, db
 
         try:
             if not start_date:
                 start_date = datetime.now()
 
+            visible_entity_ids = Entity.query.filter(
+                db.or_(
+                    Entity.user_id == current_user.id,
+                    Entity.shared_with.contains([current_user.id])
+                )
+            ).with_entities(Entity.id)
+
             query = EventCache.query.filter(
                 EventCache.date >= start_date,
-                db.or_(EventCache.user_id.is_(None), EventCache.user_id == current_user.id)
+                db.or_(
+                    db.and_(EventCache.user_id.is_(None), EventCache.entity_id.is_(None)),
+                    EventCache.user_id == current_user.id,
+                    EventCache.entity_id.in_(visible_entity_ids)
+                )
             )
             if end_date:
                 query = query.filter(EventCache.date <= end_date)

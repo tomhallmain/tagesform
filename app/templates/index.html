@@ -343,6 +343,7 @@
                         <p class="text-sm text-gray-500">${event.start_time}</p>
                         ${event.description ? `<p class="text-sm text-gray-600 mt-1">${event.description}</p>` : ''}
                         ${event.location ? `<p class="text-xs text-gray-500 mt-1">Location: ${event.location}</p>` : ''}
+                        ${event.ancient_egyptian_date ? `<p class="text-xs text-gray-400 mt-1">${event.ancient_egyptian_date}</p>` : ''}
                     </div>
                 </div>
             `).join('');

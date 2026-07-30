@@ -1,7 +1,10 @@
 from ..utils.backup_config import backup_config
 from ..utils.config import config
 from ..utils.logging_setup import get_logger
-from .background_tasks import update_activity_importance, update_event_cache, create_database_backup
+from .background_tasks import (
+    update_activity_importance, update_event_cache, create_database_backup,
+    backfill_computed_calendar_events,
+)
 
 logger = get_logger('scheduler')
 
@@ -24,6 +27,17 @@ def init_scheduler(app, scheduler):
             'interval',
             hours=config.EVENT_CACHE_UPDATE_INTERVAL,
             args=[app],
+        )
+
+        # Run immediately so a newly-added computed calendar source (Hebrew,
+        # eventually Coptic) has events cached right away rather than waiting
+        # a full interval -- in steady state this job is a no-op regardless.
+        scheduler.add_job(
+            backfill_computed_calendar_events,
+            'interval',
+            hours=config.COMPUTED_CALENDAR_BACKFILL_INTERVAL,
+            args=[app],
+            next_run_time='2025-01-01 00:00:00'
         )
 
         # Add database backup job with configurable interval

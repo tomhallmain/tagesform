@@ -2,6 +2,7 @@ from datetime import datetime
 from ..models import Activity, EventCache, UserCalendarDescriptor, db
 from ..services.activity_service import infer_activity_importance
 from ..services.integration_service import integration_service
+from ..services.calendar_aggregator import format_event
 from ..services.custom_calendar_service import (
     parse_descriptor, regenerate_event_cache_for_user, DescriptorValidationError
 )
@@ -9,6 +10,11 @@ from ..utils.logging_setup import get_logger
 from ..services.backup_service import get_backup_service
 
 logger = get_logger('background_tasks')
+
+# How many years ahead to keep backfilled for computed/deterministic calendar
+# sources (see backfill_computed_calendar_events). Wide enough that opening
+# the dashboard's "This Year"/"Next Year" view never needs a live fetch.
+COMPUTED_CALENDAR_BACKFILL_YEARS = 10
 
 def update_activity_importance(app):
     """Background job to update activity importance using LLM inference"""
@@ -74,6 +80,51 @@ def update_event_cache(app):
             except Exception as e:
                 logger.error(f"Error refreshing custom calendar for user {descriptor.user_id}: {e}")
                 db.session.rollback()
+
+def backfill_computed_calendar_events(app):
+    """Background job to backfill computed/deterministic calendar sources
+    (Hebrew via Hebcal; Coptic, once added) a wide horizon ahead.
+
+    Unlike update_event_cache's sources (Nager especially), these calendars'
+    dates never change once computed -- there's nothing to "refresh." This
+    job just tops up EventCache so a rolling COMPUTED_CALENDAR_BACKFILL_YEARS
+    window is always covered; in steady state it finds every year already
+    cached and does nothing. Real work happens once (an effective one-time
+    backfill) and roughly once a year after that, to extend the tail --
+    see docs/hebrew-calendar.md's Caching strategy section.
+    """
+    with app.app_context():
+        current_year = datetime.now().year
+        target_years = set(range(current_year, current_year + COMPUTED_CALENDAR_BACKFILL_YEARS))
+
+        computed_sources = {
+            'Hebcal': integration_service.calendar_aggregator.hebcal_api,
+        }
+
+        for source_name, api in computed_sources.items():
+            try:
+                existing_years = {
+                    row.year for row in
+                    EventCache.query.filter_by(source=source_name).with_entities(EventCache.year).distinct()
+                }
+            except Exception as e:
+                logger.error(f"Error checking cached years for {source_name}: {e}")
+                continue
+
+            missing_years = sorted(target_years - existing_years)
+            for year in missing_years:
+                try:
+                    events = api.get_events(year)
+                    # Defensive: clear any partial rows from a previously
+                    # interrupted backfill of this year before reinserting.
+                    EventCache.query.filter_by(source=source_name, year=year).delete()
+                    for event in events:
+                        db.session.add(EventCache.from_event_dict(format_event(event)))
+                    db.session.commit()
+                    logger.info(f"Backfilled {source_name} events for year {year}")
+                except Exception as e:
+                    logger.error(f"Error backfilling {source_name} events for year {year}: {e}")
+                    db.session.rollback()
 
 def create_database_backup(app):
     """Create a database backup"""

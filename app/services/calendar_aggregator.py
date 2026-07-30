@@ -185,6 +185,20 @@ class Event:
         return new_event
 
     @staticmethod
+    def from_hebcal_api(event):
+        notes = []
+        if "category" in event:
+            notes.append({"category": event["category"]})
+        new_event = Event(name=event["title"],
+            date=datetime.datetime.fromisoformat(event["date"]),
+            source="Hebcal",
+            fixed=None,
+            country=None,
+            other_name=event.get("hebrew"),
+            notes=notes)
+        return new_event
+
+    @staticmethod
     def merge_events(events=[], events_to_merge=[]):
         for event_to_merge in events_to_merge:
             has_merged_event = False
@@ -195,6 +209,19 @@ class Event:
                     break
             if not has_merged_event:
                 events.append(event_to_merge)
+
+
+def format_event(event):
+    """Convert an Event into the plain-dict shape used for API responses and
+    EventCache rows -- shared by IntegrationService.fetch_live_calendar_events
+    and the computed-calendar backfill job so this shape is defined once."""
+    return {
+        'title': str(event.name) if event.name else 'Untitled Event',
+        'start_time': event.date.strftime('%Y-%m-%d %H:%M') if event.date else None,
+        'description': str(event.notes[0]) if event.notes else None,
+        'location': str(event.countries[0]) if event.countries else None,
+        'sources': list(map(str, event.sources)) if event.sources else []
+    }
 
 
 class HolidayAPI:
@@ -311,12 +338,46 @@ class HijriCalendarAPI:
         return events
 
 
+class HebcalAPI:
+    """Jewish/Hebrew calendar holidays via the free Hebcal REST API.
+
+    Unlike the other sources in this module, this is NOT wired into
+    CalendarAggregator.get_events()/merged with the other three -- Hebrew
+    calendar dates come from a fixed, well-defined arithmetic calendar (not
+    live/government-changeable data), so re-fetching them on the same
+    recurring cadence as Nager would be pure waste against a free,
+    unauthenticated public API. It's used instead by the
+    backfill_computed_calendar_events background job, which caches a wide
+    horizon of years and only re-touches it to extend the tail.
+    """
+    BASE_URL = "https://www.hebcal.com/hebcal"
+
+    def __init__(self):
+        pass
+
+    def __build_url(self, year=-1):
+        return f"{self.BASE_URL}?v=1&cfg=json&year={year}&maj=on&min=on&mod=on"
+
+    def get_events(self, year=-1):
+        events = []
+        try:
+            items = requests.get(self.__build_url(year), timeout=REQUEST_TIMEOUT_SECONDS).json().get("items", [])
+            for item in items:
+                events.append(Event.from_hebcal_api(item))
+        except Exception as e:
+            logger.error("Error getting events from Hebcal API: " + str(e))
+            raise e
+        return events
+
+
 class CalendarAggregator:
     def __init__(self):
         # self.holiday_api = HolidayAPI(config.holiday_api_key)
         self.public_holidays_api = NagerPublicHolidaysAPI()
         self.inadiutorium_api = InadiutoriumAPI()
         self.hijri_calendar_api = HijriCalendarAPI()
+        # Not merged into get_events() below -- see HebcalAPI's docstring.
+        self.hebcal_api = HebcalAPI()
 
     def get_events(self, year):
         # holidays = self.holiday_api.get_events(["US", "DE", "GB", "CA", "RU"], year)

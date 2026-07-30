@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
 from flask_login import current_user
-from .calendar_aggregator import CalendarAggregator
+from .calendar_aggregator import CalendarAggregator, format_event
 from .open_weather import OpenWeatherAPI
 from .schedules_manager import SchedulesManager
+from ..utils.ancient_egyptian_calendar import to_ancient_egyptian_date, format_ancient_egyptian_date
 from ..utils.config import config
 from ..utils.logging_setup import get_logger
 
@@ -64,6 +65,13 @@ class IntegrationService:
 
         Includes both global rows (public holidays etc., user_id NULL) and the
         current user's own custom-calendar rows -- never another user's.
+
+        Each returned dict also carries an 'ancient_egyptian_date' field --
+        the Ancient Egyptian civil-calendar equivalent of that event's date,
+        computed for whatever date the event actually falls on (not just
+        "today"), so it's visible across the day/week/month/year views this
+        method already serves rather than being a separate "today only"
+        display (see docs/egyptian-calendars.md's Part 2 Goals).
         """
         from ..models import EventCache, db
 
@@ -78,7 +86,14 @@ class IntegrationService:
             if end_date:
                 query = query.filter(EventCache.date <= end_date)
 
-            return [event.to_dict() for event in query.order_by(EventCache.date).all()]
+            events = []
+            for event in query.order_by(EventCache.date).all():
+                event_dict = event.to_dict()
+                event_dict['ancient_egyptian_date'] = format_ancient_egyptian_date(
+                    to_ancient_egyptian_date(event.date)
+                )
+                events.append(event_dict)
+            return events
         except Exception as e:
             return []  # Return empty list on error instead of raising
 
@@ -108,14 +123,7 @@ class IntegrationService:
             formatted_events = []
             for event in events:
                 try:
-                    formatted_event = {
-                        'title': str(event.name) if event.name else 'Untitled Event',
-                        'start_time': event.date.strftime('%Y-%m-%d %H:%M') if event.date else None,
-                        'description': str(event.notes[0]) if event.notes else None,
-                        'location': str(event.countries[0]) if event.countries else None,
-                        'sources': list(map(str, event.sources)) if event.sources else []
-                    }
-                    formatted_events.append(formatted_event)
+                    formatted_events.append(format_event(event))
                 except Exception as e:
                     continue  # Skip events that can't be formatted
 

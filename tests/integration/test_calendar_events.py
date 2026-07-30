@@ -58,6 +58,29 @@ def test_get_calendar_events_filters_by_date_range(app, test_user, db_session):
         assert 'Out of Range' not in titles
 
 
+def test_get_calendar_events_includes_ancient_egyptian_date(app, test_user, db_session):
+    """Every event returned by get_calendar_events must carry its Ancient
+    Egyptian civil-calendar equivalent -- computed per-event, not just for
+    'today', so it's visible across whatever day/week/month/year range this
+    method is serving (see docs/egyptian-calendars.md's Part 2 Goals)."""
+    from app.utils.ancient_egyptian_calendar import to_ancient_egyptian_date, format_ancient_egyptian_date
+
+    with app.app_context():
+        event_date = datetime(2026, 7, 30)
+        cached = EventCache(title='Test Holiday', date=event_date, year=2026)
+        db_session.add(cached)
+        db_session.commit()
+
+        with app.test_request_context():
+            login_user(test_user)
+            events = integration_service.get_calendar_events(
+                start_date=datetime(2026, 7, 1), end_date=datetime(2026, 8, 1)
+            )
+
+        expected = format_ancient_egyptian_date(to_ancient_egyptian_date(event_date))
+        assert events[0]['ancient_egyptian_date'] == expected
+
+
 def test_fetch_live_calendar_events_still_calls_calendar_aggregator(app):
     """The background job's refresh path must still go through
     CalendarAggregator -- this is the one place that's allowed to hit the

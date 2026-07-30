@@ -53,6 +53,16 @@ class Config:
         # for data that almost never changes that fast.
         self.EVENT_CACHE_UPDATE_INTERVAL = int(os.getenv('EVENT_CACHE_UPDATE_INTERVAL', '24'))
 
+        # How often computed/deterministic calendar sources (Hebrew via
+        # Hebcal; Coptic, once added) get backfilled. These aren't
+        # "refreshed" in the usual sense -- their dates never change once
+        # computed, so this job just tops up a rolling multi-year horizon and
+        # is a no-op almost every time it runs. Kept as its own setting
+        # (rather than reusing EVENT_CACHE_UPDATE_INTERVAL) since it's
+        # conceptually a different kind of job with room to move to a much
+        # longer interval later, independently of Nager's cadence.
+        self.COMPUTED_CALENDAR_BACKFILL_INTERVAL = int(os.getenv('COMPUTED_CALENDAR_BACKFILL_INTERVAL', '24'))
+
         # Process settings
         self.is_main_process = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
 

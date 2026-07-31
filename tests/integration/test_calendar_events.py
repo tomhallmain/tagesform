@@ -62,7 +62,7 @@ def test_get_calendar_events_includes_ancient_egyptian_date(app, test_user, db_s
     """Every event returned by get_calendar_events must carry its Ancient
     Egyptian civil-calendar equivalent -- computed per-event, not just for
     'today', so it's visible across whatever day/week/month/year range this
-    method is serving (see docs/egyptian-calendars.md's Part 2 Goals)."""
+    method is serving."""
     from app.utils.ancient_egyptian_calendar import to_ancient_egyptian_date, format_ancient_egyptian_date
 
     with app.app_context():

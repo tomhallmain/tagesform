@@ -57,18 +57,25 @@ class IntegrationService:
         """Get calendar events for the specified date range from the cache.
 
         Reads from EventCache rather than the live holiday/religious-calendar
-        APIs -- those (Nager, Inadiutorium, Hijri) are refreshed periodically
-        by the update_event_cache background job instead. Calling them
-        synchronously here used to mean every dashboard load and every
-        time-horizon tab click triggered minutes of live API calls (Inadiutorium
-        alone issues one request per month, each taking upwards of 20 seconds).
+        APIs -- genuinely live sources (Nager, Hijri, Launch Library) are
+        refreshed periodically by the update_event_cache background job;
+        computed/fixed-rule sources (Hebcal, USNO, Nobel Prize, Inadiutorium)
+        instead by backfill_computed_calendar_events, on a much longer
+        cadence since their dates never change once computed. Calling any of
+        these synchronously here used to mean every dashboard load and every
+        time-horizon tab click triggered minutes of live API calls
+        (Inadiutorium alone issues one request per month, each taking
+        upwards of 20 seconds).
 
         Includes: global rows (public holidays etc., user_id AND entity_id
         both NULL); `user`'s own custom-calendar rows; and entries from
         entities `user` owns or that are shared with them (NOT merely public
-        ones -- see docs/entity-calendar.md's Ownership section for why).
-        Never another user's custom-calendar rows, and never another user's
-        private view of an entity they don't have access to.
+        ones -- public-only visibility would surface every public entity's
+        closures to every logged-in user regardless of whether they've ever
+        interacted with that place, noisier than the other calendar sources
+        here, which are all universally relevant). Never another user's
+        custom-calendar rows, and never another user's private view of an
+        entity they don't have access to.
 
         `user` defaults to the logged-in current_user, for the normal
         request path (the dashboard's /api/calendar/events). The
@@ -81,7 +88,7 @@ class IntegrationService:
         computed for whatever date the event actually falls on (not just
         "today"), so it's visible across the day/week/month/year views this
         method already serves rather than being a separate "today only"
-        display (see docs/egyptian-calendars.md's Part 2 Goals).
+        display.
         """
         from ..models import Entity, EventCache, db
 

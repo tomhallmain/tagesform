@@ -18,6 +18,24 @@ logger = get_logger('background_tasks')
 # the dashboard's "This Year"/"Next Year" view never needs a live fetch.
 COMPUTED_CALENDAR_BACKFILL_YEARS = 10
 
+
+def _computed_calendar_sources():
+    """Source-name -> API client mapping for calendar sources that are
+    computed/deterministic (fixed calendar rules) rather than live-changing
+    -- refreshed only by backfill_computed_calendar_events's long-horizon
+    cadence, never by update_event_cache's short cycle. Shared between both
+    jobs so update_event_cache's per-year cache refresh can exclude these
+    rows by name -- without that, its blanket delete-and-reinsert would wipe
+    them out on every run and never put them back, since
+    fetch_live_calendar_events doesn't return them.
+    """
+    return {
+        'Hebcal': integration_service.calendar_aggregator.hebcal_api,
+        'USNO': integration_service.calendar_aggregator.usno_astronomical_events_api,
+        'Nobel Prize': integration_service.calendar_aggregator.nobel_prize_schedule,
+        'Inadiutorium API': integration_service.calendar_aggregator.inadiutorium_api,
+    }
+
 def update_activity_importance(app):
     """Background job to update activity importance using LLM inference"""
     with app.app_context():
@@ -53,7 +71,15 @@ def update_event_cache(app):
                 # rows (both refreshed separately below) also have user_id
                 # NULL in the entity case, so entity_id=None is required here
                 # too, or this would wipe out entity calendar rows every run.
-                EventCache.query.filter_by(year=year, user_id=None, entity_id=None).delete()
+                # Also excludes computed-calendar sources (Hebcal/USNO/Nobel
+                # Prize/Inadiutorium) -- those are refreshed only by
+                # backfill_computed_calendar_events, and fetch_live_calendar_events
+                # never returns them, so deleting them here would wipe them
+                # out until the next backfill run without ever reinserting
+                # them.
+                EventCache.query.filter_by(year=year, user_id=None, entity_id=None) \
+                    .filter(EventCache.source.notin_(list(_computed_calendar_sources().keys()))) \
+                    .delete(synchronize_session=False)
 
                 # Add new events to cache
                 for event_dict in events:
@@ -98,28 +124,22 @@ def update_event_cache(app):
 def backfill_computed_calendar_events(app):
     """Background job to backfill computed/deterministic calendar sources
     (Hebrew via Hebcal; equinoxes/solstices/eclipses/moon phases via USNO;
-    the curated Nobel Prize schedule; Coptic, once added) a wide horizon
-    ahead.
+    the curated Nobel Prize schedule; the Roman Catholic liturgical calendar
+    via Inadiutorium; Coptic, once added) a wide horizon ahead.
 
-    Unlike update_event_cache's sources (Nager especially), these calendars'
-    dates never change once computed -- there's nothing to "refresh." This
-    job just tops up EventCache so a rolling COMPUTED_CALENDAR_BACKFILL_YEARS
-    window is always covered; in steady state it finds every year already
-    cached and does nothing. Real work happens once (an effective one-time
-    backfill) and roughly once a year after that, to extend the tail --
-    see docs/hebrew-calendar.md's Caching strategy section.
+    Unlike update_event_cache's sources (Nager, Hijri, Launch Library),
+    these calendars' dates never change once computed -- there's nothing to
+    "refresh." This job just tops up EventCache so a rolling
+    COMPUTED_CALENDAR_BACKFILL_YEARS window is always covered; in steady
+    state it finds every year already cached and does nothing. Real work
+    happens once (an effective one-time backfill) and roughly once a year
+    after that, to extend the tail.
     """
     with app.app_context():
         current_year = datetime.now().year
         target_years = set(range(current_year, current_year + COMPUTED_CALENDAR_BACKFILL_YEARS))
 
-        computed_sources = {
-            'Hebcal': integration_service.calendar_aggregator.hebcal_api,
-            'USNO': integration_service.calendar_aggregator.usno_astronomical_events_api,
-            'Nobel Prize': integration_service.calendar_aggregator.nobel_prize_schedule,
-        }
-
-        for source_name, api in computed_sources.items():
+        for source_name, api in _computed_calendar_sources().items():
             try:
                 existing_years = {
                     row.year for row in

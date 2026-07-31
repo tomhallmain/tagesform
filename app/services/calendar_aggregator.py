@@ -348,6 +348,16 @@ class NagerPublicHolidaysAPI:
 
 
 class InadiutoriumAPI:
+    """Roman Catholic liturgical calendar via the free Inadiutorium API.
+
+    Not wired into CalendarAggregator.get_events() -- same reasoning as
+    HebcalAPI/USNOAstronomicalEventsAPI: this calendar is computed from
+    fixed rules (the Easter computus plus the standard liturgical calendar
+    structure), not live/government-changeable data, so re-fetching it on
+    update_event_cache's tight recurring cycle is unnecessary load against
+    a slow remote server (~20s per monthly call). Used instead by the
+    backfill_computed_calendar_events background job.
+    """
     BASE_URL = "http://calapi.inadiutorium.cz/api/v0/en/calendars/default/"
 
     def __init__(self):
@@ -550,8 +560,7 @@ class NobelPrizeSchedule:
     official api.nobelprize.org is a historical database of past prizes and
     laureates (keyed by year, not a specific date), and the actual schedule
     is published by the Nobel Foundation as a press release each year, a few
-    months ahead, with no structured feed found for it. See
-    docs/scientific-calendar.md's Part 4 for the research behind this.
+    months ahead, with no structured feed found for it.
 
     SCHEDULE below needs updating by hand once the Nobel Foundation
     announces each coming year's dates. For any year not listed, get_events()
@@ -600,28 +609,29 @@ class CalendarAggregator:
     def __init__(self):
         # self.holiday_api = HolidayAPI(config.holiday_api_key)
         self.public_holidays_api = NagerPublicHolidaysAPI()
-        self.inadiutorium_api = InadiutoriumAPI()
         self.hijri_calendar_api = HijriCalendarAPI()
         # Genuinely live/changeable data -- merged into get_events() below,
-        # same as the three above.
+        # same as the two above. Real-world Islamic month starts can involve
+        # an actual moon-sighting decision a purely computed prediction
+        # might not track exactly, so Hijri stays on this cycle rather than
+        # joining Inadiutorium below, even though both are rule-computed.
         self.launch_library_api = LaunchLibraryAPI()
         # Computed/curated, not merged into get_events() below -- see
-        # HebcalAPI's/NobelPrizeSchedule's docstrings. Used instead by
-        # backfill_computed_calendar_events.
+        # InadiutoriumAPI's/HebcalAPI's/NobelPrizeSchedule's docstrings.
+        # Used instead by backfill_computed_calendar_events.
+        self.inadiutorium_api = InadiutoriumAPI()
         self.hebcal_api = HebcalAPI()
         self.usno_astronomical_events_api = USNOAstronomicalEventsAPI()
         self.nobel_prize_schedule = NobelPrizeSchedule()
 
     def get_events(self, year):
         # holidays = self.holiday_api.get_events(["US", "DE", "GB", "CA", "RU"], year)
-        inadiutorium = self.inadiutorium_api.get_events(year)
         public_holidays = self.public_holidays_api.get_events(["US", "DE", "GB", "CA", "RU"], year)
         hijri = self.hijri_calendar_api.get_events(year)
         launches = self.launch_library_api.get_events(year)
 
         all_events = []
         Event.merge_events(all_events, public_holidays)
-        Event.merge_events(all_events, inadiutorium)
         Event.merge_events(all_events, hijri)
         Event.merge_events(all_events, launches)
         all_events.sort(key=lambda e: (e.date))

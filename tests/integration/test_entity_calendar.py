@@ -180,10 +180,9 @@ def test_get_calendar_events_includes_shared_entitys_entries(app, test_user, db_
 
 def test_get_calendar_events_excludes_public_only_entitys_entries(app, test_user, db_session):
     """A user who can only see an entity because it's public (not owned or
-    shared with them) must NOT see its calendar entries -- the recommended
-    default from docs/entity-calendar.md's Ownership section, to avoid
-    injecting a stranger's business closures into every viewer's personal
-    dashboard."""
+    shared with them) must NOT see its calendar entries -- the chosen
+    default, to avoid injecting a stranger's business closures into every
+    viewer's personal dashboard."""
     other_user = _create_other_user(db_session)
     place = Entity(name='Public Place', category='restaurant', is_public=True, user_id=other_user.id)
     db_session.add(place)

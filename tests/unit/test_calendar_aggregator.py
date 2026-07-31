@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from app.services.calendar_aggregator import (
-    CalendarAggregator, Event, HebcalAPI, HijriCalendarAPI, LaunchLibraryAPI,
+    CalendarAggregator, Event, HebcalAPI, HijriCalendarAPI, InadiutoriumAPI, LaunchLibraryAPI,
     NobelPrizeSchedule, USNOAstronomicalEventsAPI, format_event,
 )
 
@@ -103,21 +103,40 @@ def test_calendar_aggregator_does_not_merge_hebcal_into_get_events():
     """Hebcal must NOT be part of the merged get_events() aggregate --
     that method is only ever called from the update_event_cache background
     job's tight recurring cadence, and Hebrew calendar dates shouldn't be
-    re-fetched on that schedule (see docs/hebrew-calendar.md's Caching
-    strategy). It's fetched instead by backfill_computed_calendar_events,
-    via CalendarAggregator.hebcal_api directly."""
+    re-fetched on that schedule. It's fetched instead by
+    backfill_computed_calendar_events, via CalendarAggregator.hebcal_api
+    directly."""
     aggregator = CalendarAggregator()
     assert hasattr(aggregator, 'hebcal_api')
     assert isinstance(aggregator.hebcal_api, HebcalAPI)
 
     with patch.object(aggregator.public_holidays_api, 'get_events', return_value=[]), \
-         patch.object(aggregator.inadiutorium_api, 'get_events', return_value=[]), \
          patch.object(aggregator.hijri_calendar_api, 'get_events', return_value=[]), \
          patch.object(aggregator.launch_library_api, 'get_events', return_value=[]), \
          patch.object(aggregator.hebcal_api, 'get_events') as mock_hebcal_get_events:
         aggregator.get_events(2026)
 
     mock_hebcal_get_events.assert_not_called()
+
+
+def test_calendar_aggregator_does_not_merge_inadiutorium_into_get_events():
+    """Inadiutorium (Roman Catholic liturgical calendar) must NOT be part of
+    the merged get_events() aggregate -- it's computed from fixed rules (the
+    Easter computus), not live-changing data, so it's fetched instead by
+    backfill_computed_calendar_events, via
+    CalendarAggregator.inadiutorium_api directly. This also cuts real load
+    against Inadiutorium's slow remote server (~20s per monthly call)."""
+    aggregator = CalendarAggregator()
+    assert hasattr(aggregator, 'inadiutorium_api')
+    assert isinstance(aggregator.inadiutorium_api, InadiutoriumAPI)
+
+    with patch.object(aggregator.public_holidays_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.hijri_calendar_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.launch_library_api, 'get_events', return_value=[]), \
+         patch.object(aggregator.inadiutorium_api, 'get_events') as mock_get_events:
+        aggregator.get_events(2026)
+
+    mock_get_events.assert_not_called()
 
 
 def test_format_event_produces_expected_shape():
@@ -186,7 +205,6 @@ def test_calendar_aggregator_does_not_merge_nobel_prize_schedule_into_get_events
     assert isinstance(aggregator.nobel_prize_schedule, NobelPrizeSchedule)
 
     with patch.object(aggregator.public_holidays_api, 'get_events', return_value=[]), \
-         patch.object(aggregator.inadiutorium_api, 'get_events', return_value=[]), \
          patch.object(aggregator.hijri_calendar_api, 'get_events', return_value=[]), \
          patch.object(aggregator.launch_library_api, 'get_events', return_value=[]), \
          patch.object(aggregator.nobel_prize_schedule, 'get_events') as mock_get_events:
@@ -256,7 +274,6 @@ def test_calendar_aggregator_does_not_merge_usno_into_get_events():
     assert isinstance(aggregator.usno_astronomical_events_api, USNOAstronomicalEventsAPI)
 
     with patch.object(aggregator.public_holidays_api, 'get_events', return_value=[]), \
-         patch.object(aggregator.inadiutorium_api, 'get_events', return_value=[]), \
          patch.object(aggregator.hijri_calendar_api, 'get_events', return_value=[]), \
          patch.object(aggregator.launch_library_api, 'get_events', return_value=[]), \
          patch.object(aggregator.usno_astronomical_events_api, 'get_events') as mock_get_events:
@@ -314,7 +331,6 @@ def test_calendar_aggregator_merges_launch_library_into_get_events():
     assert isinstance(aggregator.launch_library_api, LaunchLibraryAPI)
 
     with patch.object(aggregator.public_holidays_api, 'get_events', return_value=[]), \
-         patch.object(aggregator.inadiutorium_api, 'get_events', return_value=[]), \
          patch.object(aggregator.hijri_calendar_api, 'get_events', return_value=[]), \
          patch.object(aggregator.launch_library_api, 'get_events', return_value=[]) as mock_get_events:
         aggregator.get_events(2026)

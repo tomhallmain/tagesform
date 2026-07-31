@@ -6,7 +6,9 @@ from freezegun import freeze_time
 from app.models import EventCache
 from app.services.integration_service import integration_service
 from app.services.calendar_aggregator import Event
-from app.tasks.background_tasks import backfill_computed_calendar_events, COMPUTED_CALENDAR_BACKFILL_YEARS
+from app.tasks.background_tasks import (
+    backfill_computed_calendar_events, update_event_cache, COMPUTED_CALENDAR_BACKFILL_YEARS,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -19,6 +21,10 @@ def _fake_usno_event(year):
     return Event(name="Vernal Equinox", date=datetime(year, 3, 20), source='USNO')
 
 
+def _fake_inadiutorium_event(year):
+    return Event(name="Test Feast", date=datetime(year, 12, 25), source='Inadiutorium API')
+
+
 @pytest.fixture(autouse=True)
 def mock_usno_by_default():
     """USNO is a real, network-calling source in computed_sources (unlike
@@ -26,6 +32,17 @@ def mock_usno_by_default():
     default so tests focused on Hebcal/Nobel don't hit the network. Tests
     that actually exercise USNO override this with their own patch."""
     with patch.object(integration_service.calendar_aggregator.usno_astronomical_events_api,
+                       'get_events', return_value=[]):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def mock_inadiutorium_by_default():
+    """Same reasoning as mock_usno_by_default -- Inadiutorium makes a real
+    network call per month (12 per year) and is now part of
+    computed_sources, so every test in this file would otherwise try to
+    hit it for the whole backfill horizon."""
+    with patch.object(integration_service.calendar_aggregator.inadiutorium_api,
                        'get_events', return_value=[]):
         yield
 
@@ -105,6 +122,37 @@ def test_backfill_populates_usno_astronomical_events(app, db_session):
 
     cached_years = {row.year for row in EventCache.query.filter_by(source='USNO').all()}
     assert cached_years == set(range(2026, 2026 + COMPUTED_CALENDAR_BACKFILL_YEARS))
+
+
+def test_backfill_populates_inadiutorium_liturgical_calendar(app, db_session):
+    with freeze_time("2026-01-01"):
+        with patch.object(integration_service.calendar_aggregator.hebcal_api, 'get_events', return_value=[]), \
+             patch.object(integration_service.calendar_aggregator.inadiutorium_api, 'get_events',
+                           side_effect=lambda year: [_fake_inadiutorium_event(year)]) as mock_get_events:
+            backfill_computed_calendar_events(app)
+
+    assert mock_get_events.call_count == COMPUTED_CALENDAR_BACKFILL_YEARS
+
+    cached_years = {row.year for row in EventCache.query.filter_by(source='Inadiutorium API').all()}
+    assert cached_years == set(range(2026, 2026 + COMPUTED_CALENDAR_BACKFILL_YEARS))
+
+
+def test_update_event_cache_does_not_wipe_computed_calendar_rows(app, db_session):
+    """update_event_cache's per-year cache refresh must exclude computed
+    sources (Hebcal/USNO/Nobel Prize/Inadiutorium) from its blanket delete
+    of that year's global rows -- it never reinserts them
+    (fetch_live_calendar_events doesn't return them), so without this
+    exclusion a naive delete-by-year would silently wipe them out until the
+    next backfill_computed_calendar_events run restores them."""
+    for source in ('Hebcal', 'USNO', 'Nobel Prize', 'Inadiutorium API'):
+        db_session.add(EventCache(title=f'{source} Event', date=datetime(2026, 9, 12), year=2026, source=source))
+    db_session.commit()
+
+    with patch.object(integration_service, 'fetch_live_calendar_events', return_value=[]):
+        update_event_cache(app)
+
+    for source in ('Hebcal', 'USNO', 'Nobel Prize', 'Inadiutorium API'):
+        assert EventCache.query.filter_by(source=source, year=2026).count() == 1
 
 
 def test_backfill_failure_for_one_year_does_not_block_other_years(app, db_session):

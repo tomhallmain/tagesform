@@ -4,6 +4,7 @@ from ..utils.logging_setup import get_logger
 from .background_tasks import (
     update_activity_importance, update_event_cache, create_database_backup,
     backfill_computed_calendar_events, refresh_suggestion_queue,
+    refresh_mustermeister_tasks, refresh_briefkorb_messages,
 )
 
 logger = get_logger('scheduler')
@@ -40,8 +41,33 @@ def init_scheduler(app, scheduler):
             next_run_time='2025-01-01 00:00:00'
         )
 
+        # Run immediately on every startup -- both jobs are no-ops when
+        # unconfigured (see their docstrings), and since this app doesn't
+        # run 24/7, an immediate run on each start is this codebase's
+        # existing answer to "catch up after however long we were down"
+        # rather than waiting out a possibly-missed interval boundary.
+        scheduler.add_job(
+            refresh_mustermeister_tasks,
+            'interval',
+            hours=config.MUSTERMEISTER_POLL_INTERVAL,
+            args=[app],
+            next_run_time='2025-01-01 00:00:00'
+        )
+
+        scheduler.add_job(
+            refresh_briefkorb_messages,
+            'interval',
+            hours=config.BRIEFKORB_POLL_INTERVAL,
+            args=[app],
+            next_run_time='2025-01-01 00:00:00'
+        )
+
         # Run immediately so the dashboard's suggestion queue isn't empty
-        # while waiting for the first scheduled interval.
+        # while waiting for the first scheduled interval. This also means
+        # the queue refresh (and the planning agent it now also drives, see
+        # suggestion_queue_service._plan_candidates) always runs once as
+        # soon as the app is next opened, regardless of how long it was
+        # down beforehand -- same reasoning as the two jobs above.
         scheduler.add_job(
             refresh_suggestion_queue,
             'interval',

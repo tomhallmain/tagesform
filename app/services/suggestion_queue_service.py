@@ -9,23 +9,38 @@ entity's calendar entries the user can see, so reusing it here means the
 suggestion queue automatically benefits from all of that instead of
 re-deriving its own narrower view of "what events exist."
 
-item_type is intentionally open-ended (see SuggestionQueueItem's docstring):
-two more candidate sources are planned -- an email application and a task
-manager application, both external systems holding their own copies of the
-user's data. Nothing here assumes only these three types exist; adding
-'email'/'task' later is a matter of adding a new _*_candidates function and
-an entry in refresh_queue_for_user's candidate list, not a schema change.
+item_type is intentionally open-ended (see SuggestionQueueItem's docstring).
+'task'/'email' candidates (_task_candidates/_email_candidates) come from
+local caches of two external, same-owner projects -- Mustermeister (task
+manager) and BriefKorb (email) -- populated by their own background jobs;
+see docs/task-email-integration.md. Both are gated on
+config.TASK_EMAIL_INTEGRATION_USER_ID (a single integration owner, not
+per-user account linking), so they return [] for every other user.
+
+'plan' candidates (_plan_candidates) are a further synthesis step on top of
+all of the above -- see planning_agent_service.py -- joining calendar
+events, weather, and task/email candidates via an LLM into a smaller number
+of higher-level suggestions, rather than one row per raw source item.
 """
 
 from datetime import datetime, timedelta
 
-from ..models import Activity, Entity, SuggestionQueueItem, db
+from ..models import Activity, BriefKorbMessageCache, Entity, MustermeisterTaskCache, SuggestionQueueItem, db
 from .integration_service import integration_service
 from .schedules_manager import SchedulesManager
+from ..utils.config import config
 from ..utils.translations import _
 
 ACTIVITY_LOOKAHEAD_DAYS = 14
 EVENT_LOOKAHEAD_DAYS = 14
+TASK_DUE_LOOKAHEAD_DAYS = 14
+# Matches BriefKorb's own /api/messages staleAfterDays default (3.0) -- the
+# same window BriefKorb itself uses to judge a message "stale" is a
+# reasonable window for our own recency decay.
+EMAIL_RECENCY_WINDOW_DAYS = 3
+
+TASK_PRIORITY_WEIGHTS = {'leisure': 1, 'low': 2, 'medium': 3, 'high': 4}
+EMAIL_IMPACT_TIER_WEIGHTS = {'high-impact': 1.0, 'unclassified': 0.5, 'low-impact': 0.0}
 
 
 def gather_candidates_for_user(user, now=None):
@@ -35,7 +50,21 @@ def gather_candidates_for_user(user, now=None):
     candidates.extend(_activity_candidates(user, now))
     candidates.extend(_entity_candidates(user, now))
     candidates.extend(_event_candidates(user, now))
+    candidates.extend(_task_candidates(user, now))
+    candidates.extend(_email_candidates(user, now))
+    candidates.extend(_plan_candidates(user, now, candidates))
     return candidates
+
+
+def _task_email_integration_enabled_for(user):
+    """Mustermeister/BriefKorb are configured for a single integration
+    owner, not per-user account linking -- see
+    docs/task-email-integration.md. Returns [] from every candidate
+    gated on this for every other user of a multi-user install."""
+    return (
+        config.TASK_EMAIL_INTEGRATION_USER_ID is not None
+        and user.id == config.TASK_EMAIL_INTEGRATION_USER_ID
+    )
 
 
 def _favorite_categories(user):
@@ -96,6 +125,7 @@ def _activity_candidates(user, now):
             'title': activity.title,
             'reason': ', '.join(reason_bits),
             'score': score,
+            'scheduled_time': activity.scheduled_time,  # internal-only, read by planning_agent_service
         })
     return candidates
 
@@ -204,8 +234,121 @@ def _event_candidates(user, now):
             'title': event['title'],
             'reason': reason,
             'score': score,
+            'event_date': event_date,  # internal-only, read by planning_agent_service
         })
     return candidates
+
+
+def _task_candidates(user, now):
+    """Mustermeister-derived task candidates -- reads MustermeisterTaskCache
+    only (see refresh_mustermeister_tasks), never Mustermeister live."""
+    if not _task_email_integration_enabled_for(user):
+        return []
+
+    today = now.date()
+    tasks = MustermeisterTaskCache.query.all()
+
+    candidates = []
+    for task in tasks:
+        priority_weight = TASK_PRIORITY_WEIGHTS.get(task.priority, 2) / 4.0
+
+        if task.due_date is None:
+            proximity_score = 0.0
+        else:
+            days_until = (task.due_date - today).days
+            proximity_score = 1.0 if days_until <= 0 else max(0.0, 1.0 - (days_until / TASK_DUE_LOOKAHEAD_DAYS))
+
+        score = 0.6 * priority_weight + 0.4 * proximity_score
+
+        reason_bits = []
+        if task.due_date is None:
+            reason_bits.append(_('No due date'))
+        elif task.due_date < today:
+            reason_bits.append(_('Overdue by {0} days').format((today - task.due_date).days))
+            score += 0.15
+        elif task.due_date == today:
+            reason_bits.append(_('Due today'))
+            score += 0.1
+        else:
+            reason_bits.append(_('Due in {0} days').format((task.due_date - today).days))
+
+        if task.priority == 'high':
+            reason_bits.append(_('high priority'))
+            score += 0.1
+        if task.project:
+            reason_bits.append(task.project)
+
+        candidates.append({
+            'item_type': 'task',
+            'source_id': task.id,
+            'title': task.title,
+            'reason': ', '.join(reason_bits),
+            'score': score,
+            # internal-only, read by planning_agent_service:
+            'due_date': task.due_date,
+            'priority': task.priority,
+        })
+    return candidates
+
+
+def _email_candidates(user, now):
+    """BriefKorb-derived unread-mail candidates -- reads
+    BriefKorbMessageCache only (see refresh_briefkorb_messages), never
+    BriefKorb live. 'low-impact' senders are excluded up front;
+    'unclassified' senders are kept -- a first-time or irregular sender can
+    still be genuinely important, the classifier just hasn't built a
+    pattern on them yet."""
+    if not _task_email_integration_enabled_for(user):
+        return []
+
+    buckets = BriefKorbMessageCache.query.filter(BriefKorbMessageCache.impact != 'low-impact').all()
+
+    candidates = []
+    for bucket in buckets:
+        tier_weight = EMAIL_IMPACT_TIER_WEIGHTS.get(bucket.impact, 0.5)
+        # genericInferenceScore's exact range isn't confirmed against
+        # BriefKorb's source -- clamped defensively rather than assumed.
+        impact_score = max(0.0, min(1.0, bucket.impact_score)) if bucket.impact_score is not None else 0.5
+
+        hours_since = max((now - bucket.last_received_at).total_seconds() / 3600.0, 0.0)
+        recency_score = max(0.0, 1.0 - (hours_since / (EMAIL_RECENCY_WINDOW_DAYS * 24)))
+
+        score = 0.5 * tier_weight + 0.3 * impact_score + 0.2 * recency_score
+
+        reason_bits = []
+        if bucket.impact == 'high-impact':
+            reason_bits.append(_('high-impact sender'))
+        if bucket.count and bucket.count > 1:
+            reason_bits.append(_('{0} messages').format(bucket.count))
+            score += 0.1
+        reason_bits.append(bucket.sender_name or bucket.sender_address)
+
+        candidates.append({
+            'item_type': 'email',
+            'source_id': bucket.id,
+            'title': bucket.subject or bucket.sender_name or bucket.sender_address,
+            'reason': ', '.join(reason_bits),
+            'score': score,
+            # internal-only, read by planning_agent_service:
+            'impact': bucket.impact,
+            'sender_name': bucket.sender_name,
+            'count': bucket.count,
+            'last_received_at': bucket.last_received_at,
+        })
+    return candidates
+
+
+def _plan_candidates(user, now, candidates):
+    """LLM-synthesized 'plan' candidates -- see planning_agent_service.py.
+    Takes the already-gathered activity/entity/event/task/email candidates
+    (including their internal-only extra fields, e.g. due_date/scheduled_time)
+    as input rather than re-querying, and the currently active schedule
+    category, which planning_agent_service has no independent way to
+    resolve (SchedulesManager needs a request/background-job-scoped user,
+    not something it can look up on its own)."""
+    from .planning_agent_service import gather_plan_candidates
+    active_category = _active_schedule_category(user, now)
+    return gather_plan_candidates(user, now, candidates, active_schedule_category=active_category)
 
 
 def refresh_queue_for_user(user, now=None):

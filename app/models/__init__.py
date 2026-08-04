@@ -7,6 +7,9 @@ from .entity_comment import EntityComment
 from .event_cache import EventCache
 from .user_calendar_descriptor import UserCalendarDescriptor
 from .suggestion_queue_item import SuggestionQueueItem
+from .mustermeister_task_cache import MustermeisterTaskCache
+from .briefkorb_message_cache import BriefKorbMessageCache
 
 __all__ = ['db', 'User', 'ScheduleRecord', 'Activity', 'Entity', 'EntityComment', 'EventCache',
-           'UserCalendarDescriptor', 'SuggestionQueueItem'] 
+           'UserCalendarDescriptor', 'SuggestionQueueItem', 'MustermeisterTaskCache',
+           'BriefKorbMessageCache'] 

@@ -1,10 +1,11 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
-from app.models import Activity, Entity, db
+from app.models import Activity, BriefKorbMessageCache, Entity, MustermeisterTaskCache, db
+from app.services import suggestion_queue_service
 from app.services.suggestion_queue_service import (
-    _activity_candidates, _entity_candidates, _favorite_categories, _is_entity_open,
-    gather_candidates_for_user,
+    _activity_candidates, _email_candidates, _entity_candidates, _favorite_categories,
+    _is_entity_open, _task_candidates, gather_candidates_for_user,
 )
 
 pytestmark = pytest.mark.unit
@@ -156,3 +157,113 @@ def test_gather_candidates_for_user_combines_activity_and_entity_candidates(app,
 
         assert 'activity' in item_types
         assert 'entity' in item_types
+
+
+def test_task_candidates_empty_when_integration_not_configured_for_user(app, test_user, db_session, monkeypatch):
+    monkeypatch.setattr(suggestion_queue_service.config, 'TASK_EMAIL_INTEGRATION_USER_ID', test_user.id + 999)
+    with app.app_context():
+        db_session.add(MustermeisterTaskCache(external_id=1, title='Some task', priority='high'))
+        db_session.commit()
+
+        assert _task_candidates(test_user, datetime(2026, 7, 30, 9, 0, 0)) == []
+
+
+def test_task_candidates_scores_overdue_higher_than_far_future(app, test_user, db_session, monkeypatch):
+    monkeypatch.setattr(suggestion_queue_service.config, 'TASK_EMAIL_INTEGRATION_USER_ID', test_user.id)
+    with app.app_context():
+        now = datetime(2026, 7, 30, 9, 0, 0)
+        overdue = MustermeisterTaskCache(external_id=1, title='Overdue', priority='medium',
+                                          due_date=date(2026, 7, 28))
+        far_future = MustermeisterTaskCache(external_id=2, title='Far Future', priority='medium',
+                                             due_date=date(2026, 8, 20))
+        db_session.add_all([overdue, far_future])
+        db_session.commit()
+
+        candidates = _task_candidates(test_user, now)
+        by_title = {c['title']: c for c in candidates}
+
+        assert by_title['Overdue']['score'] > by_title['Far Future']['score']
+        assert by_title['Overdue']['item_type'] == 'task'
+        assert by_title['Overdue']['source_id'] == overdue.id
+        # internal-only fields read by planning_agent_service must survive:
+        assert by_title['Overdue']['due_date'] == date(2026, 7, 28)
+        assert by_title['Overdue']['priority'] == 'medium'
+
+
+def test_task_candidates_handles_missing_due_date(app, test_user, db_session, monkeypatch):
+    monkeypatch.setattr(suggestion_queue_service.config, 'TASK_EMAIL_INTEGRATION_USER_ID', test_user.id)
+    with app.app_context():
+        db_session.add(MustermeisterTaskCache(external_id=1, title='No due date', priority='low'))
+        db_session.commit()
+
+        candidates = _task_candidates(test_user, datetime(2026, 7, 30, 9, 0, 0))
+
+        assert len(candidates) == 1
+        assert candidates[0]['due_date'] is None
+
+
+def test_email_candidates_empty_when_integration_not_configured_for_user(app, test_user, db_session, monkeypatch):
+    monkeypatch.setattr(suggestion_queue_service.config, 'TASK_EMAIL_INTEGRATION_USER_ID', test_user.id + 999)
+    with app.app_context():
+        db_session.add(BriefKorbMessageCache(sender_address='a@example.com', provider='microsoft',
+                                              impact='high-impact', last_received_at=datetime(2026, 7, 30, 8, 0, 0)))
+        db_session.commit()
+
+        assert _email_candidates(test_user, datetime(2026, 7, 30, 9, 0, 0)) == []
+
+
+def test_email_candidates_excludes_low_impact_but_keeps_unclassified(app, test_user, db_session, monkeypatch):
+    monkeypatch.setattr(suggestion_queue_service.config, 'TASK_EMAIL_INTEGRATION_USER_ID', test_user.id)
+    with app.app_context():
+        now = datetime(2026, 7, 30, 9, 0, 0)
+        low = BriefKorbMessageCache(sender_address='low@example.com', provider='microsoft',
+                                     sender_name='Newsletter', impact='low-impact', last_received_at=now)
+        unclassified = BriefKorbMessageCache(sender_address='new@example.com', provider='microsoft',
+                                              sender_name='New Contact', impact='unclassified',
+                                              last_received_at=now)
+        db_session.add_all([low, unclassified])
+        db_session.commit()
+
+        candidates = _email_candidates(test_user, now)
+        senders = {c['sender_name'] for c in candidates}
+
+        assert 'Newsletter' not in senders
+        assert 'New Contact' in senders
+
+
+def test_email_candidates_scores_high_impact_above_unclassified(app, test_user, db_session, monkeypatch):
+    monkeypatch.setattr(suggestion_queue_service.config, 'TASK_EMAIL_INTEGRATION_USER_ID', test_user.id)
+    with app.app_context():
+        now = datetime(2026, 7, 30, 9, 0, 0)
+        high = BriefKorbMessageCache(sender_address='boss@example.com', provider='microsoft',
+                                      sender_name='Boss', impact='high-impact', impact_score=0.9,
+                                      last_received_at=now)
+        unclassified = BriefKorbMessageCache(sender_address='new@example.com', provider='microsoft',
+                                              sender_name='New Contact', impact='unclassified',
+                                              impact_score=0.5, last_received_at=now)
+        db_session.add_all([high, unclassified])
+        db_session.commit()
+
+        candidates = _email_candidates(test_user, now)
+        by_sender = {c['sender_name']: c for c in candidates}
+
+        assert by_sender['Boss']['score'] > by_sender['New Contact']['score']
+        assert by_sender['Boss']['item_type'] == 'email'
+        assert by_sender['Boss']['source_id'] == high.id
+
+
+def test_gather_candidates_for_user_includes_task_and_email_when_integration_enabled(app, test_user, db_session, monkeypatch):
+    monkeypatch.setattr(suggestion_queue_service.config, 'TASK_EMAIL_INTEGRATION_USER_ID', test_user.id)
+    monkeypatch.setattr(suggestion_queue_service.config, 'PLANNING_AGENT_ENABLED', False)
+    with app.app_context():
+        now = datetime(2026, 7, 30, 9, 0, 0)
+        db_session.add(MustermeisterTaskCache(external_id=1, title='A task', priority='medium'))
+        db_session.add(BriefKorbMessageCache(sender_address='a@example.com', provider='microsoft',
+                                              impact='high-impact', last_received_at=now))
+        db_session.commit()
+
+        candidates = gather_candidates_for_user(test_user, now)
+        item_types = {c['item_type'] for c in candidates}
+
+        assert 'task' in item_types
+        assert 'email' in item_types

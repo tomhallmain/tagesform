@@ -7,13 +7,15 @@ class SuggestionQueueItem(db.Model):
     instead of the item just reappearing on the next dashboard load.
 
     (item_type, source_id) is a loose polymorphic reference, not a real
-    foreign key, since it can point at several different tables depending
-    on item_type ('activity' -> Activity.id, 'entity' -> Entity.id,
-    'event' -> EventCache.id today). item_type is deliberately a free-form
-    string rather than an enum/CHECK constraint: two more integrations are
-    planned (an email application and a task-manager application), and
-    when those land they only need new candidate-gathering logic in
-    refresh_suggestion_queue -- e.g. 'email' / 'task' -- not a migration or
+    foreign key, since it can point at several different tables depending on
+    item_type: 'activity' -> Activity.id, 'entity' -> Entity.id, 'event' ->
+    EventCache.id, 'task' -> MustermeisterTaskCache.id, 'email' ->
+    BriefKorbMessageCache.id. 'plan' is the odd one out -- an LLM-synthesized
+    suggestion with no single backing row, so its source_id is a small fixed
+    constant per signal type (see planning_agent_service.PLAN_SIGNAL_SOURCE_IDS)
+    rather than a real table id. item_type is deliberately a free-form string
+    rather than an enum/CHECK constraint, so any future source only needs new
+    candidate-gathering logic in suggestion_queue_service, not a migration or
     a change to this model.
     """
     id = db.Column(db.Integer, primary_key=True)

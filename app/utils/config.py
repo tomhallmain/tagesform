@@ -67,6 +67,47 @@ class Config:
         # this" list) is recomputed per user.
         self.SUGGESTION_QUEUE_REFRESH_INTERVAL = int(os.getenv('SUGGESTION_QUEUE_REFRESH_INTERVAL', '6'))
 
+        # Mustermeister (external task manager) integration. Token is minted
+        # interactively on the Mustermeister side (session-authenticated
+        # POST /profile/api_token) -- there is no way to provision it here.
+        self.MUSTERMEISTER_BASE_URL = os.getenv('MUSTERMEISTER_BASE_URL', '')
+        self.MUSTERMEISTER_API_TOKEN = os.getenv('MUSTERMEISTER_API_TOKEN', '')
+        self.MUSTERMEISTER_POLL_INTERVAL = int(os.getenv('MUSTERMEISTER_POLL_INTERVAL', '3'))
+        # `limit` param sent to Mustermeister's open_tasks_by_priorities tool.
+        # Capped upstream at that instance's own MAX_LIST_ITEMS (1000 by
+        # default) -- there is no cursor/offset pagination beyond that, so a
+        # backlog larger than this value will be silently truncated.
+        self.MUSTERMEISTER_TASK_LIMIT = int(os.getenv('MUSTERMEISTER_TASK_LIMIT', '500'))
+
+        # BriefKorb (external email client) integration. Token is a
+        # token/label pair the operator hand-adds to BriefKorb's own
+        # email_server/config.yaml under external_api.tokens.
+        self.BRIEFKORB_BASE_URL = os.getenv('BRIEFKORB_BASE_URL', '')
+        self.BRIEFKORB_API_TOKEN = os.getenv('BRIEFKORB_API_TOKEN', '')
+        # BriefKorb's own /api/messages docstring explicitly asks callers to
+        # poll on the order of hours, not per-page-load -- every call is one
+        # or more live Graph/Gmail fetches against BriefKorb's own quota.
+        self.BRIEFKORB_POLL_INTERVAL = int(os.getenv('BRIEFKORB_POLL_INTERVAL', '6'))
+
+        # The single Tagesform user id that Mustermeister/BriefKorb-derived
+        # suggestion queue candidates surface for. Unset by default so this
+        # whole integration is opt-in per deployment rather than silently
+        # exposing the config-holder's personal tasks/mail to every user of
+        # a multi-user install.
+        task_email_integration_user_id = os.getenv('TASK_EMAIL_INTEGRATION_USER_ID', '')
+        self.TASK_EMAIL_INTEGRATION_USER_ID = (
+            int(task_email_integration_user_id) if task_email_integration_user_id else None
+        )
+
+        # Gates the LLM-driven planning agent (see planning_agent_service.py)
+        # that joins calendar events, weather, and (when configured above)
+        # Mustermeister/BriefKorb candidates into synthesized suggestion
+        # queue entries. Off by default -- unlike the cheap DB-query-based
+        # candidate sources, this makes a real LLM call (up to
+        # extensions.llm.LLM.DEFAULT_TIMEOUT seconds) per signal per user on
+        # every suggestion queue refresh.
+        self.PLANNING_AGENT_ENABLED = os.getenv('PLANNING_AGENT_ENABLED', 'False').lower() == 'true'
+
         # Process settings
         self.is_main_process = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
 

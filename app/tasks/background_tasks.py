@@ -1,5 +1,8 @@
 from datetime import datetime
-from ..models import Activity, Entity, EventCache, User, UserCalendarDescriptor, db
+from ..models import (
+    Activity, BriefKorbMessageCache, Entity, EventCache, MustermeisterTaskCache, User,
+    UserCalendarDescriptor, db,
+)
 from ..services.activity_service import infer_activity_importance
 from ..services.integration_service import integration_service
 from ..services.calendar_aggregator import format_event
@@ -7,7 +10,9 @@ from ..services.custom_calendar_service import (
     parse_descriptor, regenerate_event_cache_for_user, DescriptorValidationError
 )
 from ..services.entity_calendar_service import regenerate_event_cache_for_entity
+from ..services import briefkorb_client, mustermeister_client
 from ..services.suggestion_queue_service import refresh_queue_for_user
+from ..utils.config import config
 from ..utils.logging_setup import get_logger
 from ..services.backup_service import get_backup_service
 
@@ -163,6 +168,123 @@ def backfill_computed_calendar_events(app):
                 except Exception as e:
                     logger.error(f"Error backfilling {source_name} events for year {year}: {e}")
                     db.session.rollback()
+
+def refresh_mustermeister_tasks(app):
+    """Background job to poll Mustermeister's task-insights API and refresh
+    MustermeisterTaskCache. See docs/task-email-integration.md -- the
+    suggestion queue's _task_candidates reads only this local cache, never
+    Mustermeister live, same split as EventCache/get_calendar_events.
+
+    Upserts by external_id; deletes cached rows Mustermeister no longer
+    returns (task completed/deleted/reassigned upstream) -- the fetched set
+    is already "every open task," so anything missing from it no longer
+    qualifies.
+
+    A no-op (not an error) while MUSTERMEISTER_BASE_URL/API_TOKEN are unset --
+    this job is registered unconditionally, but the integration itself is
+    opt-in per deployment, so an unconfigured install shouldn't accumulate
+    an error-level log line every poll interval forever.
+    """
+    if not config.MUSTERMEISTER_BASE_URL or not config.MUSTERMEISTER_API_TOKEN:
+        return
+
+    with app.app_context():
+        try:
+            tasks = mustermeister_client.fetch_open_tasks()
+        except Exception as e:
+            logger.error(f"Error fetching Mustermeister tasks: {e}")
+            return
+
+        try:
+            seen_external_ids = set()
+            for task in tasks:
+                seen_external_ids.add(task['external_id'])
+                cached = MustermeisterTaskCache.query.filter_by(external_id=task['external_id']).first()
+                if cached is None:
+                    cached = MustermeisterTaskCache(external_id=task['external_id'])
+                    db.session.add(cached)
+                cached.title = task['title']
+                cached.description = task['description']
+                cached.due_date = task['due_date']
+                cached.completed = task['completed']
+                cached.priority = task['priority']
+                cached.status = task['status']
+                cached.project = task['project']
+                cached.updated_date = task['updated_date']
+                cached.fetched_at = datetime.utcnow()
+
+            if seen_external_ids:
+                MustermeisterTaskCache.query.filter(
+                    MustermeisterTaskCache.external_id.notin_(seen_external_ids)
+                ).delete(synchronize_session=False)
+            else:
+                MustermeisterTaskCache.query.delete(synchronize_session=False)
+
+            db.session.commit()
+            logger.info(f"Updated Mustermeister task cache with {len(tasks)} open tasks")
+        except Exception as e:
+            logger.error(f"Error updating Mustermeister task cache: {e}")
+            db.session.rollback()
+
+
+def refresh_briefkorb_messages(app):
+    """Background job to poll BriefKorb's messages API and refresh
+    BriefKorbMessageCache. See docs/task-email-integration.md -- the
+    suggestion queue's _email_candidates reads only this local cache, never
+    BriefKorb live (every BriefKorb call is a live Graph/Gmail fetch against
+    its own quota).
+
+    Upserts by (sender_address, provider); deletes cached buckets BriefKorb
+    no longer returns (all read/archived upstream, or dropped since none of
+    that sender's messages are unread anymore).
+
+    A no-op (not an error) while BRIEFKORB_BASE_URL/API_TOKEN are unset --
+    see refresh_mustermeister_tasks for why.
+    """
+    if not config.BRIEFKORB_BASE_URL or not config.BRIEFKORB_API_TOKEN:
+        return
+
+    with app.app_context():
+        try:
+            buckets = briefkorb_client.fetch_unread_messages()
+        except Exception as e:
+            logger.error(f"Error fetching BriefKorb messages: {e}")
+            return
+
+        try:
+            seen_keys = set()
+            for bucket in buckets:
+                key = (bucket['sender_address'], bucket['provider'])
+                seen_keys.add(key)
+                cached = BriefKorbMessageCache.query.filter_by(
+                    sender_address=bucket['sender_address'], provider=bucket['provider']
+                ).first()
+                if cached is None:
+                    cached = BriefKorbMessageCache(
+                        sender_address=bucket['sender_address'], provider=bucket['provider']
+                    )
+                    db.session.add(cached)
+                cached.sender_name = bucket['sender_name']
+                cached.subject = bucket['subject']
+                cached.last_received_at = bucket['last_received_at']
+                cached.count = bucket['count']
+                cached.impact = bucket['impact']
+                cached.impact_score = bucket['impact_score']
+                cached.fetched_at = datetime.utcnow()
+
+            if seen_keys:
+                for cached in BriefKorbMessageCache.query.all():
+                    if (cached.sender_address, cached.provider) not in seen_keys:
+                        db.session.delete(cached)
+            else:
+                BriefKorbMessageCache.query.delete(synchronize_session=False)
+
+            db.session.commit()
+            logger.info(f"Updated BriefKorb message cache with {len(buckets)} unread sender buckets")
+        except Exception as e:
+            logger.error(f"Error updating BriefKorb message cache: {e}")
+            db.session.rollback()
+
 
 def refresh_suggestion_queue(app):
     """Background job to recompute each user's suggestion queue.

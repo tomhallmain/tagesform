@@ -95,6 +95,69 @@ def test_init_scheduler_registers_suggestion_queue_job_with_configured_interval(
     assert 'next_run_time' in suggestion_call.kwargs
 
 
+def test_mustermeister_poll_interval_defaults_to_3_hours(monkeypatch):
+    monkeypatch.delenv('MUSTERMEISTER_POLL_INTERVAL', raising=False)
+    assert Config().MUSTERMEISTER_POLL_INTERVAL == 3
+
+
+def test_briefkorb_poll_interval_defaults_to_6_hours(monkeypatch):
+    monkeypatch.delenv('BRIEFKORB_POLL_INTERVAL', raising=False)
+    assert Config().BRIEFKORB_POLL_INTERVAL == 6
+
+
+def test_task_email_integration_user_id_defaults_to_none(monkeypatch):
+    """Unset by default so the integration is opt-in per deployment --
+    see docs/task-email-integration.md."""
+    monkeypatch.delenv('TASK_EMAIL_INTEGRATION_USER_ID', raising=False)
+    assert Config().TASK_EMAIL_INTEGRATION_USER_ID is None
+
+
+def test_task_email_integration_user_id_respects_env_override(monkeypatch):
+    monkeypatch.setenv('TASK_EMAIL_INTEGRATION_USER_ID', '7')
+    assert Config().TASK_EMAIL_INTEGRATION_USER_ID == 7
+
+
+def test_planning_agent_enabled_defaults_to_false(monkeypatch):
+    monkeypatch.delenv('PLANNING_AGENT_ENABLED', raising=False)
+    assert Config().PLANNING_AGENT_ENABLED is False
+
+
+def test_init_scheduler_registers_mustermeister_job_with_configured_interval(app, monkeypatch):
+    monkeypatch.setattr(scheduler_module.config, 'is_main_process', True)
+    monkeypatch.setattr(scheduler_module.config, 'MUSTERMEISTER_POLL_INTERVAL', 5)
+
+    mock_scheduler = MagicMock()
+    mock_scheduler.running = False
+
+    scheduler_module.init_scheduler(app, mock_scheduler)
+
+    call = next(
+        call for call in mock_scheduler.add_job.call_args_list
+        if call.args[0] is scheduler_module.refresh_mustermeister_tasks
+    )
+    assert call.kwargs['hours'] == 5
+    # Must run immediately on startup -- this app isn't running 24/7, so
+    # waiting out a possibly-missed interval boundary isn't good enough.
+    assert 'next_run_time' in call.kwargs
+
+
+def test_init_scheduler_registers_briefkorb_job_with_configured_interval(app, monkeypatch):
+    monkeypatch.setattr(scheduler_module.config, 'is_main_process', True)
+    monkeypatch.setattr(scheduler_module.config, 'BRIEFKORB_POLL_INTERVAL', 8)
+
+    mock_scheduler = MagicMock()
+    mock_scheduler.running = False
+
+    scheduler_module.init_scheduler(app, mock_scheduler)
+
+    call = next(
+        call for call in mock_scheduler.add_job.call_args_list
+        if call.args[0] is scheduler_module.refresh_briefkorb_messages
+    )
+    assert call.kwargs['hours'] == 8
+    assert 'next_run_time' in call.kwargs
+
+
 def test_init_scheduler_does_nothing_outside_the_main_werkzeug_process(app, monkeypatch):
     """The scheduler must not register jobs in a reloader watcher process --
     see the process-guard gotcha documented for create_app()/init_scheduler."""

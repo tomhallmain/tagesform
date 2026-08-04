@@ -186,6 +186,7 @@ def refresh_mustermeister_tasks(app):
     an error-level log line every poll interval forever.
     """
     if not config.MUSTERMEISTER_BASE_URL or not config.MUSTERMEISTER_API_TOKEN:
+        logger.warning("Mustermeister integration not configured; skipping poll")
         return
 
     with app.app_context():
@@ -242,6 +243,7 @@ def refresh_briefkorb_messages(app):
     see refresh_mustermeister_tasks for why.
     """
     if not config.BRIEFKORB_BASE_URL or not config.BRIEFKORB_API_TOKEN:
+        logger.warning("BriefKorb integration not configured; skipping poll")
         return
 
     with app.app_context():

@@ -18,6 +18,17 @@ class BriefKorbMessageCache(db.Model):
     Single-integration-owner: no user_id column, same as
     MustermeisterTaskCache -- see config.TASK_EMAIL_INTEGRATION_USER_ID.
     """
+    # Without this, SQLAlchemy's default class-name-to-table-name derivation
+    # splits "BriefKorb" into two words ("brief_korb..."), since it has no
+    # way to know that's one compound name rather than two -- but the
+    # migration that actually created this table
+    # (f1a2b3c4d5e6_add_mustermeister_briefkorb_cache.py) used
+    # 'briefkorb_message_cache'. Without an explicit __tablename__ here to
+    # match, every query against this model fails with "no such table:
+    # brief_korb_message_cache" -- the table SQLAlchemy looked for was
+    # never the one that actually got created.
+    __tablename__ = 'briefkorb_message_cache'
+
     id = db.Column(db.Integer, primary_key=True)
     sender_address = db.Column(db.String(320), nullable=False)  # bucket key
     provider = db.Column(db.String(20), nullable=False)          # "microsoft" | "gmail"

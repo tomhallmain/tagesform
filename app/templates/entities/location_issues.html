@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Places Needing Location Data - Tagesform') }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ _('Places Needing Location Data') }}</h1>
+            <a href="{{ url_for('entities.list_places') }}" class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                {{ _('Back to My Places') }}
+            </a>
+        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            {{ _('These places have a location set, but it could not be matched to a known town, city, or neighborhood -- so they never get filtered by distance in your suggestions. Try making the location more specific, e.g. "City, State" or "City, Country".') }}
+        </p>
+
+        {% if places %}
+        <ul class="divide-y divide-gray-200 dark:divide-gray-700">
+            {% for place in places %}
+            <li class="py-4 flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ place.name }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ place.location }}</p>
+                </div>
+                <a href="{{ url_for('entities.edit_place', entity_id=place.id) }}"
+                   class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600">
+                    {{ _('Edit') }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ _('Nothing here -- every one of your places with a location set has been matched.') }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

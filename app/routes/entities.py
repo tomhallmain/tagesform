@@ -8,6 +8,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from ..models import Entity, EntityComment, db
+from ..services import geocoding_service
 from ..services.entity_calendar_service import (
     validate_entry_input, regenerate_event_cache_for_entity, delete_event_cache_for_entity,
     EntityCalendarValidationError, MAX_ENTRIES_PER_ENTITY,
@@ -227,6 +228,7 @@ def add_place():
                 is_public=is_public,
                 user_id=current_user.id
             )
+            geocoding_service.apply_geocode(entity, location)
 
             db.session.add(entity)
             db.session.commit()
@@ -645,7 +647,37 @@ def list_places():
         row.entity_id for row in
         EntityComment.query.filter_by(user_id=current_user.id).with_entities(EntityComment.entity_id).all()
     }
-    return render_template('places.html', places=places, commented_entity_ids=commented_entity_ids)
+    location_issue_count = _location_issues_query(current_user.id).count()
+    return render_template(
+        'places.html', places=places, commented_entity_ids=commented_entity_ids,
+        location_issue_count=location_issue_count,
+    )
+
+
+def _location_issues_query(user_id):
+    """Owned places with a location string set but never successfully
+    geocoded (see geocoding_service.py) -- scoped to the given user's own
+    entities only, never public/shared ones they don't own, since fixing a
+    place's location text is an edit action only the owner can take."""
+    return Entity.query.filter(
+        Entity.user_id == user_id,
+        Entity.location.isnot(None),
+        Entity.location != '',
+        Entity.latitude.is_(None),
+    )
+
+
+@entities_bp.route('/location-issues')
+@login_required
+def location_issues():
+    """Owned places whose location text never resolved to coordinates --
+    see docs/entity-geolocation.md. Surfaced separately from the main
+    places list so it reads as an actionable "these could use more
+    specific location data" checklist rather than a rating/quality signal
+    mixed in with everything else.
+    """
+    places = _location_issues_query(current_user.id).order_by(Entity.name).all()
+    return render_template('entities/location_issues.html', places=places)
 
 @entity_api_bp.route('/entities/<int:entity_id>/comment', methods=['GET'])
 @login_required
@@ -1181,6 +1213,7 @@ def edit_place(entity_id):
             entity.rating = rating
             entity.properties = properties
             entity.is_public = is_public
+            geocoding_service.apply_geocode(entity, location)
 
             db.session.commit()
             flash(_('Place updated successfully!'), 'success')

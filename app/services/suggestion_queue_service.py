@@ -29,6 +29,7 @@ from ..models import Activity, BriefKorbMessageCache, Entity, MustermeisterTaskC
 from .integration_service import integration_service
 from .schedules_manager import SchedulesManager
 from ..utils.config import config
+from ..utils.geo import haversine_miles
 from ..utils.translations import _
 
 ACTIVITY_LOOKAHEAD_DAYS = 14
@@ -41,6 +42,13 @@ EMAIL_RECENCY_WINDOW_DAYS = 3
 
 TASK_PRIORITY_WEIGHTS = {'leisure': 1, 'low': 2, 'medium': 3, 'high': 4}
 EMAIL_IMPACT_TIER_WEIGHTS = {'high-impact': 1.0, 'unclassified': 0.5, 'low-impact': 0.0}
+
+# Default radius (miles) for _entity_candidates' hard proximity filter, for
+# any user who hasn't set their own 'nearby_distance_miles' preference --
+# see docs/entity-geolocation.md. settings.py imports this rather than
+# defining its own copy, so the form's displayed default and the value
+# actually applied here can't drift apart.
+DEFAULT_NEARBY_DISTANCE_MILES = 25
 
 
 def gather_candidates_for_user(user, now=None):
@@ -76,6 +84,20 @@ def _favorite_categories(user):
     preferences = user.preferences or {}
     favorites = preferences.get('favorite_categories')
     return set(favorites) if favorites else set()
+
+
+def _nearby_distance_miles(user):
+    """Per-user preference (User.preferences JSON, same mechanism as
+    favorite_categories) for _entity_candidates' hard proximity cutoff --
+    falls back to DEFAULT_NEARBY_DISTANCE_MILES when unset or invalid."""
+    preferences = user.preferences or {}
+    value = preferences.get('nearby_distance_miles')
+    if value is None:
+        return DEFAULT_NEARBY_DISTANCE_MILES
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return DEFAULT_NEARBY_DISTANCE_MILES
 
 
 def _active_schedule_category(user, now):
@@ -153,6 +175,7 @@ def _is_entity_open(entity, current_day, current_hour):
 
 def _entity_candidates(user, now):
     favorites = _favorite_categories(user)
+    nearby_distance_miles = _nearby_distance_miles(user)
     entities = Entity.query.filter(
         db.or_(
             Entity.user_id == user.id,
@@ -169,6 +192,18 @@ def _entity_candidates(user, now):
         if entity.rating is not None and entity.rating <= 1:
             continue  # matches the existing "Open Now" widget's own filtering
 
+        # Hard proximity cutoff (not a scoring signal) -- per explicit
+        # product decision, see docs/entity-geolocation.md. Only applies
+        # when both sides have resolved coordinates; an entity or user
+        # without them isn't excluded on that basis alone, since "we don't
+        # know" isn't the same claim as "too far away."
+        distance_miles = None
+        if (user.latitude is not None and user.longitude is not None
+                and entity.latitude is not None and entity.longitude is not None):
+            distance_miles = haversine_miles(user.latitude, user.longitude, entity.latitude, entity.longitude)
+            if distance_miles > nearby_distance_miles:
+                continue
+
         is_open = _is_entity_open(entity, current_day, current_hour)
         rating_score = (entity.rating or 2) / 4.0
         score = 0.5 * rating_score
@@ -177,6 +212,8 @@ def _entity_candidates(user, now):
         if is_open:
             score += 0.3
             reason_bits.append(_('open now'))
+        if distance_miles is not None:
+            reason_bits.append(_('{0:.1f} mi away').format(distance_miles))
         if not entity.visited:
             score += 0.2
             reason_bits.append(_("you haven't visited yet"))

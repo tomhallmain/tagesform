@@ -7,6 +7,15 @@ class Entity(db.Model, JSONFieldMixin):
     category = db.Column(db.String(50))  # restaurant, store, service, etc.
     operating_hours = db.Column(db.JSON)  # Store hours in JSON format
     location = db.Column(db.String(200))
+    # Resolved coordinates for `location`, via geocoding_service.py -- see
+    # docs/entity-geolocation.md. Null until geocoded (on save) or backfilled
+    # (`flask geocode-backfill`); null if the location string never resolved
+    # to a confident gazetteer match.
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+    location_matched_place_id = db.Column(
+        db.Integer, db.ForeignKey('gazetteer_place.id', name='fk_entity_location_matched_place'), nullable=True
+    )
     contact_info = db.Column(db.String(200))
     description = db.Column(db.Text)
     tags = db.Column(db.JSON)  # For better categorization and search
@@ -44,6 +53,8 @@ class Entity(db.Model, JSONFieldMixin):
             'name': self.name,
             'category': self.category,
             'location': self.location,
+            'latitude': self.latitude,
+            'longitude': self.longitude,
             'description': self.description,
             'contact_info': self.contact_info,
             'operating_hours': self.operating_hours,

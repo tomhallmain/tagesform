@@ -267,3 +267,75 @@ def test_gather_candidates_for_user_includes_task_and_email_when_integration_ena
 
         assert 'task' in item_types
         assert 'email' in item_types
+
+
+def test_nearby_distance_miles_defaults_when_no_preference_set(test_user):
+    from app.services.suggestion_queue_service import _nearby_distance_miles, DEFAULT_NEARBY_DISTANCE_MILES
+    assert _nearby_distance_miles(test_user) == DEFAULT_NEARBY_DISTANCE_MILES
+
+
+def test_nearby_distance_miles_respects_preference(test_user):
+    from app.services.suggestion_queue_service import _nearby_distance_miles
+    test_user.preferences = {'nearby_distance_miles': 10}
+    assert _nearby_distance_miles(test_user) == 10.0
+
+
+def test_nearby_distance_miles_falls_back_on_invalid_preference(test_user):
+    from app.services.suggestion_queue_service import _nearby_distance_miles, DEFAULT_NEARBY_DISTANCE_MILES
+    test_user.preferences = {'nearby_distance_miles': 'not-a-number'}
+    assert _nearby_distance_miles(test_user) == DEFAULT_NEARBY_DISTANCE_MILES
+
+
+def test_entity_candidates_excludes_entities_beyond_nearby_distance(app, test_user, db_session):
+    """Anchorage, AK vs Fairbanks, AK -- real-world distance ~260 miles."""
+    with app.app_context():
+        test_user.latitude = 61.21806
+        test_user.longitude = -149.90028
+        test_user.preferences = {'nearby_distance_miles': 50}
+
+        near = Entity(name='Near Place', category='restaurant', rating=3, user_id=test_user.id,
+                       latitude=61.3, longitude=-149.8)  # a few miles from the user
+        far = Entity(name='Far Place', category='restaurant', rating=3, user_id=test_user.id,
+                      latitude=64.83778, longitude=-147.71639)  # Fairbanks -- ~260mi away
+        db_session.add_all([near, far])
+        db_session.commit()
+
+        candidates = _entity_candidates(test_user, datetime(2026, 7, 30, 12, 0, 0))
+        names = {c['title'] for c in candidates}
+
+        assert 'Near Place' in names
+        assert 'Far Place' not in names
+
+
+def test_entity_candidates_does_not_exclude_entities_missing_coordinates(app, test_user, db_session):
+    """Missing coordinates on either side means 'we don't know', not 'too
+    far away' -- must not be excluded on that basis."""
+    with app.app_context():
+        test_user.latitude = 61.21806
+        test_user.longitude = -149.90028
+        test_user.preferences = {'nearby_distance_miles': 10}
+
+        no_coords = Entity(name='Ungeocoded Place', category='restaurant', rating=3, user_id=test_user.id)
+        db_session.add(no_coords)
+        db_session.commit()
+
+        candidates = _entity_candidates(test_user, datetime(2026, 7, 30, 12, 0, 0))
+        names = {c['title'] for c in candidates}
+
+        assert 'Ungeocoded Place' in names
+
+
+def test_entity_candidates_does_not_filter_when_user_has_no_coordinates(app, test_user, db_session):
+    with app.app_context():
+        test_user.latitude = None
+        test_user.longitude = None
+
+        far = Entity(name='Some Place', category='restaurant', rating=3, user_id=test_user.id,
+                      latitude=64.83778, longitude=-147.71639)
+        db_session.add(far)
+        db_session.commit()
+
+        candidates = _entity_candidates(test_user, datetime(2026, 7, 30, 12, 0, 0))
+        names = {c['title'] for c in candidates}
+
+        assert 'Some Place' in names

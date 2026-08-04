@@ -12,6 +12,19 @@ class User(UserMixin, JSONFieldMixin, db.Model):
     entities = db.relationship('Entity', backref='owner', lazy=True)
     preferences = db.Column(db.JSON)  # Store user preferences for importance inference
 
+    # Freeform location + resolved coordinates -- see docs/entity-geolocation.md.
+    # Same shape as Entity.location/latitude/longitude below; kept as plain
+    # columns (not folded into `preferences`) since latitude/longitude need
+    # to be queryable/usable in a distance calculation, and splitting
+    # `location` into JSON while its coordinates are columns would split one
+    # conceptual field across two storage mechanisms for no reason.
+    location = db.Column(db.String(200))
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+    location_matched_place_id = db.Column(
+        db.Integer, db.ForeignKey('gazetteer_place.id', name='fk_user_location_matched_place'), nullable=True
+    )
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 

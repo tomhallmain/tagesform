@@ -1,4 +1,5 @@
 from .mixins import db
+from .gazetteer_place import GazetteerPlace
 from .user import User
 from .schedule import ScheduleRecord
 from .activity import Activity
@@ -10,6 +11,6 @@ from .suggestion_queue_item import SuggestionQueueItem
 from .mustermeister_task_cache import MustermeisterTaskCache
 from .briefkorb_message_cache import BriefKorbMessageCache
 
-__all__ = ['db', 'User', 'ScheduleRecord', 'Activity', 'Entity', 'EntityComment', 'EventCache',
-           'UserCalendarDescriptor', 'SuggestionQueueItem', 'MustermeisterTaskCache',
+__all__ = ['db', 'GazetteerPlace', 'User', 'ScheduleRecord', 'Activity', 'Entity', 'EntityComment',
+           'EventCache', 'UserCalendarDescriptor', 'SuggestionQueueItem', 'MustermeisterTaskCache',
            'BriefKorbMessageCache'] 

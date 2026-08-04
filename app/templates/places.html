@@ -40,6 +40,15 @@
             </div>
         </div>
 
+        {% if location_issue_count %}
+        <div class="mb-6 rounded-md bg-yellow-50 dark:bg-yellow-900 p-4">
+            <p class="text-sm text-yellow-800 dark:text-yellow-200">
+                {{ _('{0} of your places have a location that could not be matched to a known place, so they never get filtered by distance.').format(location_issue_count) }}
+                <a href="{{ url_for('entities.location_issues') }}" class="font-medium underline">{{ _('Review them') }}</a>
+            </p>
+        </div>
+        {% endif %}
+
         {% if places %}
         <div class="mt-4">
             <!-- Search Filter -->

@@ -3,10 +3,12 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from ..models import Activity, ScheduleRecord, Entity, UserCalendarDescriptor, db
+from ..services import geocoding_service
 from ..services.custom_calendar_service import (
     parse_descriptor, regenerate_event_cache_for_user, delete_event_cache_for_user,
     DescriptorValidationError,
 )
+from ..services.suggestion_queue_service import DEFAULT_NEARBY_DISTANCE_MILES
 from ..utils.translations import I18N, _
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
@@ -21,6 +23,7 @@ def settings():
         preferences=current_user.preferences or {},
         available_languages=available_languages,
         calendar_descriptor=calendar_descriptor,
+        default_nearby_distance_miles=DEFAULT_NEARBY_DISTANCE_MILES,
     )
 
 @settings_bp.route('/update-notifications', methods=['POST'])
@@ -65,6 +68,51 @@ def update_display():
         })
     
     flash(_('Display settings updated!'), 'success')
+    return redirect(url_for('settings.settings'))
+
+@settings_bp.route('/update-location', methods=['POST'])
+@login_required
+def update_location():
+    """Save the user's home-base location (freeform text, geocoded
+    best-effort against the local gazetteer -- see
+    docs/entity-geolocation.md) and their nearby-distance preference, used
+    together by the suggestion queue's entity proximity filtering.
+
+    A location that fails to geocode is still saved as free text (so the
+    user doesn't lose what they typed), just without coordinates -- the
+    user can revise it, or find it later under the "needs location data"
+    view now that it's an entity/location the same feature also surfaces
+    for entities.
+    """
+    location = request.form.get('location', '').strip()
+    current_user.location = location or None
+    geocoding_service.apply_geocode(current_user, location)
+
+    preference_updates = {}
+    nearby_distance_miles = request.form.get('nearby_distance_miles', '').strip()
+    if nearby_distance_miles:
+        try:
+            preference_updates['nearby_distance_miles'] = max(0.0, float(nearby_distance_miles))
+        except ValueError:
+            pass  # leave the existing preference untouched rather than erroring the whole save
+    if preference_updates:
+        current_user.update_preferences(preference_updates)
+
+    db.session.commit()
+
+    resolved = current_user.latitude is not None
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'message': _('Location settings updated!'),
+            'type': 'success',
+            'resolved': resolved,
+        })
+
+    if location and not resolved:
+        flash(_('Location saved, but we could not match it to a known place -- '
+                 'try being more specific (e.g. "City, State" or "City, Country").'), 'warning')
+    else:
+        flash(_('Location settings updated!'), 'success')
     return redirect(url_for('settings.settings'))
 
 @settings_bp.route('/update-weather', methods=['POST'])

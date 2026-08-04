@@ -97,6 +97,11 @@ def create_app(config_name=None):
     app.register_blueprint(settings_bp, url_prefix='/settings')  # Settings remain under /settings
     app.register_blueprint(suggestions_api_bp)  # Suggestion queue API routes under /api/suggestions
 
+    # Register `flask gazetteer-load` / `flask geocode-backfill` -- see
+    # docs/entity-geolocation.md.
+    from .cli import register_cli
+    register_cli(app)
+
     # Initialize scheduler only for non-testing environments
     if config_name != 'testing' and config.is_main_werkzeug_process():
         from .tasks import init_scheduler

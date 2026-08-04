@@ -1,5 +1,5 @@
 import pytest
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
 from app.utils.config import Config
@@ -156,6 +156,49 @@ def test_init_scheduler_registers_briefkorb_job_with_configured_interval(app, mo
     )
     assert call.kwargs['hours'] == 8
     assert 'next_run_time' in call.kwargs
+
+
+def test_run_immediately_kwargs_uses_a_near_now_datetime_not_a_stale_fixed_date():
+    """Regression test for a real startup bug: a fixed past next_run_time
+    (e.g. '2025-01-01 00:00:00') does NOT make a job run immediately --
+    APScheduler's default misfire_grace_time is 1 second, so a next_run_time
+    that far in the past is treated as *missed* and silently skipped
+    (logged as a WARNING) rather than run, with the job's next fire time
+    recomputed to the next regular interval boundary instead. next_run_time
+    must be close to "now," and misfire_grace_time must be raised (None
+    here) so ordinary startup latency between add_job() and the scheduler
+    actually polling doesn't trip the same misfire path.
+    """
+    kwargs = scheduler_module._run_immediately_kwargs()
+
+    assert kwargs['misfire_grace_time'] is None
+    assert isinstance(kwargs['next_run_time'], datetime)
+    assert (datetime.now() - kwargs['next_run_time']).total_seconds() < 5
+
+
+def test_init_scheduler_registers_all_catch_up_jobs_with_unlimited_misfire_grace(app, monkeypatch):
+    """Every job meant to catch up on startup must use the same
+    misfire-proof kwargs, not just next_run_time on its own -- see
+    _run_immediately_kwargs' docstring for why next_run_time alone isn't
+    sufficient."""
+    monkeypatch.setattr(scheduler_module.config, 'is_main_process', True)
+
+    mock_scheduler = MagicMock()
+    mock_scheduler.running = False
+
+    scheduler_module.init_scheduler(app, mock_scheduler)
+
+    catch_up_jobs = [
+        scheduler_module.backfill_computed_calendar_events,
+        scheduler_module.refresh_suggestion_queue,
+        scheduler_module.refresh_mustermeister_tasks,
+        scheduler_module.refresh_briefkorb_messages,
+        scheduler_module.create_database_backup,
+    ]
+    for job_func in catch_up_jobs:
+        call = next(c for c in mock_scheduler.add_job.call_args_list if c.args[0] is job_func)
+        assert call.kwargs['misfire_grace_time'] is None, f'{job_func.__name__} missing misfire_grace_time=None'
+        assert 'next_run_time' in call.kwargs, f'{job_func.__name__} missing next_run_time'
 
 
 def test_init_scheduler_does_nothing_outside_the_main_werkzeug_process(app, monkeypatch):

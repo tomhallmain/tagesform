@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from ..utils.backup_config import backup_config
 from ..utils.config import config
 from ..utils.logging_setup import get_logger
@@ -8,6 +10,28 @@ from .background_tasks import (
 )
 
 logger = get_logger('scheduler')
+
+
+def _run_immediately_kwargs():
+    """kwargs for scheduler.add_job that make a job fire on this startup,
+    however long the app was closed beforehand -- several jobs in this app
+    are meant to catch up on startup (this app isn't run 24/7) rather than
+    wait out a possibly-long-missed interval.
+
+    A fixed past `next_run_time` (e.g. '2025-01-01 00:00:00') does NOT
+    achieve this despite looking like it should -- APScheduler's default
+    misfire_grace_time is 1 second, so a next_run_time that's months/years
+    in the past is treated as *missed* (logged as a WARNING, silently
+    skipped) rather than run, and the job's next fire time is instead
+    recomputed to the next regular interval boundary after "now." This is
+    exactly the "Run time of job X was missed by Y" warning seen at
+    startup. next_run_time must be (approximately) "now," not "any time in
+    the past," and misfire_grace_time=None removes the 1-second race
+    against however long start-up itself takes between this call and the
+    scheduler actually polling for due jobs.
+    """
+    return {'next_run_time': datetime.now(), 'misfire_grace_time': None}
+
 
 def init_scheduler(app, scheduler):
     """Initialize and start the scheduler with all background tasks"""
@@ -38,7 +62,7 @@ def init_scheduler(app, scheduler):
             'interval',
             hours=config.COMPUTED_CALENDAR_BACKFILL_INTERVAL,
             args=[app],
-            next_run_time='2025-01-01 00:00:00'
+            **_run_immediately_kwargs(),
         )
 
         # Run immediately on every startup -- both jobs are no-ops when
@@ -51,7 +75,7 @@ def init_scheduler(app, scheduler):
             'interval',
             hours=config.MUSTERMEISTER_POLL_INTERVAL,
             args=[app],
-            next_run_time='2025-01-01 00:00:00'
+            **_run_immediately_kwargs(),
         )
 
         scheduler.add_job(
@@ -59,7 +83,7 @@ def init_scheduler(app, scheduler):
             'interval',
             hours=config.BRIEFKORB_POLL_INTERVAL,
             args=[app],
-            next_run_time='2025-01-01 00:00:00'
+            **_run_immediately_kwargs(),
         )
 
         # Run immediately so the dashboard's suggestion queue isn't empty
@@ -73,7 +97,7 @@ def init_scheduler(app, scheduler):
             'interval',
             hours=config.SUGGESTION_QUEUE_REFRESH_INTERVAL,
             args=[app],
-            next_run_time='2025-01-01 00:00:00'
+            **_run_immediately_kwargs(),
         )
 
         # Add database backup job with configurable interval
@@ -83,7 +107,7 @@ def init_scheduler(app, scheduler):
             'interval',
             hours=backup_interval,
             args=[app],
-            next_run_time='2025-01-01 00:00:00'  # Run immediately
+            **_run_immediately_kwargs(),
         )
 
         # Start scheduler if not already running

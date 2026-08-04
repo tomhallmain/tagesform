@@ -12,24 +12,37 @@ logger = get_logger('backup_service')
 class BackupService:
     def __init__(self, db_uri=None):
         self.db_uri = db_uri or current_app.config['SQLALCHEMY_DATABASE_URI']
+        self.instance_path = current_app.instance_path
         self.backup_dir = backup_config.get_backup_directory()
         self.backup_dir_secondary = backup_config.get_secondary_backup_directory()
         self.max_backups = backup_config.get_max_backups()
-    
+
+    def _resolve_sqlite_path(self):
+        """Resolve this instance's sqlite file path the same way
+        Flask-SQLAlchemy itself resolves a `sqlite:///relative/path` URI --
+        relative to the app's instance folder, not the process's current
+        working directory. Getting this wrong is why backups were failing
+        with "No such file or directory" against a path that looked
+        plausible but wasn't where Flask actually put the database.
+        A `sqlite:////absolute/path` URI (four slashes) is already
+        absolute and passes through unchanged, same as before.
+        """
+        db_path = self.db_uri.replace('sqlite:///', '', 1)
+        if not os.path.isabs(db_path):
+            db_path = os.path.join(self.instance_path, db_path)
+        return db_path
+
     def create_backup(self, backup_name=None):
         """Create a backup of the database"""
         try:
             if not backup_name:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 backup_name = f"tagesform_backup_{timestamp}.db"
-            
+
             # For SQLite, we can simply copy the database file
             if 'sqlite' in self.db_uri.lower():
-                db_path = self.db_uri.replace('sqlite:///', '')
-                if not os.path.isabs(db_path):
-                    # Handle relative paths
-                    db_path = os.path.join(os.getcwd(), db_path)
-                
+                db_path = self._resolve_sqlite_path()
+
                 # Create primary backup
                 backup_path = self.backup_dir / backup_name
                 shutil.copy2(db_path, backup_path)
@@ -59,10 +72,8 @@ class BackupService:
             
             # For SQLite, we can simply copy the backup file back
             if 'sqlite' in self.db_uri.lower():
-                db_path = self.db_uri.replace('sqlite:///', '')
-                if not os.path.isabs(db_path):
-                    db_path = os.path.join(os.getcwd(), db_path)
-                
+                db_path = self._resolve_sqlite_path()
+
                 # Create a backup of current database before restoring
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 current_backup = f"{db_path}.pre_restore_{timestamp}"

@@ -64,6 +64,14 @@ def test_fetch_open_tasks_requests_all_four_priorities_and_limit(monkeypatch):
 
 
 def test_fetch_open_tasks_flattens_nested_priorities_statuses_projects_shape(monkeypatch):
+    """Task dicts nested under priorities/statuses/projects do NOT carry
+    their own priority/status/project keys -- Mustermeister's own
+    grouped_list_result strips them (`task.except(:priority, :status,
+    :project)`) since they're already represented by the nesting. This
+    fixture omits them from the task objects on purpose, matching the real
+    response shape, so this test actually exercises the reconstruction
+    rather than accidentally passing because the fixture supplied fields
+    the real API never does."""
     _configure(monkeypatch)
     payload = {
         'priorities': {
@@ -74,8 +82,7 @@ def test_fetch_open_tasks_flattens_nested_priorities_statuses_projects_shape(mon
                             'Website': [
                                 {
                                     'id': 42, 'title': 'Fix bug', 'description': 'desc',
-                                    'completed': False, 'priority': 'high', 'status': 'In Progress',
-                                    'project': 'Website', 'updated_date': '2026-08-01',
+                                    'completed': False, 'updated_date': '2026-08-01',
                                     'due_date': '2026-08-05',
                                 },
                             ]
@@ -90,8 +97,7 @@ def test_fetch_open_tasks_flattens_nested_priorities_statuses_projects_shape(mon
                             'Home': [
                                 {
                                     'id': 7, 'title': 'Buy milk', 'description': None,
-                                    'completed': False, 'priority': 'low', 'status': 'Todo',
-                                    'project': 'Home', 'updated_date': '2026-07-30',
+                                    'completed': False, 'updated_date': '2026-07-30',
                                     # due_date key omitted entirely, matching the real API
                                 },
                             ]
@@ -109,8 +115,14 @@ def test_fetch_open_tasks_flattens_nested_priorities_statuses_projects_shape(mon
     by_external_id = {t['external_id']: t for t in tasks}
     assert by_external_id[42]['title'] == 'Fix bug'
     assert by_external_id[42]['due_date'].isoformat() == '2026-08-05'
+    assert by_external_id[42]['priority'] == 'high'
+    assert by_external_id[42]['status'] == 'In Progress'
+    assert by_external_id[42]['project'] == 'Website'
     assert by_external_id[7]['title'] == 'Buy milk'
     assert by_external_id[7]['due_date'] is None
+    assert by_external_id[7]['priority'] == 'low'
+    assert by_external_id[7]['status'] == 'Todo'
+    assert by_external_id[7]['project'] == 'Home'
 
 
 def test_fetch_open_tasks_raises_on_401(monkeypatch):

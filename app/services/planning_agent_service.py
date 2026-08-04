@@ -20,6 +20,8 @@ keeps each signal's source_id stable across refreshes so dismissing a
 but which signal produced it doesn't.
 """
 
+from datetime import date
+
 from extensions.llm import LLM, LLMResponseException
 from .integration_service import integration_service
 from ..utils.config import config
@@ -34,7 +36,7 @@ logger = get_logger('planning_agent_service')
 # what makes refresh_queue_for_user's upsert-by-(item_type, source_id) find
 # the same row again next cycle instead of creating a new one every time.
 PLAN_SIGNAL_SOURCE_IDS = {
-    'overdue_or_due_today_tasks': 1,
+    'task_overview': 1,
     'important_unread_email': 2,
     'today_overview': 3,
 }
@@ -61,7 +63,7 @@ def gather_plan_candidates(user, now, candidates, active_schedule_category=None)
         return []
 
     signal_builders = (
-        ('overdue_or_due_today_tasks', _overdue_or_due_today_tasks_signal),
+        ('task_overview', _task_overview_signal),
         ('important_unread_email', _important_unread_email_signal),
         ('today_overview', _today_overview_signal),
     )
@@ -115,33 +117,83 @@ def _phrase_with_llm(prompt):
         return None
 
 
-def _overdue_or_due_today_tasks_signal(now, candidates, active_schedule_category):
-    today = now.date()
-    urgent = sorted(
-        (c for c in candidates if c['item_type'] == 'task' and c.get('due_date') is not None
-         and c['due_date'] <= today),
-        key=lambda c: c['due_date'],
-    )
-    if not urgent:
+TASK_OVERVIEW_PRIORITY_ORDER = ['high', 'medium', 'low', 'leisure']
+# Per-group cap so a several-hundred-task backlog doesn't get dumped
+# verbatim into the prompt -- this only limits how many *lines* are shown
+# within a group, not which tasks/groups qualify to be shown at all. Group
+# headers always state the group's real total, even when truncated below it.
+TASK_OVERVIEW_MAX_PER_GROUP = 15
+
+
+def _task_overview_signal(now, candidates, active_schedule_category):
+    """Every open task, grouped by Mustermeister's own `priority` field --
+    no task is excluded based on due_date or priority. due_date in
+    particular is often unset in practice, so filtering on it would make
+    this signal fire rarely or never; the LLM sees the whole task list,
+    organized for comparison, and decides what's actually worth
+    surfacing, rather than code pre-deciding via a threshold on a field
+    that may be sparse.
+
+    Grouping by priority also keeps token usage down for a large task
+    list: the priority is stated once per group header, not repeated on
+    every task line.
+    """
+    tasks = [c for c in candidates if c['item_type'] == 'task']
+    if not tasks:
         return None
 
-    fallback_title = urgent[0]['title'] if len(urgent) == 1 else _('{0} tasks need attention').format(len(urgent))
-    fallback_reason = ', '.join(c['title'] for c in urgent[:5])
+    groups = _group_tasks_by_priority(tasks)
 
-    task_lines = '\n'.join(
-        f"- {c['title']} (due {c['due_date'].isoformat()}, priority: {c.get('priority') or 'unknown'})"
-        for c in urgent
-    )
+    fallback_title = _('{0} open tasks').format(len(tasks))
+    fallback_reason = ', '.join(f"{len(group_tasks)} {label}" for label, group_tasks in groups)
+
+    section_blocks = []
+    for label, group_tasks in groups:
+        shown = group_tasks[:TASK_OVERVIEW_MAX_PER_GROUP]
+        lines = '\n'.join(
+            f"- {t['title']}" + (f" (due {t['due_date'].isoformat()})" if t.get('due_date') else '')
+            for t in shown
+        )
+        header = f"Priority: {label} ({len(group_tasks)} task{'s' if len(group_tasks) != 1 else ''}"
+        header += f", showing {len(shown)})" if len(shown) < len(group_tasks) else ")"
+        section_blocks.append(f"{header}\n{lines}")
+    tasks_block = '\n\n'.join(section_blocks)
+
     prompt = (
-        "You are a planning assistant helping someone triage their day. "
-        "Here are their overdue or due-today tasks:\n\n"
-        f"{task_lines}\n\n"
+        "You are a planning assistant helping someone get a sense of their "
+        f"open tasks. They have {len(tasks)} open tasks in total, grouped "
+        "by priority below:\n\n"
+        f"{tasks_block}\n\n"
         'Respond with only a single JSON object with exactly two keys: '
         '"title" (a short at-a-glance label, under 12 words) and "reason" '
-        '(one sentence naming the most urgent item(s) and why they need '
-        'attention today, under 30 words). No other text.'
+        '(one or two sentences giving a genuinely useful sense of the '
+        'workload -- call out specific items with due dates if any stand '
+        'out, otherwise characterize the overall picture, under 40 words). '
+        'No other text.'
     )
     return _phrase_with_llm(prompt) or (fallback_title, fallback_reason)
+
+
+def _group_tasks_by_priority(tasks):
+    """Groups by the literal priority string Mustermeister reports
+    (falling back to a labeled "unset" bucket for None/empty), sorted
+    within each group by due_date (soonest first, undated tasks last) then
+    title. Groups are ordered by TASK_OVERVIEW_PRIORITY_ORDER first, then
+    any other value seen (including "unset") by descending group size."""
+    groups = {}
+    for task in tasks:
+        label = task.get('priority') or _('unset')
+        groups.setdefault(label, []).append(task)
+
+    for group_tasks in groups.values():
+        group_tasks.sort(key=lambda t: (t.get('due_date') or date.max, t['title']))
+
+    ordered_labels = [p for p in TASK_OVERVIEW_PRIORITY_ORDER if p in groups]
+    ordered_labels += sorted(
+        (label for label in groups if label not in TASK_OVERVIEW_PRIORITY_ORDER),
+        key=lambda label: -len(groups[label]),
+    )
+    return [(label, groups[label]) for label in ordered_labels]
 
 
 def _important_unread_email_signal(now, candidates, active_schedule_category):

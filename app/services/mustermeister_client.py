@@ -44,15 +44,27 @@ def _parse_date(value):
 def _flatten_open_tasks_by_priorities(payload):
     """Flatten the open_tasks_by_priorities response's nested
     priorities -> statuses -> projects -> [tasks] shape into a flat list of
-    task dicts. Each task dict already carries its own priority/status/
-    project fields (format_task on the Mustermeister side), so the nesting
-    keys themselves aren't needed -- just walk to the leaf lists."""
+    task dicts, with priority/status/project restored onto each one.
+
+    Mustermeister's grouped_list_result strips those three keys from each
+    individual task (`task.except(:priority, :status, :project)`) before
+    nesting it, since they're already represented by the surrounding
+    nesting keys -- the leaf task dicts in this response, unlike every
+    other tool on this API, do not carry their own priority/status/project
+    fields. They have to be read back off the nesting level they came
+    from while flattening, or every task ends up with all three silently
+    missing."""
     tasks = []
     priorities = payload.get('priorities') or {}
-    for statuses in priorities.values():
-        for projects in (statuses.get('statuses') or {}).values():
-            for project_tasks in (projects.get('projects') or {}).values():
-                tasks.extend(project_tasks)
+    for priority, priority_data in priorities.items():
+        for status, status_data in (priority_data.get('statuses') or {}).items():
+            for project, project_tasks in (status_data.get('projects') or {}).items():
+                for task in project_tasks:
+                    task = dict(task)
+                    task['priority'] = priority
+                    task['status'] = status
+                    task['project'] = project
+                    tasks.append(task)
     return tasks
 
 

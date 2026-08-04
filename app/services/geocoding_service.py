@@ -23,11 +23,11 @@ logger = get_logger('geocoding_service')
 FUZZY_PREFIX_LENGTH = 2
 
 # Below this length, only an exact match is attempted -- fuzzy-matching
-# very short strings (e.g. a 2-letter admin-region code like "AK" showing
-# up as a name candidate) is unreliable no matter the distance threshold,
-# confirmed directly: an earlier version of this matcher, without this
-# guard, resolved "Anchorage, AK" to a place called "Aku" because "AK"
-# itself fuzzy-matched before "Anchorage" was ever tried.
+# very short strings is unreliable no matter the distance threshold. This
+# matters in particular for a 2-3 char admin-region code like "AK" that
+# gets tried as a name candidate (see geocode()'s per-segment loop):
+# without this floor, "AK" itself can fuzzy-match some unrelated short
+# place name before the real city segment is ever tried.
 MIN_FUZZY_LENGTH = 4
 
 

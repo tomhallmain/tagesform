@@ -187,6 +187,11 @@ def _phrase_with_llm(prompt):
 
 
 TASK_OVERVIEW_PRIORITY_ORDER = ['high', 'medium', 'low', 'leisure']
+# Workflow order for the handful of status names common enough to be worth
+# a fixed position; anything else (a project-specific status) falls back
+# to descending-size ordering, appended after all of these -- see
+# _group_tasks_by_label/_group_tasks_by_status.
+TASK_OVERVIEW_STATUS_ORDER = ['Not Started', 'To Investigate', 'In Progress', 'Ready to Test']
 
 
 def _task_overview_signal(now, candidates, active_schedule_category):
@@ -276,46 +281,49 @@ def _task_overview_signal(now, candidates, active_schedule_category):
     return _phrase_with_llm(prompt) or [(fallback_title, fallback_reason, [])]
 
 
-def _group_tasks_by_priority(tasks):
-    """Groups by the literal priority string Mustermeister reports
-    (falling back to a labeled "unset" bucket for None/empty), sorted
-    within each group by due_date (soonest first, undated tasks last) then
-    title. Groups are ordered by TASK_OVERVIEW_PRIORITY_ORDER first, then
-    any other value seen (including "unset") by descending group size."""
-    groups = {}
-    for task in tasks:
-        label = task.get('priority') or _('unset')
-        groups.setdefault(label, []).append(task)
-
-    for group_tasks in groups.values():
-        group_tasks.sort(key=lambda t: (t.get('due_date') or date.max, t['title']))
-
-    ordered_labels = [p for p in TASK_OVERVIEW_PRIORITY_ORDER if p in groups]
-    ordered_labels += sorted(
-        (label for label in groups if label not in TASK_OVERVIEW_PRIORITY_ORDER),
-        key=lambda label: -len(groups[label]),
-    )
-    return [(label, groups[label]) for label in ordered_labels]
-
-
-def _group_tasks_by_label(tasks, field_name, fallback_label):
-    """Shared by _group_tasks_by_status/_group_tasks_by_project -- groups
-    an already priority-grouped (and already capped) task list by the
-    literal string Mustermeister reports for `field_name`, falling back to
-    `fallback_label` when unset. Unlike priority, status and project
-    values have no fixed real-world ordering, so groups are ordered by
-    descending size, ties broken alphabetically for determinism."""
+def _group_tasks_by_label(tasks, field_name, fallback_label, fixed_order=None):
+    """Groups tasks by the literal string Mustermeister reports for
+    `field_name`, falling back to `fallback_label` when unset. If
+    `fixed_order` is given, groups matching one of its values come first,
+    in that order; any other value seen (including the fallback, and any
+    project-/account-specific value that doesn't match a known one) is
+    appended after, ordered by descending group size, ties broken
+    alphabetically for determinism. Without `fixed_order` (project has no
+    real-world ordering the way priority/status do), every group is
+    ordered that same descending-size-then-alphabetical way."""
     groups = {}
     for task in tasks:
         label = task.get(field_name) or fallback_label
         groups.setdefault(label, []).append(task)
 
-    ordered_labels = sorted(groups, key=lambda label: (-len(groups[label]), label))
+    fixed_order = fixed_order or []
+    ordered_labels = [label for label in fixed_order if label in groups]
+    ordered_labels += sorted(
+        (label for label in groups if label not in fixed_order),
+        key=lambda label: (-len(groups[label]), label),
+    )
     return [(label, groups[label]) for label in ordered_labels]
 
 
+def _group_tasks_by_priority(tasks):
+    """Ordered by TASK_OVERVIEW_PRIORITY_ORDER (see _group_tasks_by_label),
+    with each group additionally sorted by due_date (soonest first,
+    undated tasks last) then title -- priority is the only level with a
+    meaningful per-task ordering within its groups; status/project are
+    just membership splits."""
+    groups = _group_tasks_by_label(tasks, 'priority', _('unset'), fixed_order=TASK_OVERVIEW_PRIORITY_ORDER)
+    for _label, group_tasks in groups:
+        group_tasks.sort(key=lambda t: (t.get('due_date') or date.max, t['title']))
+    return groups
+
+
 def _group_tasks_by_status(tasks):
-    return _group_tasks_by_label(tasks, 'status', _('no status'))
+    """Ordered by TASK_OVERVIEW_STATUS_ORDER -- Mustermeister's own status
+    names are per-project/per-account custom values, not a fixed set the
+    way priority is, but a handful of common ones have a natural workflow
+    order worth respecting when present; anything else falls back to
+    descending-size ordering (see _group_tasks_by_label)."""
+    return _group_tasks_by_label(tasks, 'status', _('no status'), fixed_order=TASK_OVERVIEW_STATUS_ORDER)
 
 
 def _group_tasks_by_project(tasks):

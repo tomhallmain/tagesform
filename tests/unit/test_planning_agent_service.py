@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from app.services import planning_agent_service
 from app.services.planning_agent_service import (
-    PLAN_SIGNAL_SOURCE_IDS, _stable_source_id, gather_plan_candidates,
+    PLAN_SIGNAL_SOURCE_IDS, _group_tasks_by_status, _stable_source_id, gather_plan_candidates,
 )
 from extensions.llm import LLMResponseException
 
@@ -351,6 +351,47 @@ def test_task_overview_signal_two_statuses_within_same_project_stay_distinct(tes
 
     prompt = mock_llm_cls.return_value.generate_response.call_args.args[0]
     assert prompt.count('Project: Website') == 2
+
+
+def test_group_tasks_by_status_follows_workflow_order_not_alphabetical():
+    """'Ready to Test' must sort before 'To Investigate' despite 'R' > 'T'
+    alphabetically -- status groups follow TASK_OVERVIEW_STATUS_ORDER, a
+    real workflow order, not alphabetical."""
+    tasks = [
+        _task_candidate('a', due_date=None, status='Ready to Test'),
+        _task_candidate('b', due_date=None, status='Not Started'),
+        _task_candidate('c', due_date=None, status='To Investigate'),
+        _task_candidate('d', due_date=None, status='In Progress'),
+    ]
+
+    labels = [label for label, _tasks in _group_tasks_by_status(tasks)]
+
+    assert labels == ['Not Started', 'To Investigate', 'In Progress', 'Ready to Test']
+
+
+def test_group_tasks_by_status_appends_unrecognized_statuses_after_known_ones():
+    tasks = [
+        _task_candidate('a', due_date=None, status='Some Custom Status'),
+        _task_candidate('b', due_date=None, status='In Progress'),
+    ]
+
+    labels = [label for label, _tasks in _group_tasks_by_status(tasks)]
+
+    assert labels == ['In Progress', 'Some Custom Status']
+
+
+def test_group_tasks_by_status_handles_partial_workflow_presence():
+    """Only some of the known statuses appear -- the ones present must
+    still follow the fixed order among themselves, skipping absent ones,
+    not fall back to alphabetical."""
+    tasks = [
+        _task_candidate('a', due_date=None, status='Ready to Test'),
+        _task_candidate('b', due_date=None, status='Not Started'),
+    ]
+
+    labels = [label for label, _tasks in _group_tasks_by_status(tasks)]
+
+    assert labels == ['Not Started', 'Ready to Test']
 
 
 def test_important_email_signal_produces_a_plan_item(test_user):

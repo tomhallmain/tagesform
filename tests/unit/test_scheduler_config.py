@@ -122,6 +122,31 @@ def test_planning_agent_enabled_defaults_to_false(monkeypatch):
     assert Config().PLANNING_AGENT_ENABLED is False
 
 
+def test_task_overview_max_per_group_defaults_to_mustermeister_task_limit(monkeypatch):
+    """Defaults to the same ceiling as MUSTERMEISTER_TASK_LIMIT so nothing
+    actually fetched gets left out of the prompt by default just because
+    it landed in a large priority group."""
+    monkeypatch.delenv('TASK_OVERVIEW_MAX_PER_GROUP', raising=False)
+    monkeypatch.delenv('MUSTERMEISTER_TASK_LIMIT', raising=False)
+    config = Config()
+    assert config.TASK_OVERVIEW_MAX_PER_GROUP == config.MUSTERMEISTER_TASK_LIMIT == 500
+
+
+def test_task_overview_max_per_group_respects_env_override(monkeypatch):
+    monkeypatch.setenv('TASK_OVERVIEW_MAX_PER_GROUP', '30')
+    assert Config().TASK_OVERVIEW_MAX_PER_GROUP == 30
+
+
+def test_ollama_num_ctx_defaults_to_8192(monkeypatch):
+    monkeypatch.delenv('OLLAMA_NUM_CTX', raising=False)
+    assert Config().OLLAMA_NUM_CTX == 8192
+
+
+def test_ollama_num_ctx_respects_env_override(monkeypatch):
+    monkeypatch.setenv('OLLAMA_NUM_CTX', '16384')
+    assert Config().OLLAMA_NUM_CTX == 16384
+
+
 def test_init_scheduler_registers_mustermeister_job_with_configured_interval(app, monkeypatch):
     monkeypatch.setattr(scheduler_module.config, 'is_main_process', True)
     monkeypatch.setattr(scheduler_module.config, 'MUSTERMEISTER_POLL_INTERVAL', 5)
@@ -139,6 +164,37 @@ def test_init_scheduler_registers_mustermeister_job_with_configured_interval(app
     # Must run immediately on startup -- this app isn't running 24/7, so
     # waiting out a possibly-missed interval boundary isn't good enough.
     assert 'next_run_time' in call.kwargs
+
+
+def test_suggestion_queue_startup_run_is_delayed_behind_mustermeister_and_briefkorb(app, monkeypatch):
+    """Regression test: at startup, refresh_mustermeister_tasks,
+    refresh_briefkorb_messages, and refresh_suggestion_queue all used to
+    get the same "now" next_run_time -- APScheduler's thread-pool executor
+    can then run them concurrently in any order, so the queue refresh
+    (which reads MustermeisterTaskCache/BriefKorbMessageCache) could read
+    a still-stale cache from before the poll jobs finished, even though
+    everything was technically "running" at startup. The queue refresh's
+    startup run must be scheduled meaningfully later than the two poll
+    jobs, not at the same instant."""
+    monkeypatch.setattr(scheduler_module.config, 'is_main_process', True)
+
+    mock_scheduler = MagicMock()
+    mock_scheduler.running = False
+
+    scheduler_module.init_scheduler(app, mock_scheduler)
+
+    def next_run_time_for(job_func):
+        call = next(c for c in mock_scheduler.add_job.call_args_list if c.args[0] is job_func)
+        return call.kwargs['next_run_time']
+
+    mustermeister_time = next_run_time_for(scheduler_module.refresh_mustermeister_tasks)
+    briefkorb_time = next_run_time_for(scheduler_module.refresh_briefkorb_messages)
+    suggestion_queue_time = next_run_time_for(scheduler_module.refresh_suggestion_queue)
+
+    assert (suggestion_queue_time - mustermeister_time).total_seconds() >= \
+        scheduler_module.SUGGESTION_QUEUE_STARTUP_DELAY_SECONDS
+    assert (suggestion_queue_time - briefkorb_time).total_seconds() >= \
+        scheduler_module.SUGGESTION_QUEUE_STARTUP_DELAY_SECONDS
 
 
 def test_init_scheduler_registers_briefkorb_job_with_configured_interval(app, monkeypatch):

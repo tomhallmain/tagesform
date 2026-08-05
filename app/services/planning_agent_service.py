@@ -118,11 +118,6 @@ def _phrase_with_llm(prompt):
 
 
 TASK_OVERVIEW_PRIORITY_ORDER = ['high', 'medium', 'low', 'leisure']
-# Per-group cap so a several-hundred-task backlog doesn't get dumped
-# verbatim into the prompt -- this only limits how many *lines* are shown
-# within a group, not which tasks/groups qualify to be shown at all. Group
-# headers always state the group's real total, even when truncated below it.
-TASK_OVERVIEW_MAX_PER_GROUP = 15
 
 
 def _task_overview_signal(now, candidates, active_schedule_category):
@@ -144,12 +139,20 @@ def _task_overview_signal(now, candidates, active_schedule_category):
 
     groups = _group_tasks_by_priority(tasks)
 
-    fallback_title = _('{0} open tasks').format(len(tasks))
+    # "at least" rather than an exact count -- MUSTERMEISTER_TASK_LIMIT can
+    # truncate what actually got fetched (Mustermeister's own API reports
+    # this via total_matching_count > limit, but that distinction isn't
+    # threaded through the cache to here), so len(tasks) is a floor on the
+    # real number of open tasks, not necessarily the real total.
+    fallback_title = _('At least {0} open tasks').format(len(tasks))
     fallback_reason = ', '.join(f"{len(group_tasks)} {label}" for label, group_tasks in groups)
 
     section_blocks = []
     for label, group_tasks in groups:
-        shown = group_tasks[:TASK_OVERVIEW_MAX_PER_GROUP]
+        # Display cap, not a filter -- see config.TASK_OVERVIEW_MAX_PER_GROUP.
+        # The header below always states the group's real count, even when
+        # the listed tasks are capped below it.
+        shown = group_tasks[:config.TASK_OVERVIEW_MAX_PER_GROUP]
         lines = '\n'.join(
             f"- {t['title']}" + (f" (due {t['due_date'].isoformat()})" if t.get('due_date') else '')
             for t in shown
@@ -161,7 +164,7 @@ def _task_overview_signal(now, candidates, active_schedule_category):
 
     prompt = (
         "You are a planning assistant helping someone get a sense of their "
-        f"open tasks. They have {len(tasks)} open tasks in total, grouped "
+        f"open tasks. They have at least {len(tasks)} open tasks, grouped "
         "by priority below:\n\n"
         f"{tasks_block}\n\n"
         'Respond with only a single JSON object with exactly two keys: '

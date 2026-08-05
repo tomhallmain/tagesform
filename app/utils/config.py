@@ -44,6 +44,14 @@ class Config:
         self.OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
         self.OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'deepseek-r1:14b')
         self.TASK_UPDATE_INTERVAL = int(os.getenv('TASK_UPDATE_INTERVAL', '24'))
+        # Context window (tokens) requested from Ollama per call -- without
+        # this, Ollama falls back to the model's own default, which is often
+        # too small for a large prompt (e.g. planning_agent_service.py's
+        # task_overview signal, listing hundreds of tasks) to actually fit.
+        # Raise this if you raise TASK_OVERVIEW_MAX_PER_GROUP and still see
+        # the model behaving as if it can't see everything sent to it --
+        # also bounded by what the model supports and the host's VRAM/RAM.
+        self.OLLAMA_NUM_CTX = int(os.getenv('OLLAMA_NUM_CTX', '8192'))
 
         # How often the event cache (holidays/religious calendars) is refreshed
         # from the live upstream APIs. These change rarely in practice, so this
@@ -107,6 +115,20 @@ class Config:
         # extensions.llm.LLM.DEFAULT_TIMEOUT seconds) per signal per user on
         # every suggestion queue refresh.
         self.PLANNING_AGENT_ENABLED = os.getenv('PLANNING_AGENT_ENABLED', 'False').lower() == 'true'
+
+        # How many tasks the planning agent's task_overview signal lists
+        # under each priority group in its LLM prompt (see
+        # planning_agent_service.py) -- a display cap, not a filter: a
+        # group's true count is always stated even when the listed tasks
+        # are capped below it. Defaults to the same ceiling as
+        # MUSTERMEISTER_TASK_LIMIT so, by default, nothing that was
+        # actually fetched gets left out of the prompt just because it
+        # landed in a large priority group -- the point of this signal is
+        # letting the LLM find what matters across the whole task list,
+        # not a hand-picked sample of it. Lower this only if prompt
+        # size/latency becomes a real problem; see OLLAMA_NUM_CTX first if
+        # the model seems to be missing tasks it was actually sent.
+        self.TASK_OVERVIEW_MAX_PER_GROUP = int(os.getenv('TASK_OVERVIEW_MAX_PER_GROUP', '500'))
 
         # Process settings
         self.is_main_process = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'

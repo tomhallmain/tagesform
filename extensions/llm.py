@@ -240,14 +240,15 @@ class LLM:
             "model": self.model_name,
             "prompt": query,
             "stream": False,
-            # "options": { # TODO enable more options for LLM queries
-            #     "temperature": 0.7,
-            #     "top_p": 0.9,
-            #     "num_predict": 1024,
-            #     "stop": ["</s>", "EOL"],
-            #     "num_ctx": 4096,
-            #     "timeout": timeout * 1000  # Convert to milliseconds
-            # }
+            # Without num_ctx, Ollama silently uses whatever context window
+            # the model was pulled with -- often far smaller than a large
+            # prompt (e.g. a several-hundred-task overview) actually needs,
+            # so the model just never sees everything the caller thinks it
+            # sent. Configurable since it trades off against the model's
+            # supported max and the host's available VRAM/RAM.
+            "options": {
+                "num_ctx": config.OLLAMA_NUM_CTX,
+            },
         }
         
         if context is not None:

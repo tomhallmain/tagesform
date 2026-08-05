@@ -49,6 +49,26 @@ def test_generate_response_posts_to_configured_ollama_base_url(monkeypatch):
     assert request_obj.full_url == 'http://ollama.example.com:11434/api/generate'
 
 
+def test_generate_response_sends_configured_num_ctx(monkeypatch):
+    """Without num_ctx, Ollama silently falls back to the model's own
+    default context window, which can be too small for a large prompt to
+    actually fit -- num_ctx must be sent explicitly, from config, on every
+    call."""
+    import extensions.llm as llm_module
+    monkeypatch.setattr(llm_module.config, 'OLLAMA_NUM_CTX', 16384)
+
+    llm = LLM(model_name='test-model')
+    payload = {'response': 'ok', 'done': True}
+
+    with patch.object(llm_module.request, 'urlopen',
+                       return_value=_fake_urlopen_response(payload)) as mock_urlopen:
+        llm.generate_response('hello')
+
+    request_obj = mock_urlopen.call_args.args[0]
+    sent_body = json.loads(request_obj.data.decode('utf-8'))
+    assert sent_body['options']['num_ctx'] == 16384
+
+
 def test_get_json_attr_fuzzy_matches_key_via_utils_is_similar_strings():
     """Regression test: _get_json_attr must call an actual method on Utils
     (is_similar_strings), not a name that doesn't exist on that class."""

@@ -4,40 +4,44 @@ from unittest.mock import MagicMock, patch
 
 from app.services import planning_agent_service
 from app.services.planning_agent_service import (
-    PLAN_ITEM_SOURCE_ID_STRIDE, PLAN_SIGNAL_SOURCE_IDS, gather_plan_candidates,
+    PLAN_SIGNAL_SOURCE_IDS, _stable_source_id, gather_plan_candidates,
 )
 from extensions.llm import LLMResponseException
 
 pytestmark = pytest.mark.unit
 
 
-def _source_id(signal_name, index=0):
-    return PLAN_SIGNAL_SOURCE_IDS[signal_name] * PLAN_ITEM_SOURCE_ID_STRIDE + index
+def _source_id(signal_name, refs=None):
+    """Computes the id a real candidate with these refs would get, via the
+    actual implementation -- not a reimplementation of the hash, so this
+    can't silently drift from what the code under test actually does."""
+    return _stable_source_id(signal_name, refs or [])
 
 
 def _fake_llm_result(*items):
-    """items: (title, reason) tuples. Mocks the shape LLMResult.get_json_dict()
-    returns for the {"items": [...]} contract every signal's prompt asks for."""
+    """items: (title, reason, refs) tuples. Mocks the shape
+    LLMResult.get_json_dict() returns for the {"items": [...]} contract
+    every signal's prompt asks for."""
     fake_result = MagicMock()
     fake_result.get_json_dict.return_value = {
-        'items': [{'title': title, 'reason': reason} for title, reason in items]
+        'items': [{'title': title, 'reason': reason, 'refs': refs} for title, reason, refs in items]
     }
     return fake_result
 
 
-def _task_candidate(title, due_date, priority='medium', project=None, score=0.5):
-    return {'item_type': 'task', 'source_id': 1, 'title': title, 'reason': '', 'score': score,
+def _task_candidate(title, due_date, priority='medium', project=None, source_id=1, score=0.5):
+    return {'item_type': 'task', 'source_id': source_id, 'title': title, 'reason': '', 'score': score,
             'due_date': due_date, 'priority': priority, 'project': project}
 
 
-def _email_candidate(title, sender_name, impact='high-impact', score=0.5):
-    return {'item_type': 'email', 'source_id': 1, 'title': title, 'reason': '', 'score': score,
+def _email_candidate(title, sender_name, impact='high-impact', source_id=1, score=0.5):
+    return {'item_type': 'email', 'source_id': source_id, 'title': title, 'reason': '', 'score': score,
             'sender_name': sender_name, 'impact': impact, 'count': 1,
             'last_received_at': datetime(2026, 7, 30, 8, 0, 0)}
 
 
-def _activity_candidate(title, scheduled_time, score=0.5):
-    return {'item_type': 'activity', 'source_id': 1, 'title': title, 'reason': '', 'score': score,
+def _activity_candidate(title, scheduled_time, source_id=1, score=0.5):
+    return {'item_type': 'activity', 'source_id': source_id, 'title': title, 'reason': '', 'score': score,
             'scheduled_time': scheduled_time}
 
 
@@ -84,11 +88,11 @@ def test_task_overview_signal_uses_llm_phrasing_when_available(test_user):
 
     with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
         mock_llm_cls.return_value.generate_response.return_value = _fake_llm_result(
-            ('One task on your plate', 'Renew passport soon.')
+            ('One task on your plate', 'Renew passport soon.', ['task:1'])
         )
         plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    matching = [c for c in plan_candidates if c['source_id'] == _source_id('task_overview')]
+    matching = [c for c in plan_candidates if c['source_id'] == _source_id('task_overview', ['task:1'])]
     assert matching[0]['title'] == 'One task on your plate'
     assert matching[0]['reason'] == 'Renew passport soon.'
 
@@ -100,27 +104,67 @@ def test_task_overview_signal_splits_multiple_llm_items_into_separate_candidates
     collapsed into one or silently dropped."""
     now = datetime(2026, 7, 30, 9, 0, 0)
     candidates = [
-        _task_candidate('Renew passport', now.date().replace(day=28)),
-        _task_candidate('Other task', due_date=None),
+        _task_candidate('Renew passport', now.date().replace(day=28), source_id=42),
+        _task_candidate('Other task', due_date=None, source_id=99),
     ]
 
     with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
         mock_llm_cls.return_value.generate_response.return_value = _fake_llm_result(
-            ('Passport renewal overdue', 'Renew passport was due 2026-07-28.'),
-            ('12 other open tasks', 'Nothing else urgent.'),
+            ('Passport renewal overdue', 'Renew passport was due 2026-07-28.', ['task:42']),
+            ('12 other open tasks', 'Nothing else urgent.', ['task:99']),
         )
         plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    matching = sorted(
-        (c for c in plan_candidates if c['item_type'] == 'plan'
-         and c['source_id'] // planning_agent_service.PLAN_ITEM_SOURCE_ID_STRIDE == PLAN_SIGNAL_SOURCE_IDS['task_overview']),
-        key=lambda c: c['source_id'],
-    )
+    matching = [c for c in plan_candidates if c['item_type'] == 'plan']
     assert len(matching) == 2
-    assert matching[0]['source_id'] == _source_id('task_overview', index=0)
-    assert matching[1]['source_id'] == _source_id('task_overview', index=1)
-    assert matching[0]['title'] == 'Passport renewal overdue'
-    assert matching[1]['title'] == '12 other open tasks'
+    by_title = {c['title']: c for c in matching}
+    assert by_title['Passport renewal overdue']['source_id'] == _source_id('task_overview', ['task:42'])
+    assert by_title['12 other open tasks']['source_id'] == _source_id('task_overview', ['task:99'])
+    # distinct underlying tasks must never collide on the same id
+    assert by_title['Passport renewal overdue']['source_id'] != by_title['12 other open tasks']['source_id']
+
+
+def test_task_overview_signal_item_id_is_stable_regardless_of_order_or_wording(test_user):
+    """The whole point of ref-based ids: the SAME underlying task keeps the
+    SAME source_id even if the LLM phrases it differently, or returns it
+    in a different position, on a later refresh."""
+    now = datetime(2026, 7, 30, 9, 0, 0)
+    candidates = [_task_candidate('Renew passport', now.date().replace(day=28), source_id=42)]
+
+    with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
+        mock_llm_cls.return_value.generate_response.return_value = _fake_llm_result(
+            ('Passport renewal overdue', 'Renew passport was due 2026-07-28.', ['task:42'])
+        )
+        first_pass = gather_plan_candidates(test_user, now, candidates)
+
+        mock_llm_cls.return_value.generate_response.return_value = _fake_llm_result(
+            ('Your passport needs renewing', 'It has been overdue since late July.', ['task:42'])
+        )
+        second_pass = gather_plan_candidates(test_user, now, candidates)
+
+    first_id = next(c['source_id'] for c in first_pass if c['item_type'] == 'plan')
+    second_id = next(c['source_id'] for c in second_pass if c['item_type'] == 'plan')
+    assert first_id == second_id
+
+
+def test_stable_source_id_is_independent_of_ref_order():
+    a = _stable_source_id('task_overview', ['task:42', 'task:7'])
+    b = _stable_source_id('task_overview', ['task:7', 'task:42'])
+    assert a == b
+
+
+def test_stable_source_id_does_not_collide_across_signals():
+    a = _stable_source_id('task_overview', ['task:1'])
+    b = _stable_source_id('important_unread_email', ['task:1'])
+    assert a != b
+
+
+def test_stable_source_id_general_item_is_stable_and_distinct_per_signal():
+    a1 = _stable_source_id('task_overview', [])
+    a2 = _stable_source_id('task_overview', [])
+    b = _stable_source_id('important_unread_email', [])
+    assert a1 == a2
+    assert a1 != b
 
 
 def test_task_overview_signal_fires_regardless_of_due_date_or_priority(test_user):
@@ -315,9 +359,11 @@ def test_title_and_reason_are_truncated_to_column_limits(test_user):
     candidates = [_task_candidate('Overdue task', now.date().replace(day=28))]
 
     with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
-        mock_llm_cls.return_value.generate_response.return_value = _fake_llm_result(('x' * 500, 'y' * 500))
+        mock_llm_cls.return_value.generate_response.return_value = _fake_llm_result(
+            ('x' * 500, 'y' * 500, ['task:1'])
+        )
         plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    matching = next(c for c in plan_candidates if c['source_id'] == _source_id('task_overview'))
+    matching = next(c for c in plan_candidates if c['source_id'] == _source_id('task_overview', ['task:1']))
     assert len(matching['title']) <= 200
     assert len(matching['reason']) <= 300

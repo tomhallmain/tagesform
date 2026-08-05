@@ -229,6 +229,25 @@ def test_task_overview_signal_prompt_shows_output_format_with_an_example(test_us
     assert 'or a mix of both' in prompt  # explicit permission for either shape
 
 
+def test_task_overview_signal_prompt_deprioritizes_ready_to_test(test_user):
+    """'Ready to Test' tasks are still shown (never excluded) but the
+    prompt must bias the model's attention toward earlier-stage statuses,
+    since a big 'Ready to Test' bucket mostly means work that's already
+    done, not work that needs attention."""
+    now = datetime(2026, 7, 30, 9, 0, 0)
+    candidates = [_task_candidate('Some task', due_date=None, status='Ready to Test')]
+
+    with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
+        mock_llm_cls.return_value.generate_response.side_effect = LLMResponseException('down')
+        gather_plan_candidates(test_user, now, candidates)
+
+    prompt = mock_llm_cls.return_value.generate_response.call_args.args[0]
+    assert "'Ready to Test'" in prompt
+    assert 'Focus mainly on earlier-stage statuses' in prompt
+    # still shown, not excluded, just deprioritized in the model's attention
+    assert 'Status: Ready to Test' in prompt
+
+
 def test_task_overview_signal_states_priority_once_per_group_not_per_task(test_user):
     """The whole point of grouping by priority in the prompt: with N tasks
     sharing a priority, that priority is stated once (the group header),

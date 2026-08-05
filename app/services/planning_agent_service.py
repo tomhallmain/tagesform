@@ -192,6 +192,11 @@ TASK_OVERVIEW_PRIORITY_ORDER = ['high', 'medium', 'low', 'leisure']
 # to descending-size ordering, appended after all of these -- see
 # _group_tasks_by_label/_group_tasks_by_status.
 TASK_OVERVIEW_STATUS_ORDER = ['Not Started', 'To Investigate', 'In Progress', 'Ready to Test']
+# Statuses whose tasks are mostly already done -- these still appear (never
+# excluded, same as everything else in this signal), but the prompt asks
+# the model to weight them lower, since a big bucket of them isn't as
+# noteworthy as the same-size bucket in an earlier-stage status.
+TASK_OVERVIEW_DEPRIORITIZED_STATUSES = ['Ready to Test']
 
 
 def _task_overview_signal(now, candidates, active_schedule_category):
@@ -217,6 +222,11 @@ def _task_overview_signal(now, candidates, active_schedule_category):
     Grouping this way also keeps token usage down for a large task list:
     each priority/status/project is stated once per group header, not
     repeated on every task line.
+
+    The prompt also asks the LLM to weight TASK_OVERVIEW_DEPRIORITIZED_STATUSES
+    (e.g. 'Ready to Test') lower than earlier-stage work -- a bias in the
+    LLM's judgment, not a membership exclusion; those tasks are still shown
+    and can still be mentioned.
     """
     tasks = [c for c in candidates if c['item_type'] == 'task']
     if not tasks:
@@ -263,13 +273,21 @@ def _task_overview_signal(now, candidates, active_schedule_category):
         section_blocks.append(header + '\n' + '\n'.join(status_blocks))
     tasks_block = '\n\n'.join(section_blocks)
 
+    deprioritized_statuses = ', '.join(f"'{s}'" for s in TASK_OVERVIEW_DEPRIORITIZED_STATUSES)
     task = (
         "You are a planning assistant helping someone get a sense of their "
         "open tasks. Look for what's actually worth their attention -- "
         "specific tasks, specific statuses, specific projects, or the "
         "overall shape of the workload -- across everything below, "
-        "grouped by priority, then status, then project. Each task is "
-        "tagged [task:ID]; each priority group is tagged [priority:LABEL]."
+        "grouped by priority, then status, then project. Focus mainly on "
+        "earlier-stage statuses (e.g. 'Not Started', 'To Investigate', "
+        f"'In Progress'); a task in {deprioritized_statuses} means the "
+        "work itself is largely already done, so a large group there is "
+        "rarely as noteworthy as the same size group in an earlier "
+        "status -- still fine to mention if genuinely nothing else "
+        "stands out, just don't lead with it purely because of size. "
+        "Each task is tagged [task:ID]; each priority group is tagged "
+        "[priority:LABEL]."
     )
     prompt = (
         f"{task}\n\n"

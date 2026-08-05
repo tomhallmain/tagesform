@@ -10,14 +10,18 @@ seconds) per non-empty signal per user on every suggestion queue refresh, so
 it's opt-in rather than always-on.
 
 Membership in each signal bucket below is decided deterministically in code
--- the LLM is only ever asked to phrase a human-readable title/reason for a
-bucket that's already known to be non-empty, never to invent groupings on
-its own. This keeps LLM output bounded to free text (robust: a bad response
-just falls back to a plain deterministic phrasing) rather than needing the
-LLM to reliably return well-formed groupings from scratch (fragile), and
-keeps each signal's source_id stable across refreshes so dismissing a
-'plan' item actually sticks -- the LLM's exact wording may vary run to run,
-but which signal produced it doesn't.
+-- the LLM is only ever asked to phrase human-readable title/reason pairs
+for a bucket that's already known to be non-empty, never to invent bucket
+membership from scratch. A signal may return more than one title/reason
+pair (e.g. one specific standout item plus a summary of the rest) -- each
+becomes its own SuggestionQueueItem, with source_id built from the
+signal's base id and that item's position in the LLM's response (see
+PLAN_ITEM_SOURCE_ID_STRIDE). That position is only as stable as the LLM's
+own output: dismissing "item 2 of task_overview" reliably dismisses the
+same underlying content next cycle only if the LLM keeps returning it in
+that position, which isn't guaranteed -- a known, accepted trade-off of
+letting the LLM decide how many things are worth surfacing, weaker than
+the single-item stability every other candidate source in this app has.
 """
 
 from datetime import date
@@ -30,11 +34,11 @@ from ..utils.translations import _
 
 logger = get_logger('planning_agent_service')
 
-# Fixed, stable per-signal source_id. 'plan' items have no backing row (see
-# SuggestionQueueItem's docstring) -- a small explicit constant per signal
-# name is this item_type's analogue of Activity.id/EventCache.id, and is
-# what makes refresh_queue_for_user's upsert-by-(item_type, source_id) find
-# the same row again next cycle instead of creating a new one every time.
+# Base id per signal. 'plan' items have no backing row (see
+# SuggestionQueueItem's docstring) -- this constant, combined with an
+# item's position within its signal's output (see
+# PLAN_ITEM_SOURCE_ID_STRIDE), is this item_type's analogue of
+# Activity.id/EventCache.id.
 PLAN_SIGNAL_SOURCE_IDS = {
     'task_overview': 1,
     'important_unread_email': 2,
@@ -49,15 +53,44 @@ PLAN_ITEM_SCORE = 0.85
 TITLE_MAX_LENGTH = 200   # matches SuggestionQueueItem.title's column length
 REASON_MAX_LENGTH = 300  # matches SuggestionQueueItem.reason's column length
 
+# Gives each signal's base id (PLAN_SIGNAL_SOURCE_IDS) room for up to this
+# many items in one refresh before its source_id range would collide with
+# the next signal's -- comfortably above anything these signals return.
+PLAN_ITEM_SOURCE_ID_STRIDE = 1000
+
+# Shared by every signal's prompt -- both what the output must look like
+# (a real example, not just named keys) and that returning one item or
+# several is equally valid, so the model isn't left guessing whether it's
+# supposed to pick a single thing, compile everything into one summary, or
+# both.
+RESPONSE_FORMAT_INSTRUCTIONS = (
+    'Respond with only a single JSON object with one key, "items": a list '
+    'of one or more objects, each with a "title" and a "reason". Use one '
+    'item to summarize everything at once, one item per specific thing '
+    'worth calling out on its own (a task, a sender, a project, an event), '
+    'or a mix of both -- whichever actually conveys what matters here. '
+    'Each "title" is a short at-a-glance label (under 12 words); each '
+    '"reason" is one or two sentences of concrete detail (under 40 words). '
+    'Example of the exact shape (with placeholder content):\n'
+    '{"items": [\n'
+    '  {"title": "Passport renewal is overdue", "reason": "It was due '
+    '2026-07-18, with nothing else competing for attention today."},\n'
+    '  {"title": "31 low-priority tasks, mostly Website", "reason": '
+    '"Nothing urgent, but this is the largest single group of open work."}\n'
+    ']}\n'
+    'No other text outside that JSON object.'
+)
+
 
 def gather_plan_candidates(user, now, candidates, active_schedule_category=None):
     """Returns a list of {item_type: 'plan', source_id, title, reason, score}
-    dicts, one per non-empty signal bucket. `candidates` is the
-    already-gathered activity/entity/event/task/email candidate list from
-    this same refresh cycle (including their internal-only extra fields,
-    e.g. due_date/scheduled_time) -- signals read from it rather than
-    re-querying, so this never makes its own DB/API calls beyond the LLM
-    itself.
+    dicts -- zero or more per signal, since a signal may return several
+    title/reason pairs (see PLAN_ITEM_SOURCE_ID_STRIDE). `candidates` is
+    the already-gathered activity/entity/event/task/email candidate list
+    from this same refresh cycle (including their internal-only extra
+    fields, e.g. due_date/scheduled_time) -- signals read from it rather
+    than re-querying, so this never makes its own DB/API calls beyond the
+    LLM itself.
     """
     if not config.PLANNING_AGENT_ENABLED:
         return []
@@ -71,22 +104,24 @@ def gather_plan_candidates(user, now, candidates, active_schedule_category=None)
     plan_candidates = []
     for signal_name, build_signal in signal_builders:
         try:
-            candidate = build_signal(now, candidates, active_schedule_category)
+            items = build_signal(now, candidates, active_schedule_category)
         except Exception as e:
             # One signal failing (LLM down, malformed data) must not cost
             # the other signals or the rest of the suggestion queue.
             logger.error(f"Error building plan signal '{signal_name}' for user {user.id}: {e}")
             continue
-        if candidate is not None:
-            plan_candidates.append(_finalize_plan_candidate(signal_name, candidate))
+        if not items:
+            continue
+        for index, title_and_reason in enumerate(items):
+            plan_candidates.append(_finalize_plan_candidate(signal_name, index, title_and_reason))
     return plan_candidates
 
 
-def _finalize_plan_candidate(signal_name, title_and_reason):
+def _finalize_plan_candidate(signal_name, index, title_and_reason):
     title, reason = title_and_reason
     return {
         'item_type': 'plan',
-        'source_id': PLAN_SIGNAL_SOURCE_IDS[signal_name],
+        'source_id': PLAN_SIGNAL_SOURCE_IDS[signal_name] * PLAN_ITEM_SOURCE_ID_STRIDE + index,
         'title': title[:TITLE_MAX_LENGTH],
         'reason': reason[:REASON_MAX_LENGTH],
         'score': PLAN_ITEM_SCORE,
@@ -94,11 +129,12 @@ def _finalize_plan_candidate(signal_name, title_and_reason):
 
 
 def _phrase_with_llm(prompt):
-    """Ask the LLM to phrase a title/reason pair for an already-decided,
-    non-empty signal bucket. Returns a (title, reason) tuple, or None on any
-    failure -- callers always have their own deterministic fallback text,
-    so a down/slow/misbehaving LLM degrades the wording, not the presence,
-    of a plan item that has real underlying data behind it."""
+    """Ask the LLM to phrase one or more title/reason pairs for an
+    already-decided, non-empty signal bucket. Returns a list of (title,
+    reason) tuples, or None on any failure -- callers always have their
+    own deterministic single-item fallback, so a down/slow/misbehaving LLM
+    degrades the wording, not the presence, of a plan item that has real
+    underlying data behind it."""
     try:
         llm = LLM(state_key='planning_agent')
         result = llm.generate_response(prompt)
@@ -107,11 +143,18 @@ def _phrase_with_llm(prompt):
         parsed = result.get_json_dict()
         if not parsed:
             return None
-        title = str(parsed.get('title', '')).strip()
-        reason = str(parsed.get('reason', '')).strip()
-        if not title or not reason:
+        raw_items = parsed.get('items')
+        if not isinstance(raw_items, list):
             return None
-        return title, reason
+        items = []
+        for raw_item in raw_items:
+            if not isinstance(raw_item, dict):
+                continue
+            title = str(raw_item.get('title', '')).strip()
+            reason = str(raw_item.get('reason', '')).strip()
+            if title and reason:
+                items.append((title, reason))
+        return items or None
     except LLMResponseException as e:
         logger.error(f"Planning agent LLM call failed: {e}")
         return None
@@ -170,19 +213,21 @@ def _task_overview_signal(now, candidates, active_schedule_category):
         section_blocks.append(header + '\n' + '\n'.join(project_blocks))
     tasks_block = '\n\n'.join(section_blocks)
 
-    prompt = (
+    task = (
         "You are a planning assistant helping someone get a sense of their "
-        f"open tasks. They have at least {len(tasks)} open tasks, grouped "
-        "by priority below:\n\n"
-        f"{tasks_block}\n\n"
-        'Respond with only a single JSON object with exactly two keys: '
-        '"title" (a short at-a-glance label, under 12 words) and "reason" '
-        '(one or two sentences giving a genuinely useful sense of the '
-        'workload -- call out specific items with due dates if any stand '
-        'out, otherwise characterize the overall picture, under 40 words). '
-        'No other text.'
+        "open tasks. Look for what's actually worth their attention -- "
+        "specific tasks, specific projects, or the overall shape of the "
+        "workload -- across everything below, grouped by priority and then "
+        "by project."
     )
-    return _phrase_with_llm(prompt) or (fallback_title, fallback_reason)
+    prompt = (
+        f"{task}\n\n"
+        f"They have at least {len(tasks)} open tasks:\n\n"
+        f"{tasks_block}\n\n"
+        f"{task}\n\n"
+        f"{RESPONSE_FORMAT_INSTRUCTIONS}"
+    )
+    return _phrase_with_llm(prompt) or [(fallback_title, fallback_reason)]
 
 
 def _group_tasks_by_priority(tasks):
@@ -242,16 +287,19 @@ def _important_unread_email_signal(now, candidates, active_schedule_category):
         f"(impact: {c.get('impact') or 'unclassified'})"
         for c in important
     )
-    prompt = (
+    task = (
         "You are a planning assistant helping someone triage their inbox. "
-        "Here are unread emails worth their attention today:\n\n"
-        f"{email_lines}\n\n"
-        'Respond with only a single JSON object with exactly two keys: '
-        '"title" (a short at-a-glance label, under 12 words) and "reason" '
-        '(one sentence naming the most important sender(s)/subject(s), '
-        'under 30 words). No other text.'
+        "Look for what's actually worth their attention -- specific "
+        "senders or subjects, or the overall shape of what's waiting -- "
+        "across the unread messages below."
     )
-    return _phrase_with_llm(prompt) or (fallback_title, fallback_reason)
+    prompt = (
+        f"{task}\n\n"
+        f"{email_lines}\n\n"
+        f"{task}\n\n"
+        f"{RESPONSE_FORMAT_INSTRUCTIONS}"
+    )
+    return _phrase_with_llm(prompt) or [(fallback_title, fallback_reason)]
 
 
 def _today_overview_signal(now, candidates, active_schedule_category):
@@ -291,16 +339,19 @@ def _today_overview_signal(now, candidates, active_schedule_category):
         context_lines.append(f"Currently in a '{active_schedule_category}' schedule block.")
 
     context_block = '\n'.join(context_lines)
-    prompt = (
-        "You are a planning assistant giving someone a quick orientation for "
-        "their day. Here's what's relevant:\n\n"
-        f"{context_block}\n\n"
-        'Respond with only a single JSON object with exactly two keys: '
-        '"title" (a short at-a-glance label for today, under 12 words) and '
-        '"reason" (one or two sentences orienting them to today\'s day, '
-        'weaving in the weather if it is notable, under 40 words). No other text.'
+    task = (
+        "You are a planning assistant giving someone a quick orientation "
+        "for their day. Look for what's actually worth mentioning -- "
+        "specific events, the weather, or the overall shape of the day -- "
+        "across what's below."
     )
-    return _phrase_with_llm(prompt) or (fallback_title, fallback_reason)
+    prompt = (
+        f"{task}\n\n"
+        f"{context_block}\n\n"
+        f"{task}\n\n"
+        f"{RESPONSE_FORMAT_INSTRUCTIONS}"
+    )
+    return _phrase_with_llm(prompt) or [(fallback_title, fallback_reason)]
 
 
 def _weather_summary_line():

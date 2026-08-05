@@ -11,8 +11,10 @@ class SuggestionQueueItem(db.Model):
     item_type: 'activity' -> Activity.id, 'entity' -> Entity.id, 'event' ->
     EventCache.id, 'task' -> MustermeisterTaskCache.id, 'email' ->
     BriefKorbMessageCache.id. 'plan' is the odd one out -- an LLM-synthesized
-    suggestion with no single backing row, so its source_id is a small fixed
-    constant per signal type (see planning_agent_service.PLAN_SIGNAL_SOURCE_IDS)
+    suggestion with no single backing row, so its source_id is built from a
+    fixed per-signal-type base constant plus that item's position among
+    however many the LLM returned this cycle (see
+    planning_agent_service.PLAN_SIGNAL_SOURCE_IDS/PLAN_ITEM_SOURCE_ID_STRIDE)
     rather than a real table id. item_type is deliberately a free-form string
     rather than an enum/CHECK constraint, so any future source only needs new
     candidate-gathering logic in suggestion_queue_service, not a migration or

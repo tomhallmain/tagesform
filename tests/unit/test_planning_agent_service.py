@@ -3,10 +3,26 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from app.services import planning_agent_service
-from app.services.planning_agent_service import PLAN_SIGNAL_SOURCE_IDS, gather_plan_candidates
+from app.services.planning_agent_service import (
+    PLAN_ITEM_SOURCE_ID_STRIDE, PLAN_SIGNAL_SOURCE_IDS, gather_plan_candidates,
+)
 from extensions.llm import LLMResponseException
 
 pytestmark = pytest.mark.unit
+
+
+def _source_id(signal_name, index=0):
+    return PLAN_SIGNAL_SOURCE_IDS[signal_name] * PLAN_ITEM_SOURCE_ID_STRIDE + index
+
+
+def _fake_llm_result(*items):
+    """items: (title, reason) tuples. Mocks the shape LLMResult.get_json_dict()
+    returns for the {"items": [...]} contract every signal's prompt asks for."""
+    fake_result = MagicMock()
+    fake_result.get_json_dict.return_value = {
+        'items': [{'title': title, 'reason': reason} for title, reason in items]
+    }
+    return fake_result
 
 
 def _task_candidate(title, due_date, priority='medium', project=None, score=0.5):
@@ -57,7 +73,7 @@ def test_task_overview_signal_falls_back_to_deterministic_text_when_llm_fails(te
         mock_llm_cls.return_value.generate_response.side_effect = LLMResponseException('down')
         plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    matching = [c for c in plan_candidates if c['source_id'] == PLAN_SIGNAL_SOURCE_IDS['task_overview']]
+    matching = [c for c in plan_candidates if c['source_id'] == _source_id('task_overview')]
     assert len(matching) == 1
     assert matching[0]['item_type'] == 'plan'
 
@@ -66,15 +82,45 @@ def test_task_overview_signal_uses_llm_phrasing_when_available(test_user):
     now = datetime(2026, 7, 30, 9, 0, 0)
     candidates = [_task_candidate('Renew passport', now.date().replace(day=28))]
 
-    fake_result = MagicMock()
-    fake_result.get_json_dict.return_value = {'title': 'One task on your plate', 'reason': 'Renew passport soon.'}
     with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
-        mock_llm_cls.return_value.generate_response.return_value = fake_result
+        mock_llm_cls.return_value.generate_response.return_value = _fake_llm_result(
+            ('One task on your plate', 'Renew passport soon.')
+        )
         plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    matching = [c for c in plan_candidates if c['source_id'] == PLAN_SIGNAL_SOURCE_IDS['task_overview']]
+    matching = [c for c in plan_candidates if c['source_id'] == _source_id('task_overview')]
     assert matching[0]['title'] == 'One task on your plate'
     assert matching[0]['reason'] == 'Renew passport soon.'
+
+
+def test_task_overview_signal_splits_multiple_llm_items_into_separate_candidates(test_user):
+    """The LLM is allowed to return more than one title/reason pair (e.g.
+    one standout task plus a summary of the rest) -- each must become its
+    own 'plan' candidate with a distinct, deterministic source_id, not get
+    collapsed into one or silently dropped."""
+    now = datetime(2026, 7, 30, 9, 0, 0)
+    candidates = [
+        _task_candidate('Renew passport', now.date().replace(day=28)),
+        _task_candidate('Other task', due_date=None),
+    ]
+
+    with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
+        mock_llm_cls.return_value.generate_response.return_value = _fake_llm_result(
+            ('Passport renewal overdue', 'Renew passport was due 2026-07-28.'),
+            ('12 other open tasks', 'Nothing else urgent.'),
+        )
+        plan_candidates = gather_plan_candidates(test_user, now, candidates)
+
+    matching = sorted(
+        (c for c in plan_candidates if c['item_type'] == 'plan'
+         and c['source_id'] // planning_agent_service.PLAN_ITEM_SOURCE_ID_STRIDE == PLAN_SIGNAL_SOURCE_IDS['task_overview']),
+        key=lambda c: c['source_id'],
+    )
+    assert len(matching) == 2
+    assert matching[0]['source_id'] == _source_id('task_overview', index=0)
+    assert matching[1]['source_id'] == _source_id('task_overview', index=1)
+    assert matching[0]['title'] == 'Passport renewal overdue'
+    assert matching[1]['title'] == '12 other open tasks'
 
 
 def test_task_overview_signal_fires_regardless_of_due_date_or_priority(test_user):
@@ -90,14 +136,53 @@ def test_task_overview_signal_fires_regardless_of_due_date_or_priority(test_user
         mock_llm_cls.return_value.generate_response.side_effect = LLMResponseException('down')
         plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    assert any(c['source_id'] == PLAN_SIGNAL_SOURCE_IDS['task_overview'] for c in plan_candidates)
+    assert any(c['source_id'] == _source_id('task_overview') for c in plan_candidates)
 
 
 def test_task_overview_signal_absent_when_there_are_no_tasks(test_user):
     now = datetime(2026, 7, 30, 9, 0, 0)
     plan_candidates = gather_plan_candidates(test_user, now, [])
 
-    assert not any(c['source_id'] == PLAN_SIGNAL_SOURCE_IDS['task_overview'] for c in plan_candidates)
+    assert not any(c['source_id'] == _source_id('task_overview') for c in plan_candidates)
+
+
+def test_task_overview_signal_states_the_task_before_and_after_the_data(test_user):
+    """The instructions must appear both before the task list (so the
+    model knows what to look for while reading it) and after (restating
+    the task plus the exact output format) -- not only at the very end of
+    what can be a several-hundred-line prompt."""
+    now = datetime(2026, 7, 30, 9, 0, 0)
+    candidates = [_task_candidate('Some task', due_date=None)]
+
+    with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
+        mock_llm_cls.return_value.generate_response.side_effect = LLMResponseException('down')
+        gather_plan_candidates(test_user, now, candidates)
+
+    prompt = mock_llm_cls.return_value.generate_response.call_args.args[0]
+    task_intro = "Look for what's actually worth their attention"
+    assert prompt.count(task_intro) == 2
+    task_before_idx = prompt.index(task_intro)
+    data_idx = prompt.index('Some task')
+    task_after_idx = prompt.rindex(task_intro)
+    assert task_before_idx < data_idx < task_after_idx
+
+
+def test_task_overview_signal_prompt_shows_output_format_with_an_example(test_user):
+    """Naming the JSON keys alone leaves the model guessing what it's
+    actually supposed to produce -- the prompt must show a concrete
+    example of the exact shape, and state that returning one item or
+    several is equally valid."""
+    now = datetime(2026, 7, 30, 9, 0, 0)
+    candidates = [_task_candidate('Some task', due_date=None)]
+
+    with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
+        mock_llm_cls.return_value.generate_response.side_effect = LLMResponseException('down')
+        gather_plan_candidates(test_user, now, candidates)
+
+    prompt = mock_llm_cls.return_value.generate_response.call_args.args[0]
+    assert '"items"' in prompt
+    assert 'Passport renewal is overdue' in prompt  # the concrete example
+    assert 'or a mix of both' in prompt  # explicit permission for either shape
 
 
 def test_task_overview_signal_states_priority_once_per_group_not_per_task(test_user):
@@ -177,7 +262,7 @@ def test_important_email_signal_produces_a_plan_item(test_user):
         mock_llm_cls.return_value.generate_response.side_effect = LLMResponseException('down')
         plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    matching = [c for c in plan_candidates if c['source_id'] == PLAN_SIGNAL_SOURCE_IDS['important_unread_email']]
+    matching = [c for c in plan_candidates if c['source_id'] == _source_id('important_unread_email')]
     assert len(matching) == 1
 
 
@@ -187,7 +272,7 @@ def test_today_overview_signal_absent_when_nothing_scheduled_today(test_user):
 
     plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    assert not any(c['source_id'] == PLAN_SIGNAL_SOURCE_IDS['today_overview'] for c in plan_candidates)
+    assert not any(c['source_id'] == _source_id('today_overview') for c in plan_candidates)
 
 
 def test_today_overview_signal_present_when_something_scheduled_today(test_user):
@@ -198,7 +283,7 @@ def test_today_overview_signal_present_when_something_scheduled_today(test_user)
         mock_llm_cls.return_value.generate_response.side_effect = LLMResponseException('down')
         plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    matching = [c for c in plan_candidates if c['source_id'] == PLAN_SIGNAL_SOURCE_IDS['today_overview']]
+    matching = [c for c in plan_candidates if c['source_id'] == _source_id('today_overview')]
     assert len(matching) == 1
     assert 'Team standup' in matching[0]['reason']
 
@@ -221,20 +306,18 @@ def test_one_failing_signal_does_not_prevent_others(test_user):
         mock_llm_cls.return_value.generate_response.side_effect = LLMResponseException('down')
         plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    assert any(c['source_id'] == PLAN_SIGNAL_SOURCE_IDS['important_unread_email'] for c in plan_candidates)
-    assert not any(c['source_id'] == PLAN_SIGNAL_SOURCE_IDS['task_overview'] for c in plan_candidates)
+    assert any(c['source_id'] == _source_id('important_unread_email') for c in plan_candidates)
+    assert not any(c['source_id'] == _source_id('task_overview') for c in plan_candidates)
 
 
 def test_title_and_reason_are_truncated_to_column_limits(test_user):
     now = datetime(2026, 7, 30, 9, 0, 0)
     candidates = [_task_candidate('Overdue task', now.date().replace(day=28))]
 
-    fake_result = MagicMock()
-    fake_result.get_json_dict.return_value = {'title': 'x' * 500, 'reason': 'y' * 500}
     with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
-        mock_llm_cls.return_value.generate_response.return_value = fake_result
+        mock_llm_cls.return_value.generate_response.return_value = _fake_llm_result(('x' * 500, 'y' * 500))
         plan_candidates = gather_plan_candidates(test_user, now, candidates)
 
-    matching = next(c for c in plan_candidates if c['source_id'] == PLAN_SIGNAL_SOURCE_IDS['task_overview'])
+    matching = next(c for c in plan_candidates if c['source_id'] == _source_id('task_overview'))
     assert len(matching['title']) <= 200
     assert len(matching['reason']) <= 300

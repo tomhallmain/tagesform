@@ -9,9 +9,9 @@ from extensions.llm import LLMResponseException
 pytestmark = pytest.mark.unit
 
 
-def _task_candidate(title, due_date, priority='medium', score=0.5):
+def _task_candidate(title, due_date, priority='medium', project=None, score=0.5):
     return {'item_type': 'task', 'source_id': 1, 'title': title, 'reason': '', 'score': score,
-            'due_date': due_date, 'priority': priority}
+            'due_date': due_date, 'priority': priority, 'project': project}
 
 
 def _email_candidate(title, sender_name, impact='high-impact', score=0.5):
@@ -135,6 +135,38 @@ def test_task_overview_signal_groups_unset_priority_separately(test_user):
     prompt = mock_llm_cls.return_value.generate_response.call_args.args[0]
     assert 'Priority: high' in prompt
     assert 'Priority: unset' in prompt
+
+
+def test_task_overview_signal_subgroups_by_project_within_priority(test_user):
+    now = datetime(2026, 7, 30, 9, 0, 0)
+    candidates = [
+        _task_candidate('Fix bug', due_date=None, priority='high', project='Website'),
+        _task_candidate('Add feature', due_date=None, priority='high', project='Website'),
+        _task_candidate('Buy milk', due_date=None, priority='high', project='Home'),
+    ]
+
+    with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
+        mock_llm_cls.return_value.generate_response.side_effect = LLMResponseException('down')
+        gather_plan_candidates(test_user, now, candidates)
+
+    prompt = mock_llm_cls.return_value.generate_response.call_args.args[0]
+    assert 'Priority: high' in prompt
+    assert 'Project: Website (2 tasks)' in prompt
+    assert 'Project: Home (1 task)' in prompt
+    # project stated once for both tasks that share it, not repeated per task
+    assert prompt.count('Project: Website') == 1
+
+
+def test_task_overview_signal_groups_missing_project_separately(test_user):
+    now = datetime(2026, 7, 30, 9, 0, 0)
+    candidates = [_task_candidate('No project task', due_date=None, priority='high', project=None)]
+
+    with patch.object(planning_agent_service, 'LLM') as mock_llm_cls:
+        mock_llm_cls.return_value.generate_response.side_effect = LLMResponseException('down')
+        gather_plan_candidates(test_user, now, candidates)
+
+    prompt = mock_llm_cls.return_value.generate_response.call_args.args[0]
+    assert 'Project: no project' in prompt
 
 
 def test_important_email_signal_produces_a_plan_item(test_user):

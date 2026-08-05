@@ -129,9 +129,9 @@ def _task_overview_signal(now, candidates, active_schedule_category):
     surfacing, rather than code pre-deciding via a threshold on a field
     that may be sparse.
 
-    Grouping by priority also keeps token usage down for a large task
-    list: the priority is stated once per group header, not repeated on
-    every task line.
+    Grouping by priority (and, within each priority, by project) also
+    keeps token usage down for a large task list: each is stated once per
+    group/subgroup header, not repeated on every task line.
     """
     tasks = [c for c in candidates if c['item_type'] == 'task']
     if not tasks:
@@ -151,15 +151,23 @@ def _task_overview_signal(now, candidates, active_schedule_category):
     for label, group_tasks in groups:
         # Display cap, not a filter -- see config.TASK_OVERVIEW_MAX_PER_GROUP.
         # The header below always states the group's real count, even when
-        # the listed tasks are capped below it.
+        # the listed tasks are capped below it. Applied once per priority
+        # group (not per project) -- project is a presentation-level
+        # subgrouping of whatever this cap already let through.
         shown = group_tasks[:config.TASK_OVERVIEW_MAX_PER_GROUP]
-        lines = '\n'.join(
-            f"- {t['title']}" + (f" (due {t['due_date'].isoformat()})" if t.get('due_date') else '')
-            for t in shown
-        )
+
+        project_blocks = []
+        for project_label, project_tasks in _group_tasks_by_project(shown):
+            lines = '\n'.join(
+                f"  - {t['title']}" + (f" (due {t['due_date'].isoformat()})" if t.get('due_date') else '')
+                for t in project_tasks
+            )
+            project_header = f"  Project: {project_label} ({len(project_tasks)} task{'s' if len(project_tasks) != 1 else ''})"
+            project_blocks.append(f"{project_header}\n{lines}")
+
         header = f"Priority: {label} ({len(group_tasks)} task{'s' if len(group_tasks) != 1 else ''}"
         header += f", showing {len(shown)})" if len(shown) < len(group_tasks) else ")"
-        section_blocks.append(f"{header}\n{lines}")
+        section_blocks.append(header + '\n' + '\n'.join(project_blocks))
     tasks_block = '\n\n'.join(section_blocks)
 
     prompt = (
@@ -196,6 +204,22 @@ def _group_tasks_by_priority(tasks):
         (label for label in groups if label not in TASK_OVERVIEW_PRIORITY_ORDER),
         key=lambda label: -len(groups[label]),
     )
+    return [(label, groups[label]) for label in ordered_labels]
+
+
+def _group_tasks_by_project(tasks):
+    """Same shape as _group_tasks_by_priority, one level down: groups an
+    already priority-grouped (and already capped) task list by the literal
+    project string Mustermeister reports, falling back to a labeled "no
+    project" bucket. No fixed ordering like TASK_OVERVIEW_PRIORITY_ORDER
+    exists for project names, so groups are ordered by descending size,
+    ties broken alphabetically for determinism."""
+    groups = {}
+    for task in tasks:
+        label = task.get('project') or _('no project')
+        groups.setdefault(label, []).append(task)
+
+    ordered_labels = sorted(groups, key=lambda label: (-len(groups[label]), label))
     return [(label, groups[label]) for label in ordered_labels]
 
 

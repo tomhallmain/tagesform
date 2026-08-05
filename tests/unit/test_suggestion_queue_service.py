@@ -173,7 +173,7 @@ def test_task_candidates_scores_overdue_higher_than_far_future(app, test_user, d
     with app.app_context():
         now = datetime(2026, 7, 30, 9, 0, 0)
         overdue = MustermeisterTaskCache(external_id=1, title='Overdue', priority='medium',
-                                          due_date=date(2026, 7, 28))
+                                          due_date=date(2026, 7, 28), project='Website')
         far_future = MustermeisterTaskCache(external_id=2, title='Far Future', priority='medium',
                                              due_date=date(2026, 8, 20))
         db_session.add_all([overdue, far_future])
@@ -188,6 +188,7 @@ def test_task_candidates_scores_overdue_higher_than_far_future(app, test_user, d
         # internal-only fields read by planning_agent_service must survive:
         assert by_title['Overdue']['due_date'] == date(2026, 7, 28)
         assert by_title['Overdue']['priority'] == 'medium'
+        assert by_title['Overdue']['project'] == 'Website'
 
 
 def test_task_candidates_handles_missing_due_date(app, test_user, db_session, monkeypatch):

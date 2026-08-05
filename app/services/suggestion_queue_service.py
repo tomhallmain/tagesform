@@ -324,6 +324,7 @@ def _task_candidates(user, now):
             # internal-only, read by planning_agent_service:
             'due_date': task.due_date,
             'priority': task.priority,
+            'project': task.project,
         })
     return candidates
 

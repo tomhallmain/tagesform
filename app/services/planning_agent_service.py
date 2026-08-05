@@ -190,17 +190,28 @@ TASK_OVERVIEW_PRIORITY_ORDER = ['high', 'medium', 'low', 'leisure']
 
 
 def _task_overview_signal(now, candidates, active_schedule_category):
-    """Every open task, grouped by Mustermeister's own `priority` field --
-    no task is excluded based on due_date or priority. due_date in
-    particular is often unset in practice, so filtering on it would make
-    this signal fire rarely or never; the LLM sees the whole task list,
-    organized for comparison, and decides what's actually worth
-    surfacing, rather than code pre-deciding via a threshold on a field
-    that may be sparse.
+    """Every open task, grouped by Mustermeister's own `priority` field,
+    then `status`, then `project` -- no task is excluded based on any of
+    these or on due_date. due_date and priority are both often unset in
+    practice, so filtering on either would make this signal fire rarely or
+    never; the LLM sees the whole task list, organized for comparison, and
+    decides what's actually worth surfacing, rather than code
+    pre-deciding via a threshold on a field that may be sparse.
 
-    Grouping by priority (and, within each priority, by project) also
-    keeps token usage down for a large task list: each is stated once per
-    group/subgroup header, not repeated on every task line.
+    Status comes before project in the nesting (not the other way around,
+    and not flattened into a per-task detail) because tasks are expected
+    to clump by status more than by project -- and status was previously
+    dropped from this signal entirely, losing real information. Only
+    priority is independently referenceable in "refs" (as
+    [priority:LABEL]) -- status and project values repeat across
+    priority groups, so a bare "status:X" or "project:X" tag would be
+    ambiguous about which priority group it means; task-level refs
+    ([task:ID]) are always available for anything more specific than a
+    whole priority group.
+
+    Grouping this way also keeps token usage down for a large task list:
+    each priority/status/project is stated once per group header, not
+    repeated on every task line.
     """
     tasks = [c for c in candidates if c['item_type'] == 'task']
     if not tasks:
@@ -217,36 +228,43 @@ def _task_overview_signal(now, candidates, active_schedule_category):
     fallback_reason = ', '.join(f"{len(group_tasks)} {label}" for label, group_tasks in groups)
 
     section_blocks = []
-    for label, group_tasks in groups:
+    for priority_label, group_tasks in groups:
         # Display cap, not a filter -- see config.TASK_OVERVIEW_MAX_PER_GROUP.
         # The header below always states the group's real count, even when
         # the listed tasks are capped below it. Applied once per priority
-        # group (not per project) -- project is a presentation-level
-        # subgrouping of whatever this cap already let through.
+        # group -- status/project are presentation-level subgroupings of
+        # whatever this cap already let through.
         shown = group_tasks[:config.TASK_OVERVIEW_MAX_PER_GROUP]
 
-        project_blocks = []
-        for project_label, project_tasks in _group_tasks_by_project(shown):
-            lines = '\n'.join(
-                f"  - [task:{t['source_id']}] {t['title']}"
-                + (f" (due {t['due_date'].isoformat()})" if t.get('due_date') else '')
-                for t in project_tasks
-            )
-            project_header = f"  Project: {project_label} ({len(project_tasks)} task{'s' if len(project_tasks) != 1 else ''})"
-            project_blocks.append(f"{project_header}\n{lines}")
+        status_blocks = []
+        for status_label, status_tasks in _group_tasks_by_status(shown):
+            project_blocks = []
+            for project_label, project_tasks in _group_tasks_by_project(status_tasks):
+                lines = '\n'.join(
+                    f"      - [task:{t['source_id']}] {t['title']}"
+                    + (f" (due {t['due_date'].isoformat()})" if t.get('due_date') else '')
+                    for t in project_tasks
+                )
+                project_header = (
+                    f"    Project: {project_label} "
+                    f"({len(project_tasks)} task{'s' if len(project_tasks) != 1 else ''})"
+                )
+                project_blocks.append(f"{project_header}\n{lines}")
+            status_header = f"  Status: {status_label} ({len(status_tasks)} task{'s' if len(status_tasks) != 1 else ''})"
+            status_blocks.append(status_header + '\n' + '\n'.join(project_blocks))
 
-        header = f"Priority: {label} [priority:{label}] ({len(group_tasks)} task{'s' if len(group_tasks) != 1 else ''}"
+        header = f"Priority: {priority_label} [priority:{priority_label}] ({len(group_tasks)} task{'s' if len(group_tasks) != 1 else ''}"
         header += f", showing {len(shown)})" if len(shown) < len(group_tasks) else ")"
-        section_blocks.append(header + '\n' + '\n'.join(project_blocks))
+        section_blocks.append(header + '\n' + '\n'.join(status_blocks))
     tasks_block = '\n\n'.join(section_blocks)
 
     task = (
         "You are a planning assistant helping someone get a sense of their "
         "open tasks. Look for what's actually worth their attention -- "
-        "specific tasks, specific projects, or the overall shape of the "
-        "workload -- across everything below, grouped by priority and then "
-        "by project. Each task is tagged [task:ID]; each priority group is "
-        "tagged [priority:LABEL]."
+        "specific tasks, specific statuses, specific projects, or the "
+        "overall shape of the workload -- across everything below, "
+        "grouped by priority, then status, then project. Each task is "
+        "tagged [task:ID]; each priority group is tagged [priority:LABEL]."
     )
     prompt = (
         f"{task}\n\n"
@@ -280,20 +298,28 @@ def _group_tasks_by_priority(tasks):
     return [(label, groups[label]) for label in ordered_labels]
 
 
-def _group_tasks_by_project(tasks):
-    """Same shape as _group_tasks_by_priority, one level down: groups an
-    already priority-grouped (and already capped) task list by the literal
-    project string Mustermeister reports, falling back to a labeled "no
-    project" bucket. No fixed ordering like TASK_OVERVIEW_PRIORITY_ORDER
-    exists for project names, so groups are ordered by descending size,
-    ties broken alphabetically for determinism."""
+def _group_tasks_by_label(tasks, field_name, fallback_label):
+    """Shared by _group_tasks_by_status/_group_tasks_by_project -- groups
+    an already priority-grouped (and already capped) task list by the
+    literal string Mustermeister reports for `field_name`, falling back to
+    `fallback_label` when unset. Unlike priority, status and project
+    values have no fixed real-world ordering, so groups are ordered by
+    descending size, ties broken alphabetically for determinism."""
     groups = {}
     for task in tasks:
-        label = task.get('project') or _('no project')
+        label = task.get(field_name) or fallback_label
         groups.setdefault(label, []).append(task)
 
     ordered_labels = sorted(groups, key=lambda label: (-len(groups[label]), label))
     return [(label, groups[label]) for label in ordered_labels]
+
+
+def _group_tasks_by_status(tasks):
+    return _group_tasks_by_label(tasks, 'status', _('no status'))
+
+
+def _group_tasks_by_project(tasks):
+    return _group_tasks_by_label(tasks, 'project', _('no project'))
 
 
 def _important_unread_email_signal(now, candidates, active_schedule_category):

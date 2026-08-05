@@ -325,6 +325,7 @@ def _task_candidates(user, now):
             'due_date': task.due_date,
             'priority': task.priority,
             'project': task.project,
+            'status': task.status,
         })
     return candidates
 

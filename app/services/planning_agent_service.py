@@ -348,39 +348,143 @@ def _group_tasks_by_project(tasks):
     return _group_tasks_by_label(tasks, 'project', _('no project'))
 
 
+# Fixed order for email impact tiers -- 'low-impact' senders are excluded
+# before candidates are ever built (see suggestion_queue_service.
+# _email_candidates), so only these two are expected in practice; any
+# other/unset value falls back to appending after, same convention as
+# _group_tasks_by_label.
+EMAIL_IMPACT_TIER_ORDER = ['high-impact', 'unclassified']
+
+
 def _important_unread_email_signal(now, candidates, active_schedule_category):
-    important = sorted(
-        (c for c in candidates if c['item_type'] == 'email'),
-        key=lambda c: c['score'], reverse=True,
-    )
-    if not important:
+    emails = [c for c in candidates if c['item_type'] == 'email']
+    if not emails:
         return None
 
+    important = sorted(emails, key=lambda c: c['score'], reverse=True)
     fallback_title = (
         important[0]['title'] if len(important) == 1
         else _('{0} important unread emails').format(len(important))
     )
     fallback_reason = ', '.join(c.get('sender_name') or c['title'] for c in important[:5])
 
-    email_lines = '\n'.join(
-        f"- [email:{c['source_id']}] From {c.get('sender_name') or 'an unknown sender'}: "
-        f"\"{c['title']}\" (impact: {c.get('impact') or 'unclassified'})"
-        for c in important
-    )
+    # The number shown to the LLM as [email:N] is a dense 1..N sequence
+    # assigned here at render time, continuing straight through across
+    # groups -- NOT BriefKorbMessageCache.id (source_id), which is
+    # inherently sparse (low-impact senders are filtered out before
+    # candidates are built, rows get retired) and so can never read as a
+    # clean sequence no matter how the list is sorted. A dense sequence
+    # minimizes the referential distance the LLM has to track between
+    # adjacent items. The real source_id is recovered afterward via
+    # display_to_source (see _translate_email_refs) so a plan item's
+    # stable identity (_stable_source_id) is still keyed on the actual
+    # record, not on a display number that shifts every time the unread
+    # list changes.
+    display_to_source = {}
+    display_index = 0
+    section_blocks = []
+    for impact_label, group_emails in _group_emails_by_impact(emails):
+        lines = []
+        for c in group_emails:
+            display_index += 1
+            display_to_source[display_index] = c['source_id']
+            lines.append(
+                f"  - [email:{display_index}] From {c.get('sender_name') or 'an unknown sender'}: "
+                f"\"{c['title']}\" ({_format_email_recency(now, c['last_received_at'])}"
+                + (f", {c['count']} messages" if c.get('count') and c['count'] > 1 else "")
+                + ")"
+            )
+        header = (
+            f"Impact: {impact_label} [impact:{impact_label}] "
+            f"({len(group_emails)} message{'s' if len(group_emails) != 1 else ''})"
+        )
+        section_blocks.append(header + '\n' + '\n'.join(lines))
+    email_block = '\n\n'.join(section_blocks)
+
     task = (
         "You are a planning assistant helping someone triage their inbox. "
         "Look for what's actually worth their attention -- specific "
         "senders or subjects, or the overall shape of what's waiting -- "
-        "across the unread messages below. Each message is tagged "
-        "[email:ID]."
+        "across the unread messages below, grouped by impact tier. Each "
+        "message is tagged [email:ID]; each impact tier is tagged "
+        "[impact:LABEL]."
     )
     prompt = (
         f"{task}\n\n"
-        f"{email_lines}\n\n"
+        f"{email_block}\n\n"
         f"{task}\n\n"
         f"{RESPONSE_FORMAT_INSTRUCTIONS}"
     )
-    return _phrase_with_llm(prompt) or [(fallback_title, fallback_reason, [])]
+    items = _phrase_with_llm(prompt)
+    if items:
+        items = [
+            (title, reason, _translate_email_refs(refs, display_to_source))
+            for title, reason, refs in items
+        ]
+    return items or [(fallback_title, fallback_reason, [])]
+
+
+def _translate_email_refs(refs, display_to_source):
+    """Rewrite each 'email:<display index>' ref the LLM returned back to
+    'email:<real source_id>' via the display_to_source mapping built while
+    rendering the prompt (see _important_unread_email_signal). Refs come
+    back in display-index terms since that's what the prompt showed;
+    _stable_source_id needs the real, per-record id so a plan item's
+    identity doesn't drift just because the display numbering shifts on
+    the next refresh (adding/removing one email renumbers everything
+    after it). Non-email refs (e.g. 'impact:LABEL') pass through
+    unchanged; an 'email:N' whose index wasn't actually shown (a
+    hallucinated ref) is dropped rather than left untranslated, since a
+    bare display index is meaningless outside this one prompt.
+    """
+    translated = []
+    for ref in refs:
+        if not ref.startswith('email:'):
+            translated.append(ref)
+            continue
+        try:
+            display_index = int(ref.split(':', 1)[1])
+        except ValueError:
+            continue
+        source_id = display_to_source.get(display_index)
+        if source_id is not None:
+            translated.append(f'email:{source_id}')
+    return translated
+
+
+def _group_emails_by_impact(emails):
+    """Groups by impact tier (EMAIL_IMPACT_TIER_ORDER first, anything else
+    appended after by descending group size -- same convention as
+    _group_tasks_by_label), each group then sorted newest-received first.
+    Display numbering is assigned separately at render time (see
+    _important_unread_email_signal), so this ordering no longer needs to
+    double as "keeps the displayed numbers in sequence" -- it's free to
+    sort by whatever's actually useful for triage.
+    """
+    groups = {}
+    for email in emails:
+        label = email.get('impact') or 'unclassified'
+        groups.setdefault(label, []).append(email)
+
+    ordered_labels = [label for label in EMAIL_IMPACT_TIER_ORDER if label in groups]
+    ordered_labels += sorted(
+        (label for label in groups if label not in EMAIL_IMPACT_TIER_ORDER),
+        key=lambda label: (-len(groups[label]), label),
+    )
+    for label in ordered_labels:
+        groups[label].sort(key=lambda c: c['last_received_at'], reverse=True)
+    return [(label, groups[label]) for label in ordered_labels]
+
+
+def _format_email_recency(now, received_at):
+    """Human-readable recency for an email line -- also what
+    _group_emails_by_impact sorts each group by."""
+    hours = max((now - received_at).total_seconds() / 3600.0, 0.0)
+    if hours < 1:
+        return _('received under 1h ago')
+    if hours < 24:
+        return _('received {0}h ago').format(int(hours))
+    return _('received {0}d ago').format(int(hours // 24))
 
 
 def _today_overview_signal(now, candidates, active_schedule_category):

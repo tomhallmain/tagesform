@@ -12,7 +12,7 @@ from .utils.logging_setup import get_logger
 logger = get_logger('cli')
 
 DEFAULT_GAZETTEER_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'gazetteer', 'cities15000.tsv'
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'gazetteer', 'cities500.tsv'
 )
 COMMIT_BATCH_SIZE = 2000
 
@@ -41,24 +41,35 @@ def gazetteer_load_command(path):
                 continue
 
             geonameid, asciiname, latitude, longitude, feature_code, country_code, admin1_code, population = fields
+            # Parse every field into a local variable before touching the
+            # ORM/session at all -- a GazetteerPlace added to the session
+            # with only some fields set (e.g. failing on latitude after
+            # already being added) sits there half-populated, and the next
+            # query's autoflush would try to INSERT it and hit the NOT NULL
+            # constraint on latitude/longitude, crashing the whole load on
+            # the line *after* the malformed one instead of just skipping it.
             try:
                 external_id = int(geonameid)
-                place = GazetteerPlace.query.filter_by(external_id=external_id).first()
-                if place is None:
-                    place = GazetteerPlace(external_id=external_id)
-                    db.session.add(place)
-                place.name = asciiname
-                place.normalized_name = asciiname.strip().lower()
-                place.latitude = float(latitude)
-                place.longitude = float(longitude)
-                place.feature_type = feature_code or None
-                place.country_code = country_code or None
-                place.admin_region = admin1_code or None
-                place.population = int(population) if population else None
+                parsed_latitude = float(latitude)
+                parsed_longitude = float(longitude)
+                parsed_population = int(population) if population else None
             except (ValueError, TypeError) as e:
                 logger.error(f'Skipping malformed gazetteer line {line_number}: {e}')
                 skipped += 1
                 continue
+
+            place = GazetteerPlace.query.filter_by(external_id=external_id).first()
+            if place is None:
+                place = GazetteerPlace(external_id=external_id)
+                db.session.add(place)
+            place.name = asciiname
+            place.normalized_name = asciiname.strip().lower()
+            place.latitude = parsed_latitude
+            place.longitude = parsed_longitude
+            place.feature_type = feature_code or None
+            place.country_code = country_code or None
+            place.admin_region = admin1_code or None
+            place.population = parsed_population
 
             loaded += 1
             if loaded % COMMIT_BATCH_SIZE == 0:

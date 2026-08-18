@@ -1,7 +1,7 @@
 from datetime import datetime
 from ..models import (
-    Activity, BriefKorbMessageCache, Entity, EventCache, MustermeisterTaskCache, User,
-    UserCalendarDescriptor, db,
+    Activity, BriefKorbMessageCache, DefaultEventDescriptor, Entity, EventCache,
+    MustermeisterTaskCache, User, UserCalendarDescriptor, db,
 )
 from ..services.activity_service import infer_activity_importance
 from ..services.integration_service import integration_service
@@ -10,6 +10,7 @@ from ..services.custom_calendar_service import (
     parse_descriptor, regenerate_event_cache_for_user, DescriptorValidationError
 )
 from ..services.entity_calendar_service import regenerate_event_cache_for_entity
+from ..services.default_event_service import regenerate_event_cache_for_user_default_events
 from ..services import briefkorb_client, mustermeister_client
 from ..services.suggestion_queue_service import refresh_queue_for_user
 from ..utils.config import config
@@ -126,6 +127,36 @@ def update_event_cache(app):
                 logger.error(f"Error refreshing calendar for entity {entity.id}: {e}")
                 db.session.rollback()
 
+        # Refresh each user's subscribed Default Events (the app-wide
+        # catalog, e.g. Kentucky Derby) independently -- same reasoning as
+        # the two loops above. Skipped entirely for a user with no
+        # subscriptions, so this is a no-op until someone opts into
+        # anything on the settings page.
+        #
+        # Reads (id, subscribed_ids) into plain tuples up front, before the
+        # loop runs, rather than keeping the User ORM objects themselves and
+        # reading .preferences per-iteration -- db.session.rollback() in the
+        # except branch below expires every object still tracked by the
+        # session, not just the one that failed, so a later iteration's
+        # user.preferences access would otherwise force an implicit reload
+        # of an already-expired instance. Plain tuples sidestep that
+        # entirely, since nothing after this point touches a User attribute.
+        if DefaultEventDescriptor.query.count():
+            users_with_subscriptions = [
+                (user.id, (user.preferences or {}).get('subscribed_default_events') or [])
+                for user in User.query.all()
+            ]
+            for user_id, subscribed_ids in users_with_subscriptions:
+                if not subscribed_ids:
+                    continue
+                try:
+                    regenerate_event_cache_for_user_default_events(
+                        user_id, subscribed_ids, years=[current_year, current_year + 1]
+                    )
+                except Exception as e:
+                    logger.error(f"Error refreshing default events for user {user_id}: {e}")
+                    db.session.rollback()
+
 def backfill_computed_calendar_events(app):
     """Background job to backfill computed/deterministic calendar sources
     (Hebrew via Hebcal; equinoxes/solstices/eclipses/moon phases via USNO;
@@ -171,9 +202,9 @@ def backfill_computed_calendar_events(app):
 
 def refresh_mustermeister_tasks(app):
     """Background job to poll Mustermeister's task-insights API and refresh
-    MustermeisterTaskCache. See docs/task-email-integration.md -- the
-    suggestion queue's _task_candidates reads only this local cache, never
-    Mustermeister live, same split as EventCache/get_calendar_events.
+    MustermeisterTaskCache. The suggestion queue's _task_candidates reads
+    only this local cache, never Mustermeister live, same split as
+    EventCache/get_calendar_events.
 
     Upserts by external_id; deletes cached rows Mustermeister no longer
     returns (task completed/deleted/reassigned upstream) -- the fetched set
@@ -230,10 +261,9 @@ def refresh_mustermeister_tasks(app):
 
 def refresh_briefkorb_messages(app):
     """Background job to poll BriefKorb's messages API and refresh
-    BriefKorbMessageCache. See docs/task-email-integration.md -- the
-    suggestion queue's _email_candidates reads only this local cache, never
-    BriefKorb live (every BriefKorb call is a live Graph/Gmail fetch against
-    its own quota).
+    BriefKorbMessageCache. The suggestion queue's _email_candidates reads
+    only this local cache, never BriefKorb live (every BriefKorb call is a
+    live Graph/Gmail fetch against its own quota).
 
     Upserts by (sender_address, provider); deletes cached buckets BriefKorb
     no longer returns (all read/archived upstream, or dropped since none of

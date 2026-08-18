@@ -212,6 +212,41 @@
             </form>
         </div>
 
+        <!-- Default Events -->
+        <div class="p-6">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ _('Default Events') }}</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                {{ _('Opt into recurring events curated for everyone (sports, music, art, and more). They show up alongside public holidays in your Calendar Events.') }}
+            </p>
+            {% if default_event_catalog %}
+            <form method="POST" action="{{ url_for('settings.update_default_events') }}" class="space-y-4">
+                {% for category, events in default_event_catalog|groupby('category') %}
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{{ category }}</h3>
+                    <div class="space-y-2">
+                        {% for event in events %}
+                        <label class="flex items-center">
+                            <input type="checkbox" name="subscribed_default_events" value="{{ event.id }}"
+                                {% if event.id in subscribed_default_events %}checked{% endif %}
+                                class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">{{ event.title }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+                <div class="flex justify-end">
+                    <button type="submit"
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800">
+                        {{ _('Save Default Events') }}
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ _('No default events are available yet.') }}</p>
+            {% endif %}
+        </div>
+
         <!-- Data Management -->
         <div class="p-6">
             <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ _('Data Management') }}</h2>

@@ -2,11 +2,13 @@ from calendar import monthrange
 from datetime import datetime
 
 from ..models import EventCache, db
-from .custom_calendar_service import expand_entries_for_year
+from .custom_calendar_service import (
+    expand_entries_for_year, VALID_RECURRENCES,
+    _validate_nth_weekday_fields, _validate_periodic_years_fields, _validate_seasonal_fields,
+)
 from ..utils.translations import _
 
 VALID_ENTRY_TYPES = ('closure', 'special_hours', 'event', 'other')
-VALID_RECURRENCES = ('once', 'annual')
 ENTITY_CALENDAR_SOURCE = 'Entity Calendar'
 MAX_ENTRIES_PER_ENTITY = 100
 
@@ -75,6 +77,10 @@ def validate_entry_input(data):
         'date': None,
         'month': None,
         'day': None,
+        'weekday': None,
+        'ordinal': None,
+        'interval_years': None,
+        'anchor_year': None,
     }
 
     if recurrence == 'once':
@@ -84,7 +90,7 @@ def validate_entry_input(data):
         except (TypeError, ValueError):
             raise EntityCalendarValidationError(_("'date' must be an ISO date (YYYY-MM-DD)."))
         entry['date'] = parsed_date.isoformat()
-    else:
+    elif recurrence == 'annual':
         month = data.get('month')
         if isinstance(month, bool) or not isinstance(month, int) or not (1 <= month <= 12):
             raise EntityCalendarValidationError(_("'month' must be an integer between 1 and 12."))
@@ -96,6 +102,12 @@ def validate_entry_input(data):
             raise EntityCalendarValidationError(_("'day' must be a valid day for month {0}.").format(month))
         entry['month'] = month
         entry['day'] = day
+    elif recurrence == 'nth_weekday':
+        entry.update(_validate_nth_weekday_fields(data, '', EntityCalendarValidationError))
+    elif recurrence == 'periodic_years':
+        entry.update(_validate_periodic_years_fields(data, '', EntityCalendarValidationError))
+    else:  # seasonal
+        entry.update(_validate_seasonal_fields(data, '', EntityCalendarValidationError))
 
     return entry
 
@@ -115,9 +127,13 @@ def _to_expansion_entry(stored_entry):
         }
     return {
         'title': stored_entry['title'],
-        'recurrence': 'annual',
+        'recurrence': stored_entry['recurrence'],
         'month': stored_entry['month'],
-        'day': stored_entry['day'],
+        'day': stored_entry.get('day'),
+        'weekday': stored_entry.get('weekday'),
+        'ordinal': stored_entry.get('ordinal'),
+        'interval_years': stored_entry.get('interval_years'),
+        'anchor_year': stored_entry.get('anchor_year'),
         'year': None,
         'description': stored_entry['description'],
     }

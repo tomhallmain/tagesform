@@ -143,3 +143,241 @@ def test_expand_entries_for_year_feb_29_falls_back_to_feb_28_in_non_leap_years()
 
     assert occurrences_2027[0]['date'] == datetime(2027, 2, 28)
     assert occurrences_2028[0]['date'] == datetime(2028, 2, 29)
+
+
+# --- nth_weekday / periodic_years / seasonal: parse_descriptor validation ---
+
+def test_parse_descriptor_valid_nth_weekday_entry(app):
+    with app.app_context():
+        entries = parse_descriptor(
+            "events:\n  - title: Kentucky Derby\n    recurrence: nth_weekday\n"
+            "    month: 5\n    weekday: 5\n    ordinal: 1\n"
+        )
+        entry = entries[0]
+        assert entry['month'] == 5
+        assert entry['weekday'] == 5
+        assert entry['ordinal'] == 1
+        assert entry['day'] is None
+        assert entry['year'] is None
+
+
+def test_parse_descriptor_rejects_nth_weekday_missing_weekday(app):
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="weekday"):
+            parse_descriptor("events:\n  - title: X\n    recurrence: nth_weekday\n    month: 5\n    ordinal: 1\n")
+
+
+def test_parse_descriptor_rejects_nth_weekday_missing_ordinal(app):
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="ordinal"):
+            parse_descriptor("events:\n  - title: X\n    recurrence: nth_weekday\n    month: 5\n    weekday: 5\n")
+
+
+@pytest.mark.parametrize("bad_ordinal", [0, 6])
+def test_parse_descriptor_rejects_out_of_range_ordinal(app, bad_ordinal):
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="ordinal"):
+            parse_descriptor(
+                f"events:\n  - title: X\n    recurrence: nth_weekday\n    month: 5\n"
+                f"    weekday: 5\n    ordinal: {bad_ordinal}\n"
+            )
+
+
+def test_parse_descriptor_rejects_boolean_ordinal(app):
+    """Same 'bool is an int subclass' trap as month/day -- True must not be
+    silently treated as ordinal 1."""
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="ordinal"):
+            parse_descriptor(
+                "events:\n  - title: X\n    recurrence: nth_weekday\n    month: 5\n"
+                "    weekday: 5\n    ordinal: true\n"
+            )
+
+
+def test_parse_descriptor_rejects_out_of_range_weekday(app):
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="weekday"):
+            parse_descriptor(
+                "events:\n  - title: X\n    recurrence: nth_weekday\n    month: 5\n"
+                "    weekday: 7\n    ordinal: 1\n"
+            )
+
+
+def test_parse_descriptor_valid_periodic_years_with_fixed_day(app):
+    with app.app_context():
+        entries = parse_descriptor(
+            "events:\n  - title: Olympics\n    recurrence: periodic_years\n"
+            "    interval_years: 4\n    anchor_year: 2024\n    month: 7\n    day: 26\n"
+        )
+        entry = entries[0]
+        assert entry['interval_years'] == 4
+        assert entry['anchor_year'] == 2024
+        assert entry['month'] == 7
+        assert entry['day'] == 26
+        assert entry['weekday'] is None
+        assert entry['ordinal'] is None
+
+
+def test_parse_descriptor_valid_periodic_years_with_weekday_ordinal(app):
+    with app.app_context():
+        entries = parse_descriptor(
+            "events:\n  - title: Quadrennial Thing\n    recurrence: periodic_years\n"
+            "    interval_years: 4\n    anchor_year: 2024\n    month: 5\n"
+            "    weekday: 0\n    ordinal: -1\n"
+        )
+        entry = entries[0]
+        assert entry['day'] is None
+        assert entry['weekday'] == 0
+        assert entry['ordinal'] == -1
+
+
+def test_parse_descriptor_rejects_periodic_years_missing_interval_years(app):
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="interval_years"):
+            parse_descriptor(
+                "events:\n  - title: X\n    recurrence: periodic_years\n"
+                "    anchor_year: 2024\n    month: 7\n    day: 26\n"
+            )
+
+
+def test_parse_descriptor_rejects_periodic_years_interval_below_two(app):
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="interval_years"):
+            parse_descriptor(
+                "events:\n  - title: X\n    recurrence: periodic_years\n"
+                "    interval_years: 1\n    anchor_year: 2024\n    month: 7\n    day: 26\n"
+            )
+
+
+def test_parse_descriptor_rejects_periodic_years_missing_anchor_year(app):
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="anchor_year"):
+            parse_descriptor(
+                "events:\n  - title: X\n    recurrence: periodic_years\n"
+                "    interval_years: 4\n    month: 7\n    day: 26\n"
+            )
+
+
+def test_parse_descriptor_rejects_periodic_years_with_both_day_and_weekday(app):
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="not both"):
+            parse_descriptor(
+                "events:\n  - title: X\n    recurrence: periodic_years\n"
+                "    interval_years: 4\n    anchor_year: 2024\n    month: 5\n"
+                "    day: 1\n    weekday: 0\n    ordinal: 1\n"
+            )
+
+
+def test_parse_descriptor_rejects_periodic_years_with_neither_day_nor_weekday(app):
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="require either"):
+            parse_descriptor(
+                "events:\n  - title: X\n    recurrence: periodic_years\n"
+                "    interval_years: 4\n    anchor_year: 2024\n    month: 5\n"
+            )
+
+
+def test_parse_descriptor_valid_seasonal_entry_defaults_day_to_one(app):
+    with app.app_context():
+        entries = parse_descriptor(
+            "events:\n  - title: Dripping Springs Music Festival\n    recurrence: seasonal\n    month: 10\n"
+        )
+        entry = entries[0]
+        assert entry['month'] == 10
+        assert entry['day'] == 1
+
+
+def test_parse_descriptor_valid_seasonal_entry_with_explicit_day(app):
+    with app.app_context():
+        entries = parse_descriptor(
+            "events:\n  - title: X\n    recurrence: seasonal\n    month: 10\n    day: 15\n"
+        )
+        assert entries[0]['day'] == 15
+
+
+def test_parse_descriptor_rejects_seasonal_missing_month(app):
+    with app.app_context():
+        with pytest.raises(DescriptorValidationError, match="month"):
+            parse_descriptor("events:\n  - title: X\n    recurrence: seasonal\n")
+
+
+# --- nth_weekday / periodic_years / seasonal: expand_entries_for_year ---
+
+def test_expand_entries_for_year_nth_weekday_resolves_first_saturday_in_may():
+    """Kentucky Derby: first Saturday in May -- checked against the real
+    known 2024 date (May 4), not just internal consistency."""
+    entries = [{'title': 'Kentucky Derby', 'recurrence': 'nth_weekday', 'month': 5,
+                'weekday': 5, 'ordinal': 1, 'description': None, 'location': None, 'year': None}]
+
+    assert expand_entries_for_year(entries, 2024)[0]['date'] == datetime(2024, 5, 4)
+    assert expand_entries_for_year(entries, 2026)[0]['date'] == datetime(2026, 5, 2)
+    assert expand_entries_for_year(entries, 2027)[0]['date'] == datetime(2027, 5, 1)
+
+
+def test_expand_entries_for_year_nth_weekday_ordinal_5_skips_years_without_a_fifth_occurrence():
+    entries = [{'title': '5th Sunday of Feb', 'recurrence': 'nth_weekday', 'month': 2,
+                'weekday': 6, 'ordinal': 5, 'description': None, 'location': None, 'year': None}]
+
+    assert expand_entries_for_year(entries, 2026) == []  # Feb 2026 (28 days) has no 5th Sunday
+    assert expand_entries_for_year(entries, 2032)[0]['date'] == datetime(2032, 2, 29)  # leap year that has one
+
+
+def test_expand_entries_for_year_nth_weekday_ordinal_negative_one_resolves_last_occurrence():
+    entries = [{'title': 'Last Monday in May', 'recurrence': 'nth_weekday', 'month': 5,
+                'weekday': 0, 'ordinal': -1, 'description': None, 'location': None, 'year': None}]
+
+    assert expand_entries_for_year(entries, 2024)[0]['date'] == datetime(2024, 5, 27)
+
+
+def test_expand_entries_for_year_periodic_years_with_fixed_day_only_matches_interval_years():
+    entries = [{'title': 'Olympics', 'recurrence': 'periodic_years', 'interval_years': 4,
+                'anchor_year': 2024, 'month': 7, 'day': 26, 'weekday': None, 'ordinal': None,
+                'description': None, 'location': None, 'year': None}]
+
+    assert expand_entries_for_year(entries, 2025) == []
+    assert expand_entries_for_year(entries, 2026) == []
+    assert expand_entries_for_year(entries, 2028)[0]['date'] == datetime(2028, 7, 26)
+
+
+def test_expand_entries_for_year_periodic_years_with_weekday_ordinal_resolves_in_matching_years():
+    entries = [{'title': 'Quadrennial Thing', 'recurrence': 'periodic_years', 'interval_years': 4,
+                'anchor_year': 2024, 'month': 5, 'day': None, 'weekday': 0, 'ordinal': -1,
+                'description': None, 'location': None, 'year': None}]
+
+    assert expand_entries_for_year(entries, 2026) == []
+    assert expand_entries_for_year(entries, 2024)[0]['date'] == datetime(2024, 5, 27)
+    assert expand_entries_for_year(entries, 2028)[0]['date'] == datetime(2028, 5, 29)
+
+
+def test_expand_entries_for_year_seasonal_recurs_every_year_with_approximate_marker():
+    entries = [{'title': 'Dripping Springs Music Festival', 'recurrence': 'seasonal', 'month': 10,
+                'day': 1, 'description': None, 'location': None, 'year': None}]
+
+    occurrence_2026 = expand_entries_for_year(entries, 2026)[0]
+    occurrence_2027 = expand_entries_for_year(entries, 2027)[0]
+
+    assert occurrence_2026['date'] == datetime(2026, 10, 1)
+    assert occurrence_2027['date'] == datetime(2027, 10, 1)
+    assert 'approximate' in occurrence_2026['description']
+
+
+def test_expand_entries_for_year_seasonal_appends_marker_to_existing_description():
+    entries = [{'title': 'Some Festival', 'recurrence': 'seasonal', 'month': 6, 'day': 15,
+                'description': 'Annual outdoor gathering', 'location': None, 'year': None}]
+
+    occurrence = expand_entries_for_year(entries, 2026)[0]
+    assert occurrence['description'].startswith('Annual outdoor gathering')
+    assert 'approximate' in occurrence['description']
+
+
+def test_expand_entries_for_year_seasonal_defaults_missing_day_key_to_one():
+    """parse_descriptor's validator always fills in day=1 when omitted, but
+    expand_entries_for_year is also reached by callers that build entries
+    directly from trusted data with no validation step (e.g.
+    default_event_service.py's DB-seeded catalog rows) -- the default has
+    to hold here too, for an entry that has no 'day' key at all, not only
+    for entries that already went through _validate_seasonal_fields."""
+    entries = [{'title': 'Some Festival', 'recurrence': 'seasonal', 'month': 10,
+                'description': None, 'location': None, 'year': None}]  # no 'day' key
+
+    assert expand_entries_for_year(entries, 2026)[0]['date'] == datetime(2026, 10, 1)

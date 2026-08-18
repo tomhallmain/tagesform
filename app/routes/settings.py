@@ -2,12 +2,13 @@ from datetime import datetime
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
-from ..models import Activity, ScheduleRecord, Entity, UserCalendarDescriptor, db
+from ..models import Activity, ScheduleRecord, Entity, UserCalendarDescriptor, DefaultEventDescriptor, db
 from ..services import geocoding_service
 from ..services.custom_calendar_service import (
     parse_descriptor, regenerate_event_cache_for_user, delete_event_cache_for_user,
     DescriptorValidationError,
 )
+from ..services.default_event_service import regenerate_event_cache_for_user_default_events
 from ..services.suggestion_queue_service import DEFAULT_NEARBY_DISTANCE_MILES
 from ..utils.translations import I18N, _
 
@@ -18,11 +19,17 @@ settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 def settings():
     available_languages = I18N.get_available_languages()
     calendar_descriptor = UserCalendarDescriptor.query.filter_by(user_id=current_user.id).first()
+    default_event_catalog = DefaultEventDescriptor.query.order_by(
+        DefaultEventDescriptor.category, DefaultEventDescriptor.title
+    ).all()
+    subscribed_default_events = set((current_user.preferences or {}).get('subscribed_default_events') or [])
     return render_template(
         'settings.html',
         preferences=current_user.preferences or {},
         available_languages=available_languages,
         calendar_descriptor=calendar_descriptor,
+        default_event_catalog=default_event_catalog,
+        subscribed_default_events=subscribed_default_events,
         default_nearby_distance_miles=DEFAULT_NEARBY_DISTANCE_MILES,
     )
 
@@ -74,9 +81,9 @@ def update_display():
 @login_required
 def update_location():
     """Save the user's home-base location (freeform text, geocoded
-    best-effort against the local gazetteer -- see
-    docs/entity-geolocation.md) and their nearby-distance preference, used
-    together by the suggestion queue's entity proximity filtering.
+    best-effort against the local gazetteer) and their nearby-distance
+    preference, used together by the suggestion queue's entity proximity
+    filtering.
 
     A location that fails to geocode is still saved as free text (so the
     user doesn't lose what they typed), just without coordinates -- the
@@ -215,6 +222,40 @@ def delete_calendar_descriptor():
         return jsonify({'message': _('Custom calendar removed.'), 'type': 'success'})
 
     flash(_('Custom calendar removed.'), 'success')
+    return redirect(url_for('settings.settings'))
+
+@settings_bp.route('/update-default-events', methods=['POST'])
+@login_required
+def update_default_events():
+    """Save which app-wide catalog events (see DefaultEventDescriptor) the
+    user is opted into, and immediately regenerate their Default Event
+    EventCache rows for this year and next -- same synchronous-refresh-on-
+    save pattern as update_calendar_descriptor.
+
+    Submitted ids that no longer exist in the catalog are silently dropped
+    rather than erroring the whole save -- the checkboxes are rendered from
+    the live catalog, so a stale id only happens if the catalog changed
+    between page load and submit.
+    """
+    raw_ids = request.form.getlist('subscribed_default_events')
+    submitted_ids = {int(raw_id) for raw_id in raw_ids if raw_id.isdigit()}
+    valid_ids = [
+        row.id for row in DefaultEventDescriptor.query.filter(
+            DefaultEventDescriptor.id.in_(submitted_ids)
+        ).all()
+    ] if submitted_ids else []
+
+    current_user.update_preferences({'subscribed_default_events': valid_ids})
+
+    current_year = datetime.utcnow().year
+    regenerate_event_cache_for_user_default_events(
+        current_user.id, valid_ids, years=[current_year, current_year + 1]
+    )
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'message': _('Default events updated!'), 'type': 'success'})
+
+    flash(_('Default events updated!'), 'success')
     return redirect(url_for('settings.settings'))
 
 @settings_bp.route('/export-data')
